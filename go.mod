@@ -1,3 +1,3 @@
-module github.com/yourusername/arex
+module github.com/krisiasty/arex
 
-go 1.22
+go 1.26

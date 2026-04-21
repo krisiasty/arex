@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yourusername/arex/config"
-	"github.com/yourusername/arex/internal/eapi"
+	"github.com/krisiasty/arex/config"
+	"github.com/krisiasty/arex/internal/eapi"
 )
 
 // SwitchData holds the latest collected data for one switch.
@@ -18,13 +18,13 @@ type SwitchData struct {
 	LastSuccess time.Time
 	ScrapeErr   error
 
-	Version     eapi.ShowVersion
-	ProcessTop  eapi.ShowProcessesTop
-	EnvTemp     eapi.ShowEnvironmentTemp
-	EnvPower    eapi.ShowEnvironmentPower
-	EnvCooling  eapi.ShowEnvironmentCooling
-	Interfaces  eapi.ShowInterfaces
-	BGPSummary  eapi.ShowBGPSummary
+	Version    eapi.ShowVersion
+	ProcessTop eapi.ShowProcessesTop
+	EnvTemp    eapi.ShowEnvironmentTemp
+	EnvPower   eapi.ShowEnvironmentPower
+	EnvCooling eapi.ShowEnvironmentCooling
+	Interfaces eapi.ShowInterfaces
+	BGPSummary eapi.ShowBGPSummary
 }
 
 // RLock / RUnlock expose the read lock for callers rendering metrics.
@@ -130,14 +130,14 @@ func Collect(client *eapi.Client, data *SwitchData) {
 	data.mu.Lock()
 	defer data.mu.Unlock()
 
-	data.Version     = version
-	data.ProcessTop  = processTop
-	data.EnvTemp     = envTemp
-	data.EnvPower    = envPower
-	data.EnvCooling  = envCooling
-	data.Interfaces  = interfaces
-	data.BGPSummary  = bgp
-	data.ScrapeErr   = nil
+	data.Version = version
+	data.ProcessTop = processTop
+	data.EnvTemp = envTemp
+	data.EnvPower = envPower
+	data.EnvCooling = envCooling
+	data.Interfaces = interfaces
+	data.BGPSummary = bgp
+	data.ScrapeErr = nil
 	data.LastSuccess = time.Now()
 }
 

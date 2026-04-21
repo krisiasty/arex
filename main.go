@@ -5,10 +5,10 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/yourusername/arex/config"
-	"github.com/yourusername/arex/internal/collector"
-	"github.com/yourusername/arex/internal/eapi"
-	"github.com/yourusername/arex/internal/metrics"
+	"github.com/krisiasty/arex/config"
+	"github.com/krisiasty/arex/internal/collector"
+	"github.com/krisiasty/arex/internal/eapi"
+	"github.com/krisiasty/arex/internal/metrics"
 )
 
 func main() {
@@ -50,7 +50,7 @@ func main() {
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	})
 
 	log.Printf("arex listening on %s", cfg.ListenAddress)

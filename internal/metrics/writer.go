@@ -5,8 +5,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/yourusername/arex/internal/collector"
-	"github.com/yourusername/arex/internal/eapi"
+	"github.com/krisiasty/arex/internal/collector"
+	"github.com/krisiasty/arex/internal/eapi"
 )
 
 // Write renders all metrics for all switches in Prometheus text exposition
@@ -38,8 +38,8 @@ func writeSwitch(w io.Writer, sw *collector.SwitchData, now time.Time, staleness
 		age = -1 // not yet collected
 	}
 
-	fmt.Fprintf(w, "arista_scrape_success{switch=%q} %g\n", host, upVal)
-	fmt.Fprintf(w, "arista_scrape_age_seconds{switch=%q} %g\n", host, age)
+	_, _ = fmt.Fprintf(w, "arista_scrape_success{switch=%q} %g\n", host, upVal)
+	_, _ = fmt.Fprintf(w, "arista_scrape_age_seconds{switch=%q} %g\n", host, age)
 
 	// Do not emit stale metrics — Prometheus will handle disappearing series.
 	if !lastSuccess.IsZero() && now.Sub(lastSuccess) > stalenessLimit {
@@ -61,7 +61,7 @@ func writeSwitch(w io.Writer, sw *collector.SwitchData, now time.Time, staleness
 // writeVersion emits switch identity and resource metrics from show version.
 func writeVersion(w io.Writer, host string, v eapi.ShowVersion) {
 	// Static identity as an info metric — use in PromQL joins.
-	fmt.Fprintf(w, "arista_info{switch=%q,model=%q,serial=%q,version=%q,mac=%q,arch=%q} 1\n",
+	_, _ = fmt.Fprintf(w, "arista_info{switch=%q,model=%q,serial=%q,version=%q,mac=%q,arch=%q} 1\n",
 		host, v.ModelName, v.SerialNumber, v.Version, v.SystemMacAddress, v.Architecture)
 
 	// Bootup timestamp — derive uptime in PromQL as: time() - arista_boot_timestamp_seconds
@@ -301,7 +301,7 @@ func writeHelp(w io.Writer) {
 		"# TYPE arista_bgp_peer_uptime_seconds gauge",
 	}
 	for _, l := range lines {
-		fmt.Fprintln(w, l)
+		_, _ = fmt.Fprintln(w, l)
 	}
 }
 
