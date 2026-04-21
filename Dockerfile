@@ -2,7 +2,7 @@ FROM golang:1.26-alpine AS builder
 
 WORKDIR /src
 COPY . .
-RUN go build -o /arex ./cmd/arex
+RUN go build -o /arex .
 
 FROM alpine:3.23
 RUN apk --no-cache add ca-certificates

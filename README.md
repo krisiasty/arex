@@ -77,7 +77,7 @@ username prometheus privilege 15 role prometheus-ro secret SHA512 <hash>
 
 ```bash
 # Build
-go build -o arex ./cmd/arex
+go build -o arex .
 
 # Run
 ./arex -config config.json
