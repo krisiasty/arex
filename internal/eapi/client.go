@@ -2,6 +2,7 @@ package eapi
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -27,7 +28,7 @@ func NewClient(host, username, password string, timeout time.Duration, skipVerif
 		httpClient: &http.Client{
 			Timeout: timeout,
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: skipVerify},
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: skipVerify}, //nolint:gosec
 			},
 		},
 	}
@@ -75,7 +76,7 @@ func (c *Client) Run(cmds []string) ([]json.RawMessage, error) {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequest(http.MethodPost, c.url, bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, c.url, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}

@@ -65,42 +65,42 @@ func writeVersion(w io.Writer, host string, v eapi.ShowVersion) {
 		host, v.ModelName, v.SerialNumber, v.Version, v.SystemMacAddress, v.Architecture)
 
 	// Bootup timestamp — derive uptime in PromQL as: time() - arista_boot_timestamp_seconds
-	fmt.Fprintf(w, "arista_boot_timestamp_seconds{switch=%q} %g\n", host, v.BootupTimestamp)
+	_, _ = fmt.Fprintf(w, "arista_boot_timestamp_seconds{switch=%q} %g\n", host, v.BootupTimestamp)
 
 	// Memory from show version (kilobytes → bytes)
-	fmt.Fprintf(w, "arista_memory_total_bytes{switch=%q} %d\n", host, v.MemTotal*1024)
-	fmt.Fprintf(w, "arista_memory_free_bytes{switch=%q} %d\n", host, v.MemFree*1024)
+	_, _ = fmt.Fprintf(w, "arista_memory_total_bytes{switch=%q} %d\n", host, v.MemTotal*1024)
+	_, _ = fmt.Fprintf(w, "arista_memory_free_bytes{switch=%q} %d\n", host, v.MemFree*1024)
 }
 
 // writeCPUMemory emits CPU and load average metrics from show processes top once.
 func writeCPUMemory(w io.Writer, host string, p eapi.ShowProcessesTop) {
 	cpu := p.CpuInfo.Cpu
-	fmt.Fprintf(w, "arista_cpu_user_percent{switch=%q} %g\n", host, cpu.User)
-	fmt.Fprintf(w, "arista_cpu_system_percent{switch=%q} %g\n", host, cpu.System)
-	fmt.Fprintf(w, "arista_cpu_idle_percent{switch=%q} %g\n", host, cpu.Idle)
-	fmt.Fprintf(w, "arista_cpu_iowait_percent{switch=%q} %g\n", host, cpu.IoWait)
+	_, _ = fmt.Fprintf(w, "arista_cpu_user_percent{switch=%q} %g\n", host, cpu.User)
+	_, _ = fmt.Fprintf(w, "arista_cpu_system_percent{switch=%q} %g\n", host, cpu.System)
+	_, _ = fmt.Fprintf(w, "arista_cpu_idle_percent{switch=%q} %g\n", host, cpu.Idle)
+	_, _ = fmt.Fprintf(w, "arista_cpu_iowait_percent{switch=%q} %g\n", host, cpu.IoWait)
 
 	if len(p.TimeInfo.LoadAvg) == 3 {
-		fmt.Fprintf(w, "arista_load_avg_1m{switch=%q} %g\n", host, p.TimeInfo.LoadAvg[0])
-		fmt.Fprintf(w, "arista_load_avg_5m{switch=%q} %g\n", host, p.TimeInfo.LoadAvg[1])
-		fmt.Fprintf(w, "arista_load_avg_15m{switch=%q} %g\n", host, p.TimeInfo.LoadAvg[2])
+		_, _ = fmt.Fprintf(w, "arista_load_avg_1m{switch=%q} %g\n", host, p.TimeInfo.LoadAvg[0])
+		_, _ = fmt.Fprintf(w, "arista_load_avg_5m{switch=%q} %g\n", host, p.TimeInfo.LoadAvg[1])
+		_, _ = fmt.Fprintf(w, "arista_load_avg_15m{switch=%q} %g\n", host, p.TimeInfo.LoadAvg[2])
 	}
 }
 
 // writeTemperature emits metrics from show system environment temperature.
 func writeTemperature(w io.Writer, host string, env eapi.ShowEnvironmentTemp) {
 	systemOk := boolToFloat(env.SystemStatus == "temperatureOk")
-	fmt.Fprintf(w, "arista_temperature_system_ok{switch=%q} %g\n", host, systemOk)
+	_, _ = fmt.Fprintf(w, "arista_temperature_system_ok{switch=%q} %g\n", host, systemOk)
 
 	emitSensor := func(s eapi.TempSensor, location string) {
 		l := fmt.Sprintf("switch=%q,sensor=%q,location=%q,description=%q",
 			host, s.Name, location, s.Description)
-		fmt.Fprintf(w, "arista_temperature_celsius{%s} %g\n", l, s.CurrentTemperature)
-		fmt.Fprintf(w, "arista_temperature_max_celsius{%s} %g\n", l, s.MaxTemperature)
-		fmt.Fprintf(w, "arista_temperature_overheat_threshold_celsius{%s} %g\n", l, s.OverheatThreshold)
-		fmt.Fprintf(w, "arista_temperature_critical_threshold_celsius{%s} %g\n", l, s.CriticalThreshold)
-		fmt.Fprintf(w, "arista_temperature_alert{%s} %g\n", l, boolToFloat(s.InAlertState))
-		fmt.Fprintf(w, "arista_temperature_sensor_ok{%s} %g\n", l, boolToFloat(s.HwStatus == "ok"))
+		_, _ = fmt.Fprintf(w, "arista_temperature_celsius{%s} %g\n", l, s.CurrentTemperature)
+		_, _ = fmt.Fprintf(w, "arista_temperature_max_celsius{%s} %g\n", l, s.MaxTemperature)
+		_, _ = fmt.Fprintf(w, "arista_temperature_overheat_threshold_celsius{%s} %g\n", l, s.OverheatThreshold)
+		_, _ = fmt.Fprintf(w, "arista_temperature_critical_threshold_celsius{%s} %g\n", l, s.CriticalThreshold)
+		_, _ = fmt.Fprintf(w, "arista_temperature_alert{%s} %g\n", l, boolToFloat(s.InAlertState))
+		_, _ = fmt.Fprintf(w, "arista_temperature_sensor_ok{%s} %g\n", l, boolToFloat(s.HwStatus == "ok"))
 	}
 
 	for _, s := range env.TempSensors {
@@ -114,20 +114,20 @@ func writePower(w io.Writer, host string, env eapi.ShowEnvironmentPower) {
 	for slot, psu := range env.PowerSupplies {
 		pl := fmt.Sprintf("switch=%q,psu=%q,model=%q", host, slot, psu.ModelName)
 
-		fmt.Fprintf(w, "arista_psu_ok{%s} %g\n", pl, boolToFloat(psu.State == "ok"))
-		fmt.Fprintf(w, "arista_psu_capacity_watts{%s} %g\n", pl, psu.Capacity)
-		fmt.Fprintf(w, "arista_psu_output_power_watts{%s} %g\n", pl, psu.OutputPower)
-		fmt.Fprintf(w, "arista_psu_input_voltage_volts{%s} %g\n", pl, psu.InputVoltage)
-		fmt.Fprintf(w, "arista_psu_output_voltage_volts{%s} %g\n", pl, psu.OutputVoltage)
-		fmt.Fprintf(w, "arista_psu_input_current_amps{%s} %g\n", pl, psu.InputCurrent)
-		fmt.Fprintf(w, "arista_psu_output_current_amps{%s} %g\n", pl, psu.OutputCurrent)
-		fmt.Fprintf(w, "arista_psu_boot_timestamp_seconds{%s} %g\n", pl, psu.Uptime)
+		_, _ = fmt.Fprintf(w, "arista_psu_ok{%s} %g\n", pl, boolToFloat(psu.State == "ok"))
+		_, _ = fmt.Fprintf(w, "arista_psu_capacity_watts{%s} %g\n", pl, psu.Capacity)
+		_, _ = fmt.Fprintf(w, "arista_psu_output_power_watts{%s} %g\n", pl, psu.OutputPower)
+		_, _ = fmt.Fprintf(w, "arista_psu_input_voltage_volts{%s} %g\n", pl, psu.InputVoltage)
+		_, _ = fmt.Fprintf(w, "arista_psu_output_voltage_volts{%s} %g\n", pl, psu.OutputVoltage)
+		_, _ = fmt.Fprintf(w, "arista_psu_input_current_amps{%s} %g\n", pl, psu.InputCurrent)
+		_, _ = fmt.Fprintf(w, "arista_psu_output_current_amps{%s} %g\n", pl, psu.OutputCurrent)
+		_, _ = fmt.Fprintf(w, "arista_psu_boot_timestamp_seconds{%s} %g\n", pl, psu.Uptime)
 
 		// PSU temp sensors
 		for sensorName, sensor := range psu.TempSensors {
 			sl := fmt.Sprintf("switch=%q,psu=%q,sensor=%q", host, slot, sensorName)
-			fmt.Fprintf(w, "arista_psu_temperature_celsius{%s} %g\n", sl, sensor.Temperature)
-			fmt.Fprintf(w, "arista_psu_temperature_sensor_ok{%s} %g\n", sl,
+			_, _ = fmt.Fprintf(w, "arista_psu_temperature_celsius{%s} %g\n", sl, sensor.Temperature)
+			_, _ = fmt.Fprintf(w, "arista_psu_temperature_sensor_ok{%s} %g\n", sl,
 				boolToFloat(sensor.Status == "ok"))
 		}
 	}
@@ -135,22 +135,22 @@ func writePower(w io.Writer, host string, env eapi.ShowEnvironmentPower) {
 
 // writeCooling emits metrics from show system environment cooling.
 func writeCooling(w io.Writer, host string, env eapi.ShowEnvironmentCooling) {
-	fmt.Fprintf(w, "arista_cooling_ok{switch=%q} %g\n", host,
+	_, _ = fmt.Fprintf(w, "arista_cooling_ok{switch=%q} %g\n", host,
 		boolToFloat(env.SystemStatus == "coolingOk"))
-	fmt.Fprintf(w, "arista_cooling_ambient_temperature_celsius{switch=%q} %g\n",
+	_, _ = fmt.Fprintf(w, "arista_cooling_ambient_temperature_celsius{switch=%q} %g\n",
 		host, env.AmbientTemperature)
-	fmt.Fprintf(w, "arista_cooling_info{switch=%q,airflow=%q,mode=%q} 1\n",
+	_, _ = fmt.Fprintf(w, "arista_cooling_info{switch=%q,airflow=%q,mode=%q} 1\n",
 		host, env.AirflowDirection, env.CoolingMode)
 
 	emitFan := func(f eapi.Fan, tray, location string) {
 		l := fmt.Sprintf("switch=%q,tray=%q,fan=%q,location=%q",
 			host, tray, f.Label, location)
-		fmt.Fprintf(w, "arista_fan_ok{%s} %g\n", l, boolToFloat(f.Status == "ok"))
-		fmt.Fprintf(w, "arista_fan_speed_configured_percent{%s} %d\n", l, f.ConfiguredSpeed)
-		fmt.Fprintf(w, "arista_fan_speed_actual_percent{%s} %d\n", l, f.ActualSpeed)
-		fmt.Fprintf(w, "arista_fan_speed_max_rpm{%s} %d\n", l, f.MaxSpeed)
-		fmt.Fprintf(w, "arista_fan_speed_stable{%s} %g\n", l, boolToFloat(f.SpeedStable))
-		fmt.Fprintf(w, "arista_fan_boot_timestamp_seconds{%s} %g\n", l, f.Uptime)
+		_, _ = fmt.Fprintf(w, "arista_fan_ok{%s} %g\n", l, boolToFloat(f.Status == "ok"))
+		_, _ = fmt.Fprintf(w, "arista_fan_speed_configured_percent{%s} %d\n", l, f.ConfiguredSpeed)
+		_, _ = fmt.Fprintf(w, "arista_fan_speed_actual_percent{%s} %d\n", l, f.ActualSpeed)
+		_, _ = fmt.Fprintf(w, "arista_fan_speed_max_rpm{%s} %d\n", l, f.MaxSpeed)
+		_, _ = fmt.Fprintf(w, "arista_fan_speed_stable{%s} %g\n", l, boolToFloat(f.SpeedStable))
+		_, _ = fmt.Fprintf(w, "arista_fan_boot_timestamp_seconds{%s} %g\n", l, f.Uptime)
 	}
 
 	for _, tray := range env.FanTraySlots {
@@ -171,13 +171,13 @@ func writeInterfaces(w io.Writer, host string, ifaces eapi.ShowInterfaces) {
 		l := fmt.Sprintf("switch=%q,interface=%q", host, name)
 		linkUp := boolToFloat(iface.LineProtocolStatus == "up")
 
-		fmt.Fprintf(w, "arista_interface_link_up{%s} %g\n", l, linkUp)
-		fmt.Fprintf(w, "arista_interface_in_octets_total{%s} %d\n", l, iface.InterfaceCounters.InOctets)
-		fmt.Fprintf(w, "arista_interface_out_octets_total{%s} %d\n", l, iface.InterfaceCounters.OutOctets)
-		fmt.Fprintf(w, "arista_interface_in_errors_total{%s} %d\n", l, iface.InterfaceCounters.InputErrors)
-		fmt.Fprintf(w, "arista_interface_out_errors_total{%s} %d\n", l, iface.InterfaceCounters.OutputErrors)
-		fmt.Fprintf(w, "arista_interface_in_discards_total{%s} %d\n", l, iface.InterfaceCounters.InDiscards)
-		fmt.Fprintf(w, "arista_interface_out_discards_total{%s} %d\n", l, iface.InterfaceCounters.TotalOutDrops)
+		_, _ = fmt.Fprintf(w, "arista_interface_link_up{%s} %g\n", l, linkUp)
+		_, _ = fmt.Fprintf(w, "arista_interface_in_octets_total{%s} %d\n", l, iface.InterfaceCounters.InOctets)
+		_, _ = fmt.Fprintf(w, "arista_interface_out_octets_total{%s} %d\n", l, iface.InterfaceCounters.OutOctets)
+		_, _ = fmt.Fprintf(w, "arista_interface_in_errors_total{%s} %d\n", l, iface.InterfaceCounters.InputErrors)
+		_, _ = fmt.Fprintf(w, "arista_interface_out_errors_total{%s} %d\n", l, iface.InterfaceCounters.OutputErrors)
+		_, _ = fmt.Fprintf(w, "arista_interface_in_discards_total{%s} %d\n", l, iface.InterfaceCounters.InDiscards)
+		_, _ = fmt.Fprintf(w, "arista_interface_out_discards_total{%s} %d\n", l, iface.InterfaceCounters.TotalOutDrops)
 	}
 }
 
@@ -187,11 +187,11 @@ func writeBGP(w io.Writer, host string, bgp eapi.ShowBGPSummary) {
 		for peer, p := range v.Peers {
 			l := fmt.Sprintf("switch=%q,vrf=%q,peer=%q,asn=%d", host, vrf, peer, p.Asn)
 			peerUp := boolToFloat(p.PeerState == "Established")
-			fmt.Fprintf(w, "arista_bgp_peer_up{%s} %g\n", l, peerUp)
-			fmt.Fprintf(w, "arista_bgp_peer_prefixes_received{%s} %d\n", l, p.PrefixReceived)
+			_, _ = fmt.Fprintf(w, "arista_bgp_peer_up{%s} %g\n", l, peerUp)
+			_, _ = fmt.Fprintf(w, "arista_bgp_peer_prefixes_received{%s} %d\n", l, p.PrefixReceived)
 			// uptime is 0 when peer is down — only emit when meaningful
 			if p.PeerState == "Established" {
-				fmt.Fprintf(w, "arista_bgp_peer_uptime_seconds{%s} %g\n", l, p.Uptime)
+				_, _ = fmt.Fprintf(w, "arista_bgp_peer_uptime_seconds{%s} %g\n", l, p.Uptime)
 			}
 		}
 	}

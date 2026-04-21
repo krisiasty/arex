@@ -37,7 +37,7 @@ func (s SwitchConfig) Label() string {
 
 // Load reads and parses a JSON config file from path.
 func Load(path string) (*Config, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("open config: %w", err)
 	}

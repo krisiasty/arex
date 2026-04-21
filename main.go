@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/krisiasty/arex/config"
 	"github.com/krisiasty/arex/internal/collector"
@@ -54,5 +55,10 @@ func main() {
 	})
 
 	log.Printf("arex listening on %s", cfg.ListenAddress)
-	log.Fatal(http.ListenAndServe(cfg.ListenAddress, nil))
+	srv := &http.Server{
+		Addr:         cfg.ListenAddress,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+	}
+	log.Fatal(srv.ListenAndServe())
 }
