@@ -1,0 +1,21 @@
+{
+  "listenAddress": ":9100",
+  "pollInterval": "30s",
+  "scrapeTimeout": "10s",
+  "tlsSkipVerify": true,
+  "stalenessLimit": "90s",
+  "switches": [
+    {
+      "host": "https://192.168.1.1",
+      "username": "prometheus",
+      "password": "secret",
+      "name": "spine1"
+    },
+    {
+      "host": "https://192.168.1.2",
+      "username": "prometheus",
+      "password": "secret",
+      "name": "spine2"
+    }
+  ]
+}
