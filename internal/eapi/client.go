@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/http/httptrace"
 	"time"
 )
 
@@ -13,8 +15,12 @@ import (
 type Client struct {
 	httpClient *http.Client
 	url        string
+	path       string
 	username   string
 	password   string
+
+	debug bool
+	name  string
 }
 
 // NewClient creates a new eAPI client for one switch.
@@ -22,21 +28,31 @@ type Client struct {
 // It fails rather than returning a client when the TLS options are
 // unusable -- an unreadable CA bundle or a malformed pin -- so the problem
 // surfaces at startup instead of as a per-request error on every poll.
-func NewClient(host, username, password string, timeout time.Duration, tlsOpts TLSOptions) (*Client, error) {
+func NewClient(host, username, password string, timeout time.Duration,
+	tlsOpts TLSOptions, opts ...Option) (*Client, error) {
 	tlsCfg, err := buildTLSConfig(tlsOpts)
 	if err != nil {
 		return nil, err
 	}
-	return &Client{
-		url:      host + "/command-api",
+	c := &Client{
+		url:      host + commandAPIPath,
+		path:     commandAPIPath,
 		username: username,
 		password: password,
+		name:     host,
 		httpClient: &http.Client{
 			Timeout:   timeout,
 			Transport: &http.Transport{TLSClientConfig: tlsCfg},
 		},
-	}, nil
+	}
+	for _, o := range opts {
+		o(c)
+	}
+	return c, nil
 }
+
+// commandAPIPath is where EOS serves eAPI.
+const commandAPIPath = "/command-api"
 
 type request struct {
 	Jsonrpc string `json:"jsonrpc"`
@@ -118,7 +134,21 @@ func (c *Client) Run(cmds []string) ([]json.RawMessage, error) {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, c.url, bytes.NewReader(body))
+	ctx := context.Background()
+	rl := &requestLog{
+		name:     c.name,
+		method:   http.MethodPost,
+		path:     c.path,
+		cmds:     cmds,
+		start:    time.Now(),
+		reqBytes: len(body),
+	}
+	if c.debug {
+		defer rl.emit()
+		ctx = httptrace.WithClientTrace(ctx, rl.trace())
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -127,19 +157,34 @@ func (c *Client) Run(cmds []string) ([]json.RawMessage, error) {
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
+		rl.err = err
 		return nil, fmt.Errorf("http request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+
+	rl.status = resp.StatusCode
+	rl.proto = resp.Proto
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, statusError(resp.StatusCode, resp.Status)
 	}
 
+	// Count bytes as they are decoded rather than buffering: a single
+	// "show interfaces phy detail" is hundreds of kilobytes.
+	counted := &countingReader{r: resp.Body}
 	var rpcResp Response
-	if err := json.NewDecoder(resp.Body).Decode(&rpcResp); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
+	decodeErr := json.NewDecoder(counted).Decode(&rpcResp)
+	// Draining lets the connection be reused, and completes the byte count.
+	_, _ = io.Copy(io.Discard, counted)
+	rl.respByte = counted.n
+
+	if decodeErr != nil {
+		rl.err = decodeErr
+		return nil, fmt.Errorf("decode response: %w", decodeErr)
 	}
 	if rpcResp.Error != nil {
+		rl.eapiCode = rpcResp.Error.Code
+		rl.eapiMsg = rpcResp.Error.Message
 		return nil, &CommandError{Code: rpcResp.Error.Code, Message: rpcResp.Error.Message}
 	}
 

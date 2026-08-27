@@ -314,7 +314,41 @@ go build -o arex .
 
 # Run
 ./arex -config config.json
+
+# Run with per-request eAPI logging
+./arex -config config.json -debug
 ```
+
+### Debug logging
+
+`-debug` logs one line per eAPI request:
+
+```text
+[leaf-1] eapi POST /command-api -> 200 duration=412ms cmds=9 req=350B resp=486.2kB
+    proto=HTTP/1.1 conn=reused tls=1.2
+[leaf-1] eapi POST /command-api -> 200 duration=38ms cmds=1[show interfaces phy detail]
+    req=94B resp=1.1kB conn=reused eapi_error=1002 msg="invalid command"
+[leaf-2] eapi POST /command-api -> 401 duration=6ms cmds=9 req=350B conn=new tls=1.2
+```
+
+| Field | Meaning |
+| --- | --- |
+| `duration` | Round trip including reading the response body |
+| `cmds` | Number of commands. The list is shown only for small batches, i.e. when a retry is isolating a failure |
+| `req` / `resp` | Payload sizes. `show interfaces phy detail` alone runs to hundreds of kilobytes per poll |
+| `proto` | Negotiated HTTP version |
+| `conn` | `new` or `reused` — see the note below on reused connections |
+| `tls` | Negotiated TLS version, on new connections |
+| `eapi_error` | JSON-RPC error code. A 200 can still carry an eAPI rejection, so it is separate from the status |
+| `error` | Transport failure, when the request never completed |
+
+A **reused** connection can outlive a switch-side configuration change, so if a credential or role change appears
+not to take effect, that field is the first thing to check.
+
+Credentials never appear at any verbosity: the Authorization header is not logged, and neither is the password.
+
+Response sizes are worth watching before scaling out — nine commands against one switch is a few hundred kilobytes
+every poll interval, and interface-heavy commands dominate it.
 
 ## Docker
 
