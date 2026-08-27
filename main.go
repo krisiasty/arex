@@ -28,13 +28,16 @@ func main() {
 
 	// One poller goroutine per switch.
 	for _, sw := range cfg.Switches {
-		client := eapi.NewClient(
+		client, err := eapi.NewClient(
 			sw.Host,
 			sw.Username,
 			sw.Password,
 			cfg.ScrapeTimeout.Duration,
-			cfg.TLSSkipVerify,
+			sw.TLSOptions(cfg.TLSSkipVerify),
 		)
+		if err != nil {
+			log.Fatalf("switch %s: %v", sw.Label(), err)
+		}
 		go collector.PollLoop(client, store.Get(sw.Label()), cfg.PollInterval.Duration)
 	}
 
