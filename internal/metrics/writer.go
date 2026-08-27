@@ -7,6 +7,7 @@ import (
 	"io"
 	"maps"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/krisiasty/arex/internal/collector"
@@ -30,6 +31,13 @@ func gauge(w io.Writer, name, lbls string, v float64) {
 // counter emits one integer sample.
 func counter(w io.Writer, name, lbls string, v uint64) {
 	_, _ = fmt.Fprintf(w, "%s{%s} %d\n", name, lbls, v)
+}
+
+// counterFloat emits a monotonic value that is not an integer. The exposition
+// format does not distinguish these from gauges -- the type comes from the
+// TYPE line -- but the call sites should read correctly.
+func counterFloat(w io.Writer, name, lbls string, v float64) {
+	gauge(w, name, lbls, v)
 }
 
 // boolGauge emits 1 or 0.
@@ -72,6 +80,8 @@ func writeSwitch(w io.Writer, sw *collector.SwitchData, now time.Time, staleness
 			boolGauge(w, "arista_command_success", join(sl, labels("command", cli)), !failed)
 		}
 	}
+
+	writeEAPIStats(w, sl, sw.Stats.Snapshot())
 
 	if !collected {
 		gauge(w, "arista_scrape_age_seconds", sl, -1)
@@ -121,6 +131,34 @@ func writeSwitch(w io.Writer, sw *collector.SwitchData, now time.Time, staleness
 	if fresh(collector.CmdPhy) {
 		writePhy(w, sl, sw.Phy)
 	}
+}
+
+// writeEAPIStats emits arex's own request counters for one switch.
+//
+// These describe the exporter rather than the switch, so they are emitted
+// regardless of scrape health. The attempt label is what makes retry
+// amplification visible: an authentication failure should cost one request
+// per poll, and a regression in the retry classification would show up here
+// as one request per command instead.
+func writeEAPIStats(w io.Writer, sl string, snap eapi.StatsSnapshot) {
+	keys := make([]eapi.RequestKey, 0, len(snap.Requests))
+	for k := range snap.Requests {
+		keys = append(keys, k)
+	}
+	slices.SortFunc(keys, func(a, b eapi.RequestKey) int {
+		if a.Outcome != b.Outcome {
+			return strings.Compare(string(a.Outcome), string(b.Outcome))
+		}
+		return strings.Compare(string(a.Attempt), string(b.Attempt))
+	})
+	for _, k := range keys {
+		counter(w, "arista_eapi_requests_total", join(sl, labels(
+			"outcome", string(k.Outcome),
+			"attempt", string(k.Attempt),
+		)), snap.Requests[k])
+	}
+	counter(w, "arista_eapi_response_bytes_total", sl, snap.ResponseBytes)
+	counterFloat(w, "arista_eapi_request_duration_seconds_total", sl, snap.DurationSeconds)
 }
 
 // writeVersion emits identity, boot time and available memory.

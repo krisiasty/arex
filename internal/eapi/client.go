@@ -21,6 +21,7 @@ type Client struct {
 
 	debug bool
 	name  string
+	stats *Stats
 }
 
 // NewClient creates a new eAPI client for one switch.
@@ -134,6 +135,10 @@ func (c *Client) Run(cmds []string) ([]json.RawMessage, error) {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
+	outcome := OutcomeSuccess
+	attempt := attemptFor(cmds)
+	start := time.Now()
+
 	ctx := context.Background()
 	rl := &requestLog{
 		name:     c.name,
@@ -147,6 +152,14 @@ func (c *Client) Run(cmds []string) ([]json.RawMessage, error) {
 		defer rl.emit()
 		ctx = httptrace.WithClientTrace(ctx, rl.trace())
 	}
+	if c.stats != nil {
+		// Recorded on every path, including the failures, since the point
+		// is to count requests actually made.
+		defer func() {
+			c.stats.Record(RequestKey{Outcome: outcome, Attempt: attempt},
+				rl.respByte, time.Since(start))
+		}()
+	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url, bytes.NewReader(body))
 	if err != nil {
@@ -158,6 +171,7 @@ func (c *Client) Run(cmds []string) ([]json.RawMessage, error) {
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		rl.err = err
+		outcome = OutcomeTransportError
 		return nil, fmt.Errorf("http request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -166,6 +180,7 @@ func (c *Client) Run(cmds []string) ([]json.RawMessage, error) {
 	rl.proto = resp.Proto
 
 	if resp.StatusCode != http.StatusOK {
+		outcome = OutcomeHTTPError
 		return nil, statusError(resp.StatusCode, resp.Status)
 	}
 
@@ -180,9 +195,11 @@ func (c *Client) Run(cmds []string) ([]json.RawMessage, error) {
 
 	if decodeErr != nil {
 		rl.err = decodeErr
+		outcome = OutcomeTransportError
 		return nil, fmt.Errorf("decode response: %w", decodeErr)
 	}
 	if rpcResp.Error != nil {
+		outcome = OutcomeEAPIError
 		rl.eapiCode = rpcResp.Error.Code
 		rl.eapiMsg = rpcResp.Error.Message
 		return nil, &CommandError{Code: rpcResp.Error.Code, Message: rpcResp.Error.Message}

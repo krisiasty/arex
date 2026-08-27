@@ -33,7 +33,9 @@ func main() {
 
 	// One poller goroutine per switch.
 	for _, sw := range cfg.Switches {
-		var opts []eapi.Option
+		data := store.Get(sw.Label())
+
+		opts := []eapi.Option{eapi.WithStats(&data.Stats)}
 		if *debug {
 			opts = append(opts, eapi.WithDebug(sw.Label()))
 		}
@@ -48,7 +50,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("switch %s: %v", sw.Label(), err)
 		}
-		go collector.PollLoop(client, store.Get(sw.Label()), cfg.PollInterval.Duration)
+		go collector.PollLoop(client, data, cfg.PollInterval.Duration)
 	}
 
 	mux := http.NewServeMux()

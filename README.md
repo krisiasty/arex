@@ -28,6 +28,36 @@ Last-known-good data keeps being served while `arista_scrape_age_seconds` is bel
 eAPI failure does not create gaps in every series. `arista_command_success` is per-command: one command rejected by
 a platform costs only its own metrics.
 
+### Exporter self-metrics
+
+These describe arex rather than the switch, so they are reported even when a switch is unreachable — which is when
+request counts matter most.
+
+| Metric | Type | Description |
+| --- | --- | --- |
+| `arista_eapi_requests_total` | counter | eAPI requests made, by `outcome` and `attempt` |
+| `arista_eapi_response_bytes_total` | counter | Total response bytes received from this switch |
+| `arista_eapi_request_duration_seconds_total` | counter | Total time spent on eAPI requests to this switch |
+
+`outcome` is `success`, `eapi_error` (the switch answered and rejected a command), `http_error` (a status such as
+401, which applies to every command) or `transport_error`. `attempt` is `batch` for the normal single request
+carrying every command, or `retry` for the per-command fallback.
+
+The `attempt` label is what makes retry amplification visible. A switch failing authentication should show exactly
+one request per poll interval:
+
+```promql
+# requests per poll — should be ~1, not one per command
+rate(arista_eapi_requests_total[5m]) * 30
+
+# bandwidth per switch, the number that decides whether to filter interfaces
+rate(arista_eapi_response_bytes_total[5m])
+
+# mean request latency
+rate(arista_eapi_request_duration_seconds_total[5m])
+  / rate(arista_eapi_requests_total[5m])
+```
+
 `stalenessLimit` is applied **per command**, not just to the scrape as a whole. Data from a command that fails is
 retained so a single rejection does not create a gap, but it is dropped once that command has not succeeded within
 the limit. Without this, one command that kept working would hold `arista_scrape_age_seconds` near zero while every

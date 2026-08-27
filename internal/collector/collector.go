@@ -41,6 +41,11 @@ type SwitchData struct {
 	// looking fresh while the rest went arbitrarily stale.
 	CommandLastSuccess map[string]time.Time
 
+	// Stats counts eAPI requests for this switch. It describes arex rather
+	// than the switch, so it is reported even when the switch is
+	// unreachable -- which is precisely when request counts matter.
+	Stats eapi.Stats
+
 	// tracker collapses repeated identical failures so a permanently broken
 	// switch does not emit one log line per poll indefinitely.
 	tracker repeatTracker

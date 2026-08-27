@@ -201,3 +201,12 @@ func TestTotalFailureMarksEveryCommandFailed(t *testing.T) {
 		}
 	}
 }
+
+// eapi.attemptFor treats a one-command request as a per-command retry, which
+// only holds while the batch is larger than one command.
+func TestCommandSetIsLargerThanOne(t *testing.T) {
+	if len(Commands()) < 2 {
+		t.Fatalf("command set is %d; eAPI request statistics classify a single-command "+
+			"call as a retry, which breaks if the batch is one command", len(Commands()))
+	}
+}
