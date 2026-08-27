@@ -332,43 +332,60 @@ started refusing them. `show .*` still permits privileged reads such as `show ru
 privilege level is what refuses those, which is why the two settings below work together and neither is sufficient
 alone.
 
-**Do not add `privilege 15` here.** On the switches tested during development, privilege level was the only access
-control actually being enforced — the role was not. A privilege-1 user was correctly refused `show running-config`:
+**A stock switch restricts a monitoring account far less than it appears to.** Three separate things have to hold,
+and on the switches tested during development none of them did:
+
+| requirement | default | if missing |
+| --- | --- | --- |
+| an enable secret is set | absent | `enable` elevates to privilege 15 with no password |
+| the user is not granted `privilege 15` | — | the account starts elevated |
+| command authorization is enabled | disabled | role rules are ignored entirely |
+
+They are not alternatives. Omitting any one of them leaves the account effectively unrestricted, and the first is
+the one most often missed because the privilege level *looks* like it is working:
+
+```text
+sw1>show running-config
+% Invalid input (privileged mode required)
+sw1>enable
+sw1#show running-config
+! ... the entire configuration
+```
+
+This is reachable over the network, not only from a terminal: eAPI accepts `enable` as a command like any other,
+so `{"cmds":["enable","show running-config"]}` elevates within a single request.
+
+**Verify all three.** Each of these must be refused:
+
+```bash
+# 1. a privileged read, unelevated
+curl -k -u prometheus:<password> https://<switch>/command-api \
+  -d '{"jsonrpc":"2.0","method":"runCmds","params":{"version":1,"cmds":["show running-config"],"format":"json"},"id":1}'
+
+# 2. the same read, elevating first -- catches a missing enable secret
+curl -k -u prometheus:<password> https://<switch>/command-api -d '{"jsonrpc":"2.0","method":"runCmds",
+  "params":{"version":1,"cmds":["enable","show running-config"],"format":"json"},"id":1}'
+
+# 3. a command the role forbids -- this catches command authorization being disabled
+curl -k -u prometheus:<password> https://<switch>/command-api \
+  -d '{"jsonrpc":"2.0","method":"runCmds","params":{"version":1,"cmds":["configure"],"format":"json"},"id":1}'
+```
+
+A refusal looks like this, and the useful part is in `data`, not `message`:
 
 ```json
 {"code":1002,"message":"CLI command 1 of 1 'show running-config' failed: invalid command",
  "data":[{"errors":["Invalid input (privileged mode required)"]}]}
 ```
 
-while a user whose role was `10 deny command .*` could still run every command arex issues. Granting `privilege 15`
-would therefore remove the one restriction that was working, in exchange for access arex never uses.
+If any of the three returns configuration instead, treat the credentials in your arex config as switch
+administrator credentials, because that is what they are. They sit in a plaintext file readable by whatever runs
+arex, and arex never needs any of that access.
 
-**Verify both, rather than assuming either.** Run the privileged read your monitoring user should be refused:
-
-```bash
-curl -k -u prometheus:<password> https://<switch>/command-api \
-  -d '{"jsonrpc":"2.0","method":"runCmds","params":{"version":1,"cmds":["show running-config"],"format":"json"},"id":1}'
-```
-
-Expect a `1002` carrying `privileged mode required`. If your full configuration comes back instead, nothing is
-restricting this account and the credentials arex holds can read every secret on the box.
-
-**Then check that elevation is protected**, because the privilege level is only a boundary if the account cannot
-raise it. eAPI accepts `enable` as a command like any other, so this is reachable over the network, not just from a
-terminal:
-
-```bash
-curl -k -u prometheus:<password> https://<switch>/command-api \
-  -d '{"jsonrpc":"2.0","method":"runCmds","params":{"version":1,"cmds":["enable","show running-config"],"format":"json"},"id":1}'
-```
-
-This must also be refused. If it succeeds, the account can reach privilege 15 over the network and the default
-privilege level is protecting nothing — set an enable secret before relying on any of the above. The same applies
-over SSH: `enable` at the `>` prompt should ask for a password.
-
-Role rules are a separate question, and a configured role is not necessarily an enforced one — which is worse than
-no role, because it looks like a restriction. Command authorization generally has to be enabled for role rules to
-be consulted; check `show running-config section aaa`, `show aaa` and `show users accounts detail`.
+Command authorization generally has to be enabled globally before role rules are consulted at all; check
+`show running-config section aaa`, `show aaa` and `show users accounts detail`. Enabling it starts enforcing roles
+for **every** account on every access path at once, including the session you type it in, so do it with a second
+privileged session open and a way to roll back.
 
 ## Running
 
