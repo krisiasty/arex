@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -33,6 +34,10 @@ type SwitchData struct {
 	// output in the most recent poll, keyed by CLI string. Data from a
 	// failed command is left at its previous value rather than zeroed.
 	CommandErrors map[string]error
+
+	// tracker collapses repeated identical failures so a permanently broken
+	// switch does not emit one log line per poll indefinitely.
+	tracker repeatTracker
 
 	Version    eapi.ShowVersion
 	ProcessTop eapi.ShowProcessesTop
@@ -217,12 +222,20 @@ func Collect(client Runner, data *SwitchData) {
 		return
 	}
 
-	for cli, cerr := range cmdErrs {
-		log.Printf("[%s] %s: %v", data.Label, cli, cerr)
-	}
-
 	data.mu.Lock()
 	defer data.mu.Unlock()
+
+	if len(cmdErrs) > 0 {
+		// One message for the whole picture, so an unchanging partial
+		// failure is suppressed as a unit rather than per command.
+		summary := fmt.Sprintf("%d of %d commands failed: %s",
+			len(cmdErrs), len(commands), describeCmdErrors(cmdErrs))
+		if line := data.tracker.observe(summary, time.Now()); line != "" {
+			log.Printf("[%s] %s", data.Label, line)
+		}
+	} else if line := data.tracker.recovered(time.Now()); line != "" {
+		log.Printf("[%s] %s", data.Label, line)
+	}
 	for i, c := range commands {
 		if ok[i] {
 			c.apply(&snap, data)
@@ -281,9 +294,35 @@ func PollLoop(client Runner, data *SwitchData, interval time.Duration) {
 	}
 }
 
+// describeCmdErrors renders per-command failures in a stable order, so an
+// unchanged failure produces an unchanged message and stays suppressed.
+func describeCmdErrors(cmdErrs map[string]error) string {
+	parts := make([]string, 0, len(cmdErrs))
+	for _, c := range commands {
+		if err, ok := cmdErrs[c.cli]; ok {
+			parts = append(parts, fmt.Sprintf("%s (%v)", c.cli, err))
+		}
+	}
+	return strings.Join(parts, "; ")
+}
+
+// setError records a poll in which nothing at all was collected.
+//
+// Every command is marked failed so the writer can still emit
+// arista_command_success for each: a missing series is not zero in
+// Prometheus, and omitting them would exclude the most broken switch from
+// any aggregate over that metric.
 func setError(data *SwitchData, err error) {
-	log.Printf("[%s] %v", data.Label, err)
 	data.mu.Lock()
 	defer data.mu.Unlock()
+
 	data.ScrapeErr = err
+	data.CommandErrors = make(map[string]error, len(commands))
+	for _, c := range commands {
+		data.CommandErrors[c.cli] = err
+	}
+
+	if line := data.tracker.observe(err.Error(), time.Now()); line != "" {
+		log.Printf("[%s] %s", data.Label, line)
+	}
 }

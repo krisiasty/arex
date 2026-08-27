@@ -168,6 +168,7 @@ values are meaningless while a link is down, and every field drifts on each poll
 | `arista_phy_pcs_last_errored_block_count` | gauge | Errored block count as last observed |
 | `arista_phy_pma_link_up` | gauge | 1 if the PMA link is up |
 | `arista_phy_pma_signal_detect` | gauge | 1 if the PMA detects a signal |
+| `arista_phy_fec_info` | gauge | `encoding` and `codeword_size` labels — only on links with FEC |
 | `arista_phy_fec_alignment_lock` | gauge | 1 if FEC alignment lock is achieved — **only on links with FEC** |
 | `arista_phy_fec_corrected_codewords` | gauge | FEC codewords corrected |
 | `arista_phy_fec_uncorrected_codewords` | gauge | FEC codewords that could not be corrected: frames were lost |
@@ -180,11 +181,35 @@ values are meaningless while a link is down, and every field drifts on each poll
 RS-FEC alignment lock replaces PCS block lock, so a link has exactly one of the two: `arista_phy_pcs_block_lock`
 below 25G, `arista_phy_fec_alignment_lock` at 25G and above.
 
-**Read the `_changes_total` counters, not the gauges, to detect activity.** EOS reports these attributes as a
-value with a change count, and the value's semantics are ambiguous: on a link that had been repaired,
-`uncorrected_codewords` read 3 with 13 changes, which fits neither a running total nor a per-interval count. The
-counters are also clearable from the CLI, so the value can go down. `*_changes_total` only ever rises, and
-`*_last_change_timestamp_seconds` distinguishes a link that is failing now from one that failed and was fixed.
+### FEC counters are diagnostic, not an alerting source
+
+Field data changed what these are good for, so read this before building rules on them.
+
+On a switch up for 123 days, most FEC counters last changed **16 days after boot and had been frozen for 107 days
+since** — including a port sitting at 409,686 corrected and 469 uncorrected codewords. EOS is not sampling these
+registers continuously: a value of 409,686 recorded across two observed changes cannot be a per-increment count.
+The only ports whose FEC counters had moved recently were the two with by far the highest flap counts, which
+suggests the registers are read around link events rather than on a timer.
+
+So neither field is a live error rate:
+
+- `*_changes_total` rises only when EOS re-reads the register, not when errors occur. A `rate()` over it is zero
+  almost always, including on a port with hundreds of uncorrected codewords.
+- the gauge is a cumulative count that persists after a repair and can be cleared from the CLI, so it goes down as
+  well as up.
+
+**Alert on the interface error counters instead.** `arista_interface_in_errors_detail_total{cause="fcsErrors"}` and
+`{cause="symbolErrors"}` come from `show interfaces`, which is refreshed on every poll, and
+`arista_phy_pcs_high_ber` and `arista_phy_mac_local_fault` are live status bits. Use FEC to *diagnose* a link those
+have already flagged: which lane, corrected versus uncorrected, and when it last moved.
+
+If you do want a rule on FEC, gate it on recency so a long-repaired fault does not fire for ever:
+
+```promql
+delta(arista_phy_fec_uncorrected_codewords[1h]) > 0
+
+time() - arista_phy_fec_uncorrected_codewords_last_change_timestamp_seconds < 86400
+```
 
 Series carry a `phy` label because an interface can have more than one PHY, line side and system side.
 
@@ -498,10 +523,19 @@ groups:
               arista_transceiver_temperature_threshold_celsius{level="high_warn"}
         for: 5m
 
-      # Rate of change, never "> 0" on the gauge: the value persists after a
-      # repair, so a value-based rule never clears.
+      # Interface counters, not FEC: these refresh every poll, whereas FEC
+      # registers on the tested switch were static for 107 days. See
+      # "FEC counters are diagnostic, not an alerting source".
+      - alert: LinkFCSErrors
+        expr: rate(arista_interface_in_errors_detail_total{cause="fcsErrors"}[15m]) > 0
+        for: 10m
+
+      # FEC as a rule at all is weak; if you want one, require the counter to
+      # have actually moved recently rather than testing the gauge for > 0.
       - alert: OpticFECUncorrectedErrors
-        expr: rate(arista_phy_fec_uncorrected_codewords_changes_total[15m]) > 0
+        expr: |
+          delta(arista_phy_fec_uncorrected_codewords[1h]) > 0
+          and on(switch, interface) arista_interface_link_up == 1
         for: 5m
 
       - alert: LinkMacFault
@@ -519,5 +553,7 @@ permanently and gets deleted in its first week:
 - **Dark optics.** A cage with an optic installed but nothing plugged in reports `rxPower` at the EOS floor of
   -30 dBm, while transmitting normally. That is below the optic's own low alarm, so an ungated rule alerts for
   ever. Gating on `arista_interface_link_up == 1` keeps the alert on links you actually care about.
-- **Repaired fibre.** FEC error values persist after the fault is fixed and the counters are cleared, so
-  `arista_phy_fec_uncorrected_codewords > 0` never clears. Alert on the rate of `*_changes_total` instead.
+- **Repaired fibre.** FEC error values persist after the fault is fixed, so
+  `arista_phy_fec_uncorrected_codewords > 0` never clears. Requiring `delta()` over the gauge instead means the
+  rule fires only when the counter actually moves. Note that FEC is a weak alerting source in general — see
+  [FEC counters are diagnostic](#fec-counters-are-diagnostic-not-an-alerting-source).

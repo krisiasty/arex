@@ -61,6 +61,30 @@ type rpcError struct {
 	Message string `json:"message"`
 }
 
+// statusError turns an HTTP status into an error naming the likely fix.
+// These three are what actually gets hit in the field, and each has a
+// different cause, so reporting the bare status leaves the operator guessing.
+//
+// Deliberately not a CommandError: an HTTP-level rejection applies to every
+// command, so retrying them individually would only multiply the failures --
+// nine failed authentications per poll instead of one is how account
+// lockouts happen.
+func statusError(code int, status string) error {
+	switch code {
+	case http.StatusUnauthorized:
+		return fmt.Errorf("eAPI rejected our credentials (%s): check the username and "+
+			"password, and that the user has a role permitting the show commands", status)
+	case http.StatusForbidden:
+		return fmt.Errorf("eAPI refused the request (%s): check for an access-group on "+
+			"management api http-commands restricting which sources may connect", status)
+	case http.StatusNotFound:
+		return fmt.Errorf("eAPI endpoint not found (%s): check that eAPI is enabled, "+
+			"including inside the management VRF, and that https is the configured protocol", status)
+	default:
+		return fmt.Errorf("unexpected HTTP status: %s", status)
+	}
+}
+
 // CommandError means the switch answered and then rejected the request --
 // typically a command it does not support. It is distinct from a transport
 // or authentication failure: retrying commands individually can recover the
@@ -108,7 +132,7 @@ func (c *Client) Run(cmds []string) ([]json.RawMessage, error) {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected HTTP status: %s", resp.Status)
+		return nil, statusError(resp.StatusCode, resp.Status)
 	}
 
 	var rpcResp Response

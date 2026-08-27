@@ -62,20 +62,26 @@ func writeSwitch(w io.Writer, sw *collector.SwitchData, now time.Time, staleness
 	collected := !sw.LastSuccess.IsZero()
 	boolGauge(w, "arista_scrape_success", sl, collected && sw.ScrapeErr == nil)
 
+	// Per-command state is scrape metadata, not switch data, so it is
+	// emitted even when nothing was ever collected. A missing series is not
+	// zero in Prometheus: omitting these would drop the most broken switch
+	// out of any aggregate over arista_command_success.
+	if sw.CommandErrors != nil {
+		for _, cli := range collector.Commands() {
+			_, failed := sw.CommandErrors[cli]
+			boolGauge(w, "arista_command_success", join(sl, labels("command", cli)), !failed)
+		}
+	}
+
 	if !collected {
 		gauge(w, "arista_scrape_age_seconds", sl, -1)
-		return // never collected: there is nothing to serve
+		return // never collected: there is no switch data to serve
 	}
 
 	age := now.Sub(sw.LastSuccess)
 	gauge(w, "arista_scrape_age_seconds", sl, age.Seconds())
 	if age > stalenessLimit {
 		return // too old to be worth publishing
-	}
-
-	for _, cli := range collector.Commands() {
-		_, failed := sw.CommandErrors[cli]
-		boolGauge(w, "arista_command_success", join(sl, labels("command", cli)), !failed)
 	}
 
 	writeVersion(w, sl, sw.Version)
@@ -418,19 +424,25 @@ func writePhy(w io.Writer, sl string, phy eapi.ShowPhyDetail) {
 			if p.FEC == nil {
 				continue
 			}
-			fl := join(l, labels(
+			// FEC encoding and codeword size are configuration, so they go
+			// on an info metric. On the value series they would change
+			// series identity whenever a link's FEC config changes -- a
+			// speed change moving codeword size 528 to 544 -- breaking
+			// rate() continuity, and they are redundant on nine series.
+			gauge(w, "arista_phy_fec_info", join(l, labels(
 				"encoding", p.FEC.Encoding,
 				"codeword_size", p.FEC.CodewordSize,
-			))
-			writeBoolAttr(w, "arista_phy_fec_alignment_lock", fl, p.FEC.AlignmentLock)
-			writeCounterAttr(w, "arista_phy_fec_corrected_codewords", fl, p.FEC.CorrectedCodewords)
-			writeCounterAttr(w, "arista_phy_fec_uncorrected_codewords", fl, p.FEC.UncorrectedCodewords)
+			)), 1)
+
+			writeBoolAttr(w, "arista_phy_fec_alignment_lock", l, p.FEC.AlignmentLock)
+			writeCounterAttr(w, "arista_phy_fec_corrected_codewords", l, p.FEC.CorrectedCodewords)
+			writeCounterAttr(w, "arista_phy_fec_uncorrected_codewords", l, p.FEC.UncorrectedCodewords)
 
 			// Per-lane, and only reported at native speeds.
 			for _, lane := range slices.Sorted(maps.Keys(p.FEC.CorrectedSymbols)) {
 				sym := p.FEC.CorrectedSymbols[lane]
 				writeCounterAttr(w, "arista_phy_fec_corrected_symbols",
-					join(fl, labels("lane", lane)), sym)
+					join(l, labels("lane", lane)), sym)
 			}
 		}
 	}

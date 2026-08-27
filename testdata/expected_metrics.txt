@@ -140,6 +140,8 @@
 # TYPE arista_phy_interface_changes_total counter
 # HELP arista_phy_info PHY chip, firmware and operating speed. Always 1
 # TYPE arista_phy_info gauge
+# HELP arista_phy_fec_info FEC encoding and codeword size. Always 1
+# TYPE arista_phy_fec_info gauge
 # HELP arista_phy_interrupt_count PHY interrupt count
 # TYPE arista_phy_interrupt_count gauge
 # HELP arista_phy_link_up 1 if the PHY state is linkUp
@@ -253,7 +255,6 @@
 # HELP arista_phy_fec_corrected_symbols_last_change_timestamp_seconds Unix timestamp arista_phy_fec_corrected_symbols last changed
 # TYPE arista_phy_fec_corrected_symbols_last_change_timestamp_seconds gauge
 arista_scrape_success{switch="sw1"} 1
-arista_scrape_age_seconds{switch="sw1"} <age>
 arista_command_success{switch="sw1",command="show version"} 1
 arista_command_success{switch="sw1",command="show processes top once"} 1
 arista_command_success{switch="sw1",command="show system environment temperature"} 1
@@ -263,6 +264,7 @@ arista_command_success{switch="sw1",command="show interfaces"} 1
 arista_command_success{switch="sw1",command="show ip bgp summary vrf all"} 1
 arista_command_success{switch="sw1",command="show interfaces transceiver detail"} 1
 arista_command_success{switch="sw1",command="show interfaces phy detail"} 1
+arista_scrape_age_seconds{switch="sw1"} <age>
 arista_info{switch="sw1",model="DCS-7050CX3-32C-R",serial="ABC1234567X",version="4.35.4M",mac="00:1c:73:00:00:01",arch="x86_64"} 1
 arista_boot_timestamp_seconds{switch="sw1"} 1.7772940864660642e+09
 arista_memory_total_bytes{switch="sw1"} 1.6671453184e+10
@@ -693,20 +695,21 @@ arista_phy_pma_link_up{switch="sw1",interface="Ethernet29/1",phy="line"} 1
 arista_phy_pma_link_changes_total{switch="sw1",interface="Ethernet29/1",phy="line"} 1
 arista_phy_pma_signal_detect{switch="sw1",interface="Ethernet29/1",phy="line"} 1
 arista_phy_pma_signal_detect_changes_total{switch="sw1",interface="Ethernet29/1",phy="line"} 1
-arista_phy_fec_alignment_lock{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528"} 1
-arista_phy_fec_alignment_lock_changes_total{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528"} 1
-arista_phy_fec_corrected_codewords{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528"} 0
-arista_phy_fec_corrected_codewords_changes_total{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528"} 0
-arista_phy_fec_uncorrected_codewords{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528"} 0
-arista_phy_fec_uncorrected_codewords_changes_total{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528"} 0
-arista_phy_fec_corrected_symbols{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528",lane="0"} 0
-arista_phy_fec_corrected_symbols_changes_total{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528",lane="0"} 0
-arista_phy_fec_corrected_symbols{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528",lane="1"} 0
-arista_phy_fec_corrected_symbols_changes_total{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528",lane="1"} 0
-arista_phy_fec_corrected_symbols{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528",lane="2"} 0
-arista_phy_fec_corrected_symbols_changes_total{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528",lane="2"} 0
-arista_phy_fec_corrected_symbols{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528",lane="3"} 0
-arista_phy_fec_corrected_symbols_changes_total{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528",lane="3"} 0
+arista_phy_fec_info{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528"} 1
+arista_phy_fec_alignment_lock{switch="sw1",interface="Ethernet29/1",phy="line"} 1
+arista_phy_fec_alignment_lock_changes_total{switch="sw1",interface="Ethernet29/1",phy="line"} 1
+arista_phy_fec_corrected_codewords{switch="sw1",interface="Ethernet29/1",phy="line"} 0
+arista_phy_fec_corrected_codewords_changes_total{switch="sw1",interface="Ethernet29/1",phy="line"} 0
+arista_phy_fec_uncorrected_codewords{switch="sw1",interface="Ethernet29/1",phy="line"} 0
+arista_phy_fec_uncorrected_codewords_changes_total{switch="sw1",interface="Ethernet29/1",phy="line"} 0
+arista_phy_fec_corrected_symbols{switch="sw1",interface="Ethernet29/1",phy="line",lane="0"} 0
+arista_phy_fec_corrected_symbols_changes_total{switch="sw1",interface="Ethernet29/1",phy="line",lane="0"} 0
+arista_phy_fec_corrected_symbols{switch="sw1",interface="Ethernet29/1",phy="line",lane="1"} 0
+arista_phy_fec_corrected_symbols_changes_total{switch="sw1",interface="Ethernet29/1",phy="line",lane="1"} 0
+arista_phy_fec_corrected_symbols{switch="sw1",interface="Ethernet29/1",phy="line",lane="2"} 0
+arista_phy_fec_corrected_symbols_changes_total{switch="sw1",interface="Ethernet29/1",phy="line",lane="2"} 0
+arista_phy_fec_corrected_symbols{switch="sw1",interface="Ethernet29/1",phy="line",lane="3"} 0
+arista_phy_fec_corrected_symbols_changes_total{switch="sw1",interface="Ethernet29/1",phy="line",lane="3"} 0
 arista_phy_interface_up{switch="sw1",interface="Ethernet4/1"} 0
 arista_phy_interface_changes_total{switch="sw1",interface="Ethernet4/1"} 30
 arista_phy_mac_local_fault{switch="sw1",interface="Ethernet4/1"} 0
@@ -729,11 +732,12 @@ arista_phy_pma_link_up{switch="sw1",interface="Ethernet4/1",phy="line"} 1
 arista_phy_pma_link_changes_total{switch="sw1",interface="Ethernet4/1",phy="line"} 33
 arista_phy_pma_signal_detect{switch="sw1",interface="Ethernet4/1",phy="line"} 1
 arista_phy_pma_signal_detect_changes_total{switch="sw1",interface="Ethernet4/1",phy="line"} 37
-arista_phy_fec_alignment_lock{switch="sw1",interface="Ethernet4/1",phy="line",encoding="reedSolomon",codeword_size="528"} 1
-arista_phy_fec_alignment_lock_changes_total{switch="sw1",interface="Ethernet4/1",phy="line",encoding="reedSolomon",codeword_size="528"} 31
-arista_phy_fec_corrected_codewords{switch="sw1",interface="Ethernet4/1",phy="line",encoding="reedSolomon",codeword_size="528"} 5
-arista_phy_fec_corrected_codewords_changes_total{switch="sw1",interface="Ethernet4/1",phy="line",encoding="reedSolomon",codeword_size="528"} 6
-arista_phy_fec_corrected_codewords_last_change_timestamp_seconds{switch="sw1",interface="Ethernet4/1",phy="line",encoding="reedSolomon",codeword_size="528"} 1.7870660004227245e+09
-arista_phy_fec_uncorrected_codewords{switch="sw1",interface="Ethernet4/1",phy="line",encoding="reedSolomon",codeword_size="528"} 3
-arista_phy_fec_uncorrected_codewords_changes_total{switch="sw1",interface="Ethernet4/1",phy="line",encoding="reedSolomon",codeword_size="528"} 13
-arista_phy_fec_uncorrected_codewords_last_change_timestamp_seconds{switch="sw1",interface="Ethernet4/1",phy="line",encoding="reedSolomon",codeword_size="528"} 1.7870682392125041e+09
+arista_phy_fec_info{switch="sw1",interface="Ethernet4/1",phy="line",encoding="reedSolomon",codeword_size="528"} 1
+arista_phy_fec_alignment_lock{switch="sw1",interface="Ethernet4/1",phy="line"} 1
+arista_phy_fec_alignment_lock_changes_total{switch="sw1",interface="Ethernet4/1",phy="line"} 31
+arista_phy_fec_corrected_codewords{switch="sw1",interface="Ethernet4/1",phy="line"} 5
+arista_phy_fec_corrected_codewords_changes_total{switch="sw1",interface="Ethernet4/1",phy="line"} 6
+arista_phy_fec_corrected_codewords_last_change_timestamp_seconds{switch="sw1",interface="Ethernet4/1",phy="line"} 1.7870660004227245e+09
+arista_phy_fec_uncorrected_codewords{switch="sw1",interface="Ethernet4/1",phy="line"} 3
+arista_phy_fec_uncorrected_codewords_changes_total{switch="sw1",interface="Ethernet4/1",phy="line"} 13
+arista_phy_fec_uncorrected_codewords_last_change_timestamp_seconds{switch="sw1",interface="Ethernet4/1",phy="line"} 1.7870682392125041e+09

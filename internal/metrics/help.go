@@ -138,6 +138,7 @@ var defs = flatten(
 		{"arista_phy_interface_up", "gauge", "1 if the PHY reports the interface up"},
 		{"arista_phy_interface_changes_total", "counter", "Interface state transitions seen by the PHY"},
 		{"arista_phy_info", "gauge", "PHY chip, firmware and operating speed. Always 1"},
+		{"arista_phy_fec_info", "gauge", "FEC encoding and codeword size. Always 1"},
 		{"arista_phy_interrupt_count", "gauge", "PHY interrupt count"},
 		{"arista_phy_link_up", "gauge", "1 if the PHY state is linkUp"},
 		{"arista_phy_link_changes_total", "counter", "PHY state transitions since boot"},

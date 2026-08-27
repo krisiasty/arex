@@ -538,3 +538,69 @@ func TestNoDuplicateHelpOrType(t *testing.T) {
 		}
 	}
 }
+
+// FEC encoding and codeword size are configuration, not measurements. On the
+// value series they would change series identity whenever a link's FEC
+// config changes, breaking rate() continuity, and they are redundant on
+// nine series per interface.
+func TestFECConfigLivesOnAnInfoMetric(t *testing.T) {
+	out := render(t, nil)
+
+	if sample(out, "arista_phy_fec_info", `interface="Ethernet4/1"`) != "1" {
+		t.Error("expected an arista_phy_fec_info series")
+	}
+	if !strings.Contains(out, `encoding="reedSolomon"`) {
+		t.Error("encoding label missing from the info metric")
+	}
+	for _, m := range []string{
+		"arista_phy_fec_corrected_codewords",
+		"arista_phy_fec_uncorrected_codewords",
+		"arista_phy_fec_alignment_lock",
+	} {
+		for _, line := range strings.Split(out, "\n") {
+			if !strings.HasPrefix(line, m+"{") {
+				continue
+			}
+			if strings.Contains(line, "encoding=") || strings.Contains(line, "codeword_size=") {
+				t.Errorf("%s must not carry FEC config labels:\n  %s", m, line)
+			}
+		}
+	}
+}
+
+// Scrape health is metadata, not switch data: it must be emitted even when
+// nothing has ever been collected.
+func TestCommandSuccessEmittedForNeverCollectedSwitch(t *testing.T) {
+	store, err := collector.NewStore([]config.SwitchConfig{
+		{Host: "h", Username: "u", Password: "p", Name: "sw1"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sd := store.All()[0]
+	// Simulate a poll that failed outright, as a 401 does.
+	collector.Collect(failingRunner{}, sd)
+
+	var b bytes.Buffer
+	Write(&b, store, 90*time.Second)
+	out := b.String()
+
+	if v := sample(out, "arista_scrape_success", ""); v != "0" {
+		t.Errorf("scrape_success = %q, want 0", v)
+	}
+	n := strings.Count(out, "arista_command_success{")
+	if n != len(collector.Commands()) {
+		t.Errorf("%d command_success series, want %d", n, len(collector.Commands()))
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if strings.HasPrefix(line, "arista_command_success{") && !strings.HasSuffix(line, " 0") {
+			t.Errorf("every command should report 0 after a total failure: %s", line)
+		}
+	}
+}
+
+type failingRunner struct{}
+
+func (failingRunner) Run([]string) ([]json.RawMessage, error) {
+	return nil, errors.New("unexpected HTTP status: 401 Unauthorized")
+}
