@@ -2,20 +2,28 @@
   "listenAddress": ":9100",
   "pollInterval": "30s",
   "scrapeTimeout": "10s",
-  "tlsSkipVerify": true,
   "stalenessLimit": "90s",
   "switches": [
     {
-      "host": "https://192.168.1.1",
+      "host": "https://192.0.2.11",
       "username": "prometheus",
       "password": "secret",
-      "name": "spine1"
+      "name": "spine1",
+      "pinnedCertSha256": "A1:B2:C3:D4:E5:F6:07:18:29:3A:4B:5C:6D:7E:8F:90:A1:B2:C3:D4:E5:F6:07:18:29:3A:4B:5C:6D:7E:8F:90"
     },
     {
-      "host": "https://192.168.1.2",
+      "host": "https://192.0.2.12",
       "username": "prometheus",
       "password": "secret",
-      "name": "spine2"
+      "name": "spine2",
+      "caFile": "/etc/arex/switch-ca.pem"
+    },
+    {
+      "host": "https://192.0.2.13",
+      "username": "prometheus",
+      "password": "secret",
+      "name": "leaf1"
     }
-  ]
+  ],
+  "tlsSkipVerify": true
 }

@@ -3,7 +3,6 @@ package eapi
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -18,20 +17,25 @@ type Client struct {
 	password   string
 }
 
-// NewClient creates a new eAPI client. skipVerify disables TLS certificate
-// verification, which is usually required for switches with self-signed certs.
-func NewClient(host, username, password string, timeout time.Duration, skipVerify bool) *Client {
+// NewClient creates a new eAPI client for one switch.
+//
+// It fails rather than returning a client when the TLS options are
+// unusable -- an unreadable CA bundle or a malformed pin -- so the problem
+// surfaces at startup instead of as a per-request error on every poll.
+func NewClient(host, username, password string, timeout time.Duration, tlsOpts TLSOptions) (*Client, error) {
+	tlsCfg, err := buildTLSConfig(tlsOpts)
+	if err != nil {
+		return nil, err
+	}
 	return &Client{
 		url:      host + "/command-api",
 		username: username,
 		password: password,
 		httpClient: &http.Client{
-			Timeout: timeout,
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: skipVerify}, //nolint:gosec
-			},
+			Timeout:   timeout,
+			Transport: &http.Transport{TLSClientConfig: tlsCfg},
 		},
-	}
+	}, nil
 }
 
 type request struct {

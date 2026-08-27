@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/krisiasty/arex/internal/eapi"
 )
 
 // Config is the top-level configuration for arex.
@@ -25,6 +27,28 @@ type SwitchConfig struct {
 	// Optional human-readable name used as the "switch" label.
 	// Falls back to Host if empty.
 	Name string `json:"name"`
+
+	// CAFile is a PEM bundle to verify this switch's certificate against.
+	// Use it once the switch serves a certificate with correct subject
+	// alternative names.
+	CAFile string `json:"caFile"`
+
+	// PinnedCertSHA256 pins this switch's leaf certificate by SHA-256, as
+	// printed by "openssl x509 -fingerprint -sha256". Colons and case are
+	// ignored. A stock EOS switch cannot be verified any other way: its
+	// default certificate carries no subject alternative names, so no
+	// hostname or address can match it.
+	PinnedCertSHA256 string `json:"pinnedCertSha256"`
+}
+
+// TLSOptions returns how this switch's certificate should be verified.
+// Per-switch settings take precedence over the global tlsSkipVerify.
+func (s SwitchConfig) TLSOptions(globalSkipVerify bool) eapi.TLSOptions {
+	return eapi.TLSOptions{
+		SkipVerify:       globalSkipVerify,
+		CAFile:           s.CAFile,
+		PinnedCertSHA256: s.PinnedCertSHA256,
+	}
 }
 
 // Label returns the label to use for this switch in Prometheus metrics.
@@ -85,6 +109,18 @@ func (c *Config) validate() error {
 		}
 		if sw.Password == "" {
 			return fmt.Errorf("config: switch[%d] missing password", i)
+		}
+		if sw.CAFile != "" && sw.PinnedCertSHA256 != "" {
+			return fmt.Errorf("config: switch[%d] (%s) sets both caFile and pinnedCertSha256; pick one",
+				i, sw.Label())
+		}
+		if sw.CAFile != "" || sw.PinnedCertSHA256 != "" {
+			continue // an explicit verification method was chosen
+		}
+		if !c.TLSSkipVerify {
+			return fmt.Errorf("config: switch[%d] (%s) has no way to verify TLS: set caFile, "+
+				"pinnedCertSha256, or tlsSkipVerify. A stock EOS switch serves a certificate with "+
+				"no subject alternative names, which cannot be verified by hostname; see README", i, sw.Label())
 		}
 	}
 	return nil
