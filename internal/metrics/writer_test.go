@@ -435,7 +435,9 @@ func TestGoldenExposition(t *testing.T) {
 	got := normalize(render(t, nil))
 
 	if *updateGolden {
-		if err := os.WriteFile(goldenPath, []byte(got), 0o644); err != nil {
+		// Golden fixture, deliberately world-readable like the rest of testdata.
+		err := os.WriteFile(goldenPath, []byte(got), 0o644) //nolint:gosec
+		if err != nil {
 			t.Fatal(err)
 		}
 		t.Logf("wrote %s (%d lines)", goldenPath, strings.Count(got, "\n"))

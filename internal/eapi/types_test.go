@@ -11,7 +11,7 @@ import (
 func load(t *testing.T, name string, dst interface{}) {
 	t.Helper()
 	path := filepath.Join("..", "..", "testdata", name)
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(path) //nolint:gosec // fixture path is test-controlled
 	if err != nil {
 		t.Fatalf("read fixture %s: %v", name, err)
 	}

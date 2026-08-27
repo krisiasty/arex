@@ -71,5 +71,4 @@ func join(sets ...string) string {
 	return strings.Join(out, ",")
 }
 
-func itoa(v int) string    { return strconv.Itoa(v) }
-func utoa(v uint64) string { return strconv.FormatUint(v, 10) }
+func itoa(v int) string { return strconv.Itoa(v) }
