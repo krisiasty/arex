@@ -312,29 +312,40 @@ curl -k -u prometheus:secret https://<mgmt-ip>/command-api \
 
 ### Create a read-only user
 
-arex only ever issues `show` commands, so restrict it to those:
+arex needs **no elevated privilege**. Every command it issues works at the default privilege level, so do not
+grant `privilege 15`:
 
 ```text
 role prometheus-ro
    10 permit command show.*
 
-username prometheus privilege 15 role prometheus-ro secret SHA512 <hash>
+username prometheus role prometheus-ro secret SHA512 <hash>
 ```
 
-**Verify the role is actually enforced.** Assigning a role does not by itself guarantee its rules are evaluated —
-on a switch tested during development, a user whose role was `10 deny command .*` could still run every command
-arex issues. A role that is configured but not enforced is worse than none, because it looks like a restriction.
+**Do not add `privilege 15` here.** On the switches tested during development, privilege level was the only access
+control actually being enforced — the role was not. A privilege-1 user was correctly refused `show running-config`:
 
-Check with a privileged read that a `show`-only role must refuse:
+```json
+{"code":1002,"message":"CLI command 1 of 1 'show running-config' failed: invalid command",
+ "data":[{"errors":["Invalid input (privileged mode required)"]}]}
+```
+
+while a user whose role was `10 deny command .*` could still run every command arex issues. Granting `privilege 15`
+would therefore remove the one restriction that was working, in exchange for access arex never uses.
+
+**Verify both, rather than assuming either.** Run the privileged read your monitoring user should be refused:
 
 ```bash
 curl -k -u prometheus:<password> https://<switch>/command-api \
   -d '{"jsonrpc":"2.0","method":"runCmds","params":{"version":1,"cmds":["show running-config"],"format":"json"},"id":1}'
 ```
 
-If your full configuration comes back, the role is not restricting anything and the credentials arex holds can read
-every secret on the box. Review `show running-config section aaa`, `show aaa` and `show users accounts detail`;
-command authorization generally has to be enabled for role rules to be consulted.
+Expect a `1002` carrying `privileged mode required`. If your full configuration comes back instead, nothing is
+restricting this account and the credentials arex holds can read every secret on the box.
+
+Role rules are a separate question, and a configured role is not necessarily an enforced one — which is worse than
+no role, because it looks like a restriction. Command authorization generally has to be enabled for role rules to
+be consulted; check `show running-config section aaa`, `show aaa` and `show users accounts detail`.
 
 ## Running
 

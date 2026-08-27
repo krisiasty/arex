@@ -44,6 +44,7 @@ type requestLog struct {
 	tls      string
 	eapiCode int
 	eapiMsg  string
+	eapiData []string
 	err      error
 }
 
@@ -109,6 +110,9 @@ func (r *requestLog) emit() {
 	// reported separately from the HTTP status.
 	if r.eapiCode != 0 {
 		fmt.Fprintf(&b, " eapi_error=%d msg=%q", r.eapiCode, truncate(r.eapiMsg, 120))
+		if len(r.eapiData) > 0 {
+			fmt.Fprintf(&b, " cause=%q", truncate(strings.Join(r.eapiData, "; "), 160))
+		}
 	}
 	log.Print(b.String())
 }
