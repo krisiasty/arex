@@ -60,6 +60,9 @@ var defs = flatten(
 		{"arista_scrape_success", "gauge", "1 if the last poll of this switch succeeded"},
 		{"arista_scrape_age_seconds", "gauge", "Seconds since the last successful poll (-1 if never)"},
 		{"arista_command_success", "gauge", "1 if this eAPI command succeeded in the last poll"},
+		{"arista_eapi_requests_total", "counter", "eAPI requests arex has made, by outcome and by whether it was the normal batch or a per-command retry"},
+		{"arista_eapi_response_bytes_total", "counter", "Total eAPI response bytes received from this switch"},
+		{"arista_eapi_request_duration_seconds_total", "counter", "Total time spent on eAPI requests to this switch"},
 
 		{"arista_info", "gauge", "Switch identity labels. Always 1"},
 		{"arista_boot_timestamp_seconds", "gauge", "Unix timestamp of last boot"},

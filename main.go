@@ -14,6 +14,7 @@ import (
 
 func main() {
 	cfgPath := flag.String("config", "config.json", "path to config file")
+	debug := flag.Bool("debug", false, "log every eAPI request: status, timing, sizes and commands")
 	flag.Parse()
 
 	cfg, err := config.Load(*cfgPath)
@@ -26,19 +27,30 @@ func main() {
 		log.Fatalf("%v", err)
 	}
 
+	if *debug {
+		log.Printf("debug logging enabled: one line per eAPI request")
+	}
+
 	// One poller goroutine per switch.
 	for _, sw := range cfg.Switches {
+		data := store.Get(sw.Label())
+
+		opts := []eapi.Option{eapi.WithStats(&data.Stats)}
+		if *debug {
+			opts = append(opts, eapi.WithDebug(sw.Label()))
+		}
 		client, err := eapi.NewClient(
 			sw.Host,
 			sw.Username,
 			sw.Password,
 			cfg.ScrapeTimeout.Duration,
 			sw.TLSOptions(cfg.TLSSkipVerify),
+			opts...,
 		)
 		if err != nil {
 			log.Fatalf("switch %s: %v", sw.Label(), err)
 		}
-		go collector.PollLoop(client, store.Get(sw.Label()), cfg.PollInterval.Duration)
+		go collector.PollLoop(client, data, cfg.PollInterval.Duration)
 	}
 
 	mux := http.NewServeMux()

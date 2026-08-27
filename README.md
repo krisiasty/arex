@@ -28,6 +28,36 @@ Last-known-good data keeps being served while `arista_scrape_age_seconds` is bel
 eAPI failure does not create gaps in every series. `arista_command_success` is per-command: one command rejected by
 a platform costs only its own metrics.
 
+### Exporter self-metrics
+
+These describe arex rather than the switch, so they are reported even when a switch is unreachable — which is when
+request counts matter most.
+
+| Metric | Type | Description |
+| --- | --- | --- |
+| `arista_eapi_requests_total` | counter | eAPI requests made, by `outcome` and `attempt` |
+| `arista_eapi_response_bytes_total` | counter | Total response bytes received from this switch |
+| `arista_eapi_request_duration_seconds_total` | counter | Total time spent on eAPI requests to this switch |
+
+`outcome` is `success`, `eapi_error` (the switch answered and rejected a command), `http_error` (a status such as
+401, which applies to every command) or `transport_error`. `attempt` is `batch` for the normal single request
+carrying every command, or `retry` for the per-command fallback.
+
+The `attempt` label is what makes retry amplification visible. A switch failing authentication should show exactly
+one request per poll interval:
+
+```promql
+# requests per poll — should be ~1, not one per command
+rate(arista_eapi_requests_total[5m]) * 30
+
+# bandwidth per switch, the number that decides whether to filter interfaces
+rate(arista_eapi_response_bytes_total[5m])
+
+# mean request latency
+rate(arista_eapi_request_duration_seconds_total[5m])
+  / rate(arista_eapi_requests_total[5m])
+```
+
 `stalenessLimit` is applied **per command**, not just to the scrape as a whole. Data from a command that fails is
 retained so a single rejection does not create a gap, but it is dropped once that command has not succeeded within
 the limit. Without this, one command that kept working would hold `arista_scrape_age_seconds` near zero while every
@@ -314,7 +344,41 @@ go build -o arex .
 
 # Run
 ./arex -config config.json
+
+# Run with per-request eAPI logging
+./arex -config config.json -debug
 ```
+
+### Debug logging
+
+`-debug` logs one line per eAPI request:
+
+```text
+[leaf-1] eapi POST /command-api -> 200 duration=412ms cmds=9 req=350B resp=486.2kB
+    proto=HTTP/1.1 conn=reused tls=1.2
+[leaf-1] eapi POST /command-api -> 200 duration=38ms cmds=1[show interfaces phy detail]
+    req=94B resp=1.1kB conn=reused eapi_error=1002 msg="invalid command"
+[leaf-2] eapi POST /command-api -> 401 duration=6ms cmds=9 req=350B conn=new tls=1.2
+```
+
+| Field | Meaning |
+| --- | --- |
+| `duration` | Round trip including reading the response body |
+| `cmds` | Number of commands. The list is shown only for small batches, i.e. when a retry is isolating a failure |
+| `req` / `resp` | Payload sizes. `show interfaces phy detail` alone runs to hundreds of kilobytes per poll |
+| `proto` | Negotiated HTTP version |
+| `conn` | `new` or `reused` — see the note below on reused connections |
+| `tls` | Negotiated TLS version, on new connections |
+| `eapi_error` | JSON-RPC error code. A 200 can still carry an eAPI rejection, so it is separate from the status |
+| `error` | Transport failure, when the request never completed |
+
+A **reused** connection can outlive a switch-side configuration change, so if a credential or role change appears
+not to take effect, that field is the first thing to check.
+
+Credentials never appear at any verbosity: the Authorization header is not logged, and neither is the password.
+
+Response sizes are worth watching before scaling out — nine commands against one switch is a few hundred kilobytes
+every poll interval, and interface-heavy commands dominate it.
 
 ## Docker
 

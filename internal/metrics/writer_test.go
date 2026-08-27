@@ -153,11 +153,24 @@ func TestNeverCollectedEmitsOnlyScrapeMetrics(t *testing.T) {
 	}
 	var b bytes.Buffer
 	Write(&b, store, 90*time.Second)
-	if n := countSamples(b.String()); n != 2 {
-		t.Errorf("uncollected switch emitted %d samples, want 2", n)
-	}
-	if v := sample(b.String(), "arista_scrape_age_seconds", ""); v != "-1" {
+	out := b.String()
+
+	if v := sample(out, "arista_scrape_age_seconds", ""); v != "-1" {
 		t.Errorf("age = %q, want -1", v)
+	}
+	// Scrape health and arex's own request counters are fine to emit; what
+	// must not appear is any data purporting to describe the switch.
+	for _, line := range strings.Split(out, "\n") {
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(line, "arista_scrape_"),
+			strings.HasPrefix(line, "arista_command_"),
+			strings.HasPrefix(line, "arista_eapi_"):
+		default:
+			t.Errorf("uncollected switch emitted switch data: %s", line)
+		}
 	}
 	// A switch that has never answered has not had a successful scrape,
 	// even though no error has been recorded yet either.
@@ -675,5 +688,64 @@ func TestPerCommandStalenessSuppressesOneCommand(t *testing.T) {
 	}
 	if v := sample(out, "arista_command_success", `command="show ip bgp summary vrf all"`); v != "0" {
 		t.Errorf("command_success for bgp = %q, want 0", v)
+	}
+}
+
+// The counter exists so retry amplification is visible from Prometheus
+// rather than only from logs: an auth failure must cost one request per
+// poll, and if the retry classification regressed this would jump to one
+// per command.
+func TestEAPIRequestMetricsExposed(t *testing.T) {
+	store, err := collector.NewStore([]config.SwitchConfig{
+		{Host: "h", Username: "u", Password: "p", Name: "sw1"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sd := store.All()[0]
+	collector.Collect(fixtureRunner{t}, sd)
+
+	sd.Stats.Record(eapi.RequestKey{Outcome: eapi.OutcomeSuccess, Attempt: eapi.AttemptBatch}, 486000, time.Second)
+	sd.Stats.Record(eapi.RequestKey{Outcome: eapi.OutcomeHTTPError, Attempt: eapi.AttemptBatch}, 0, time.Millisecond)
+
+	var b bytes.Buffer
+	Write(&b, store, 90*time.Second)
+	out := b.String()
+
+	if got := sample(out, "arista_eapi_requests_total",
+		`outcome="success"`, `attempt="batch"`); got != "1" {
+		t.Errorf("successful batch requests = %q, want 1", got)
+	}
+	if got := sample(out, "arista_eapi_requests_total",
+		`outcome="http_error"`, `attempt="batch"`); got != "1" {
+		t.Errorf("http_error requests = %q, want 1", got)
+	}
+	if sample(out, "arista_eapi_response_bytes_total", "") == "" {
+		t.Error("response bytes counter missing")
+	}
+	if sample(out, "arista_eapi_request_duration_seconds_total", "") == "" {
+		t.Error("duration counter missing")
+	}
+}
+
+// Self-metrics describe arex, not the switch, so they must survive a switch
+// that is unreachable -- that is exactly when request counts matter.
+func TestEAPIRequestMetricsSurviveTotalFailure(t *testing.T) {
+	store, _ := collector.NewStore([]config.SwitchConfig{
+		{Host: "h", Username: "u", Password: "p", Name: "sw1"},
+	})
+	sd := store.All()[0]
+	collector.Collect(failingRunner{}, sd)
+	sd.Stats.Record(eapi.RequestKey{Outcome: eapi.OutcomeHTTPError, Attempt: eapi.AttemptBatch}, 0, time.Millisecond)
+
+	var b bytes.Buffer
+	Write(&b, store, 90*time.Second)
+	out := b.String()
+
+	if sample(out, "arista_eapi_requests_total", `outcome="http_error"`) == "" {
+		t.Error("request counters must be emitted for an unreachable switch")
+	}
+	if v := sample(out, "arista_scrape_success", ""); v != "0" {
+		t.Errorf("scrape_success = %q, want 0", v)
 	}
 }

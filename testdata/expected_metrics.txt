@@ -4,6 +4,12 @@
 # TYPE arista_scrape_age_seconds gauge
 # HELP arista_command_success 1 if this eAPI command succeeded in the last poll
 # TYPE arista_command_success gauge
+# HELP arista_eapi_requests_total eAPI requests arex has made, by outcome and by whether it was the normal batch or a per-command retry
+# TYPE arista_eapi_requests_total counter
+# HELP arista_eapi_response_bytes_total Total eAPI response bytes received from this switch
+# TYPE arista_eapi_response_bytes_total counter
+# HELP arista_eapi_request_duration_seconds_total Total time spent on eAPI requests to this switch
+# TYPE arista_eapi_request_duration_seconds_total counter
 # HELP arista_info Switch identity labels. Always 1
 # TYPE arista_info gauge
 # HELP arista_boot_timestamp_seconds Unix timestamp of last boot
@@ -264,6 +270,8 @@ arista_command_success{switch="sw1",command="show interfaces"} 1
 arista_command_success{switch="sw1",command="show ip bgp summary vrf all"} 1
 arista_command_success{switch="sw1",command="show interfaces transceiver detail"} 1
 arista_command_success{switch="sw1",command="show interfaces phy detail"} 1
+arista_eapi_response_bytes_total{switch="sw1"} 0
+arista_eapi_request_duration_seconds_total{switch="sw1"} 0
 arista_scrape_age_seconds{switch="sw1"} <age>
 arista_info{switch="sw1",model="DCS-7050CX3-32C-R",serial="ABC1234567X",version="4.35.4M",mac="00:1c:73:00:00:01",arch="x86_64"} 1
 arista_boot_timestamp_seconds{switch="sw1"} 1.7772940864660642e+09
