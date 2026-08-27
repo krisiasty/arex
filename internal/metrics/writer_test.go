@@ -15,6 +15,7 @@ import (
 
 	"github.com/krisiasty/arex/config"
 	"github.com/krisiasty/arex/internal/collector"
+	"github.com/krisiasty/arex/internal/eapi"
 )
 
 // fixtureRunner serves the repo-root testdata fixtures as eAPI results.
@@ -603,4 +604,76 @@ type failingRunner struct{}
 
 func (failingRunner) Run([]string) ([]json.RawMessage, error) {
 	return nil, errors.New("unexpected HTTP status: 401 Unauthorized")
+}
+
+// staleRunner fails one nominated command and serves fixtures for the rest.
+type staleRunner struct {
+	t    *testing.T
+	fail string
+}
+
+func (s staleRunner) Run(cmds []string) ([]json.RawMessage, error) {
+	for _, c := range cmds {
+		if c == s.fail {
+			// A switch rejecting one command answers with a JSON-RPC error,
+			// which drives the per-command retry path.
+			if len(cmds) > 1 {
+				return nil, &eapi.CommandError{Code: 1002, Message: "invalid command"}
+			}
+			return nil, &eapi.CommandError{Code: 1002, Message: "invalid command"}
+		}
+	}
+	return fixtureRunner{s.t}.Run(cmds)
+}
+
+// One command failing must not let the other eight mask it: stalenessLimit
+// has to bound each command's data, not just the scrape as a whole.
+// Otherwise a single working command keeps LastSuccess fresh for ever while
+// arex serves arbitrarily old data for everything else.
+func TestPerCommandStalenessSuppressesOneCommand(t *testing.T) {
+	store, err := collector.NewStore([]config.SwitchConfig{
+		{Host: "h", Username: "u", Password: "p", Name: "sw1"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sd := store.All()[0]
+
+	// A healthy poll, then polls where BGP is rejected.
+	collector.Collect(fixtureRunner{t}, sd)
+	collector.Collect(staleRunner{t, "show ip bgp summary vrf all"}, sd)
+
+	var b bytes.Buffer
+	Write(&b, store, 90*time.Second)
+	fresh := b.String()
+
+	// Immediately after, BGP data is still inside stalenessLimit.
+	if sample(fresh, "arista_bgp_peer_up", `peer="198.51.100.10"`) == "" {
+		t.Error("BGP data should survive briefly after one failed poll")
+	}
+
+	// Age that command's last success past the limit.
+	sd.CommandLastSuccess[collector.CmdBGPSummary] = time.Now().Add(-200 * time.Second)
+
+	b.Reset()
+	Write(&b, store, 90*time.Second)
+	out := b.String()
+
+	if sample(out, "arista_bgp_peer_up", "") != "" {
+		t.Error("BGP data older than stalenessLimit must be suppressed")
+	}
+	// Everything else must be unaffected.
+	if sample(out, "arista_info", "") == "" {
+		t.Error("show version data should still be served")
+	}
+	if sample(out, "arista_interface_link_up", `interface="Ethernet1/1"`) == "" {
+		t.Error("interface data should still be served")
+	}
+	// The scrape itself is still succeeding, and the failure is visible.
+	if v := sample(out, "arista_scrape_success", ""); v != "1" {
+		t.Errorf("scrape_success = %q, want 1: other commands are working", v)
+	}
+	if v := sample(out, "arista_command_success", `command="show ip bgp summary vrf all"`); v != "0" {
+		t.Errorf("command_success for bgp = %q, want 0", v)
+	}
 }

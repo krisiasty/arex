@@ -28,6 +28,13 @@ Last-known-good data keeps being served while `arista_scrape_age_seconds` is bel
 eAPI failure does not create gaps in every series. `arista_command_success` is per-command: one command rejected by
 a platform costs only its own metrics.
 
+`stalenessLimit` is applied **per command**, not just to the scrape as a whole. Data from a command that fails is
+retained so a single rejection does not create a gap, but it is dropped once that command has not succeeded within
+the limit. Without this, one command that kept working would hold `arista_scrape_age_seconds` near zero while every
+other metric aged indefinitely — arex would report a healthy, current scrape over hours-old readings. So a switch
+where some commands work and others do not will show `arista_scrape_success 1`, a small age, `arista_command_success
+0` for the failing commands, and no series at all from those commands.
+
 ### System
 
 | Metric | Type | Description |
@@ -283,6 +290,21 @@ role prometheus-ro
 
 username prometheus privilege 15 role prometheus-ro secret SHA512 <hash>
 ```
+
+**Verify the role is actually enforced.** Assigning a role does not by itself guarantee its rules are evaluated —
+on a switch tested during development, a user whose role was `10 deny command .*` could still run every command
+arex issues. A role that is configured but not enforced is worse than none, because it looks like a restriction.
+
+Check with a privileged read that a `show`-only role must refuse:
+
+```bash
+curl -k -u prometheus:<password> https://<switch>/command-api \
+  -d '{"jsonrpc":"2.0","method":"runCmds","params":{"version":1,"cmds":["show running-config"],"format":"json"},"id":1}'
+```
+
+If your full configuration comes back, the role is not restricting anything and the credentials arex holds can read
+every secret on the box. Review `show running-config section aaa`, `show aaa` and `show users accounts detail`;
+command authorization generally has to be enabled for role rules to be consulted.
 
 ## Running
 

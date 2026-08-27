@@ -84,15 +84,43 @@ func writeSwitch(w io.Writer, sw *collector.SwitchData, now time.Time, staleness
 		return // too old to be worth publishing
 	}
 
-	writeVersion(w, sl, sw.Version)
-	writeCPUMemory(w, sl, sw.ProcessTop)
-	writeTemperature(w, sl, sw.EnvTemp)
-	writePower(w, sl, sw.EnvPower)
-	writeCooling(w, sl, sw.EnvCooling)
-	writeInterfaces(w, sl, sw.Interfaces)
-	writeBGP(w, sl, sw.BGPSummary)
-	writeTransceivers(w, sl, sw.Optics)
-	writePhy(w, sl, sw.Phy)
+	// Each command's data is bounded separately. Data from a failed command
+	// is retained so a transient rejection does not create a gap, but one
+	// command that keeps working must not hold the whole scrape "fresh"
+	// while everything else silently ages -- arex would report
+	// scrape_success 1 and scrape_age near zero over hours-old readings.
+	fresh := func(cli string) bool {
+		last, ok := sw.CommandLastSuccess[cli]
+		return ok && now.Sub(last) <= stalenessLimit
+	}
+
+	if fresh(collector.CmdVersion) {
+		writeVersion(w, sl, sw.Version)
+	}
+	if fresh(collector.CmdProcessesTop) {
+		writeCPUMemory(w, sl, sw.ProcessTop)
+	}
+	if fresh(collector.CmdEnvTemp) {
+		writeTemperature(w, sl, sw.EnvTemp)
+	}
+	if fresh(collector.CmdEnvPower) {
+		writePower(w, sl, sw.EnvPower)
+	}
+	if fresh(collector.CmdEnvCooling) {
+		writeCooling(w, sl, sw.EnvCooling)
+	}
+	if fresh(collector.CmdInterfaces) {
+		writeInterfaces(w, sl, sw.Interfaces)
+	}
+	if fresh(collector.CmdBGPSummary) {
+		writeBGP(w, sl, sw.BGPSummary)
+	}
+	if fresh(collector.CmdTransceivers) {
+		writeTransceivers(w, sl, sw.Optics)
+	}
+	if fresh(collector.CmdPhy) {
+		writePhy(w, sl, sw.Phy)
+	}
 }
 
 // writeVersion emits identity, boot time and available memory.

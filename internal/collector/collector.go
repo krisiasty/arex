@@ -35,6 +35,12 @@ type SwitchData struct {
 	// failed command is left at its previous value rather than zeroed.
 	CommandErrors map[string]error
 
+	// CommandLastSuccess records when each command last returned usable
+	// output. Data from a failed command is retained rather than zeroed, so
+	// without a per-command bound one working command would keep the scrape
+	// looking fresh while the rest went arbitrarily stale.
+	CommandLastSuccess map[string]time.Time
+
 	// tracker collapses repeated identical failures so a permanently broken
 	// switch does not emit one log line per poll indefinitely.
 	tracker repeatTracker
@@ -76,7 +82,10 @@ func NewStore(switches []config.SwitchConfig) (*Store, error) {
 		if _, dup := s.switches[label]; dup {
 			return nil, fmt.Errorf("config: duplicate switch label %q — names must be unique", label)
 		}
-		s.switches[label] = &SwitchData{Label: label}
+		s.switches[label] = &SwitchData{
+			Label:              label,
+			CommandLastSuccess: make(map[string]time.Time),
+		}
 		s.order = append(s.order, label)
 	}
 	return s, nil
@@ -117,36 +126,50 @@ type cmdSpec struct {
 	apply func(*snapshot, *SwitchData)
 }
 
+// The CLI commands arex issues. Exported so the writer can decide, per
+// command, whether that command's data is still fresh enough to publish.
+const (
+	CmdVersion      = "show version"
+	CmdProcessesTop = "show processes top once"
+	CmdEnvTemp      = "show system environment temperature"
+	CmdEnvPower     = "show system environment power"
+	CmdEnvCooling   = "show system environment cooling"
+	CmdInterfaces   = "show interfaces"
+	CmdBGPSummary   = "show ip bgp summary vrf all"
+	CmdTransceivers = "show interfaces transceiver detail"
+	CmdPhy          = "show interfaces phy detail"
+)
+
 // commands is the set of EOS CLI commands arex issues per poll.
 //
 // "vrf all" is required: plain "show ip bgp summary" returns the default VRF
 // only, so peers in any other VRF are invisible.
 var commands = []cmdSpec{
-	{"show version",
+	{CmdVersion,
 		func(s *snapshot) interface{} { return &s.version },
 		func(s *snapshot, d *SwitchData) { d.Version = s.version }},
-	{"show processes top once",
+	{CmdProcessesTop,
 		func(s *snapshot) interface{} { return &s.processTop },
 		func(s *snapshot, d *SwitchData) { d.ProcessTop = s.processTop }},
-	{"show system environment temperature",
+	{CmdEnvTemp,
 		func(s *snapshot) interface{} { return &s.envTemp },
 		func(s *snapshot, d *SwitchData) { d.EnvTemp = s.envTemp }},
-	{"show system environment power",
+	{CmdEnvPower,
 		func(s *snapshot) interface{} { return &s.envPower },
 		func(s *snapshot, d *SwitchData) { d.EnvPower = s.envPower }},
-	{"show system environment cooling",
+	{CmdEnvCooling,
 		func(s *snapshot) interface{} { return &s.envCooling },
 		func(s *snapshot, d *SwitchData) { d.EnvCooling = s.envCooling }},
-	{"show interfaces",
+	{CmdInterfaces,
 		func(s *snapshot) interface{} { return &s.interfaces },
 		func(s *snapshot, d *SwitchData) { d.Interfaces = s.interfaces }},
-	{"show ip bgp summary vrf all",
+	{CmdBGPSummary,
 		func(s *snapshot) interface{} { return &s.bgp },
 		func(s *snapshot, d *SwitchData) { d.BGPSummary = s.bgp }},
-	{"show interfaces transceiver detail",
+	{CmdTransceivers,
 		func(s *snapshot) interface{} { return &s.optics },
 		func(s *snapshot, d *SwitchData) { d.Optics = s.optics }},
-	{"show interfaces phy detail",
+	{CmdPhy,
 		func(s *snapshot) interface{} { return &s.phy },
 		func(s *snapshot, d *SwitchData) { d.Phy = s.phy }},
 }
@@ -236,14 +259,19 @@ func Collect(client Runner, data *SwitchData) {
 	} else if line := data.tracker.recovered(time.Now()); line != "" {
 		log.Printf("[%s] %s", data.Label, line)
 	}
+	now := time.Now()
+	if data.CommandLastSuccess == nil {
+		data.CommandLastSuccess = make(map[string]time.Time, len(commands))
+	}
 	for i, c := range commands {
 		if ok[i] {
 			c.apply(&snap, data)
+			data.CommandLastSuccess[c.cli] = now
 		}
 	}
 	data.CommandErrors = cmdErrs
 	data.ScrapeErr = nil
-	data.LastSuccess = time.Now()
+	data.LastSuccess = now
 }
 
 // worthRetryingIndividually reports whether a failed batch could partly
