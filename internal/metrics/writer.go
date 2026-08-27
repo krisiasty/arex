@@ -57,9 +57,12 @@ func writeSwitch(w io.Writer, sw *collector.SwitchData, now time.Time, staleness
 
 	sl := labels("switch", sw.Label)
 
-	boolGauge(w, "arista_scrape_success", sl, sw.ScrapeErr == nil)
+	// Never collected is not a success, even before the first error is
+	// recorded: on startup a poll can be in flight for a full timeout.
+	collected := !sw.LastSuccess.IsZero()
+	boolGauge(w, "arista_scrape_success", sl, collected && sw.ScrapeErr == nil)
 
-	if sw.LastSuccess.IsZero() {
+	if !collected {
 		gauge(w, "arista_scrape_age_seconds", sl, -1)
 		return // never collected: there is nothing to serve
 	}

@@ -2,6 +2,7 @@ package collector
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -10,6 +11,10 @@ import (
 	"github.com/krisiasty/arex/config"
 	"github.com/krisiasty/arex/internal/eapi"
 )
+
+// errResultCount signals that eAPI returned a different number of results
+// than commands sent.
+var errResultCount = errors.New("result count mismatch")
 
 // Runner executes EOS CLI commands and returns one raw JSON result per
 // command. *eapi.Client implements it.
@@ -162,6 +167,12 @@ func Collect(client Runner, data *SwitchData) {
 	ok := make([]bool, len(commands))
 
 	raws, err := runBatch(client, len(commands))
+	if err != nil && !worthRetryingIndividually(err) {
+		// The switch is unreachable or refusing us outright. Retrying each
+		// command would multiply the timeout by len(commands) for nothing.
+		setError(data, fmt.Errorf("collection failed: %w", err))
+		return
+	}
 	if err != nil {
 		for i, c := range commands {
 			raw, cerr := runOne(client, c.cli)
@@ -222,6 +233,17 @@ func Collect(client Runner, data *SwitchData) {
 	data.LastSuccess = time.Now()
 }
 
+// worthRetryingIndividually reports whether a failed batch could partly
+// succeed if its commands were sent one at a time.
+func worthRetryingIndividually(err error) bool {
+	var cmdErr *eapi.CommandError
+	if errors.As(err, &cmdErr) {
+		return true
+	}
+	// A result-count mismatch is also a per-command problem, not transport.
+	return errors.Is(err, errResultCount)
+}
+
 // runBatch issues every command in a single request.
 func runBatch(client Runner, n int) ([]json.RawMessage, error) {
 	raws, err := client.Run(Commands())
@@ -229,7 +251,7 @@ func runBatch(client Runner, n int) ([]json.RawMessage, error) {
 		return make([]json.RawMessage, n), err
 	}
 	if len(raws) != n {
-		return make([]json.RawMessage, n), fmt.Errorf("expected %d results, got %d", n, len(raws))
+		return make([]json.RawMessage, n), fmt.Errorf("%w: expected %d, got %d", errResultCount, n, len(raws))
 	}
 	return raws, nil
 }

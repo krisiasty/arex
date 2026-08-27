@@ -158,6 +158,11 @@ func TestNeverCollectedEmitsOnlyScrapeMetrics(t *testing.T) {
 	if v := sample(b.String(), "arista_scrape_age_seconds", ""); v != "-1" {
 		t.Errorf("age = %q, want -1", v)
 	}
+	// A switch that has never answered has not had a successful scrape,
+	// even though no error has been recorded yet either.
+	if v := sample(b.String(), "arista_scrape_success", ""); v != "0" {
+		t.Errorf("arista_scrape_success = %q for a never-contacted switch, want 0", v)
+	}
 }
 
 // --- the six field-name bugs, at the exposition layer ---

@@ -7,19 +7,23 @@ import (
 	"testing"
 
 	"github.com/krisiasty/arex/config"
+	"github.com/krisiasty/arex/internal/eapi"
 )
 
 // fakeRunner returns canned results, or an error, per command.
 type fakeRunner struct {
 	results map[string]string // command -> raw JSON
 	fail    map[string]error  // command -> per-command failure
-	allErr  error             // whole-transport failure
-	calls   []string
+	allErr  error             // failure returned by Run
+	// failBatchOnly makes allErr apply only to multi-command calls, so a
+	// batch rejection can be distinguished from an unreachable switch.
+	failBatchOnly bool
+	calls         []string
 }
 
 func (f *fakeRunner) Run(cmds []string) ([]json.RawMessage, error) {
 	f.calls = append(f.calls, cmds...)
-	if f.allErr != nil {
+	if f.allErr != nil && (!f.failBatchOnly || len(cmds) > 1) {
 		return nil, f.allErr
 	}
 	out := make([]json.RawMessage, 0, len(cmds))
@@ -74,7 +78,8 @@ func TestCollectsOpticsCommands(t *testing.T) {
 func TestOneFailedCommandDoesNotLoseTheRest(t *testing.T) {
 	f := newFake()
 	f.results["show version"] = `{"modelName":"DCS-7050CX3-32C-R","memTotal":16280716}`
-	f.fail["show interfaces phy detail"] = errors.New("eAPI error 1002: invalid command")
+	// A switch that rejects a command answers with a JSON-RPC error.
+	f.fail["show interfaces phy detail"] = &eapi.CommandError{Code: 1002, Message: "invalid command"}
 
 	data := &SwitchData{Label: "sw1"}
 	Collect(f, data)
@@ -143,5 +148,34 @@ func TestDuplicateSwitchNamesAreRejected(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "spine1") {
 		t.Errorf("error should name the duplicate: %v", err)
+	}
+}
+
+// An unreachable switch must not be probed once per command: with 9
+// commands and a 10s timeout that is 100s per poll, longer than the default
+// poll interval and staleness limit. Only an eAPI-level rejection -- the
+// switch answered, but disliked a command -- justifies retrying individually.
+func TestTransportFailureDoesNotRetryPerCommand(t *testing.T) {
+	f := newFake()
+	f.allErr = errors.New("dial tcp 192.0.2.99:443: i/o timeout")
+
+	Collect(f, &SwitchData{Label: "sw1"})
+
+	if len(f.calls) > len(Commands()) {
+		t.Errorf("issued %d commands for an unreachable switch, want at most one batch of %d",
+			len(f.calls), len(Commands()))
+	}
+}
+
+func TestEAPIRejectionDoesRetryPerCommand(t *testing.T) {
+	f := newFake()
+	f.allErr = &eapi.CommandError{Code: 1002, Message: "invalid command"}
+	f.failBatchOnly = true
+
+	Collect(f, &SwitchData{Label: "sw1"})
+
+	if len(f.calls) <= len(Commands()) {
+		t.Errorf("issued %d commands; an eAPI rejection should trigger individual retries",
+			len(f.calls))
 	}
 }
