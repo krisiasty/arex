@@ -318,10 +318,16 @@ grant `privilege 15`:
 ```text
 role prometheus-ro
    10 deny mode config-all command .*
+   15 deny command show (running-config|startup-config|tech-support).*
    20 permit command show .*
 
 username prometheus role prometheus-ro secret SHA512 <hash>
 ```
+
+Rule 15 must precede rule 20: EOS evaluates in sequence and the first match wins, so a broad permit placed first
+would swallow it. It covers the `show` commands that dump configuration, which `show .*` would otherwise allow —
+`show tech-support` in particular embeds the running configuration. The privilege level already refuses all three,
+so this is redundant today; it is here so the role remains safe on its own if the privilege level ever changes.
 
 This role has been verified under enforcement. With command authorization enabled, all nine commands arex issues
 are permitted, and everything else — including `enable` — is refused:
@@ -419,6 +425,7 @@ aaa authorization commands all default local
 !
 role prometheus-ro
    10 deny mode config-all command .*
+   15 deny command show (running-config|startup-config|tech-support).*
    20 permit command show .*
 !
 username prometheus role prometheus-ro secret sha512 <hash>
@@ -441,7 +448,9 @@ sw1>show tech-support
 % Incomplete command (privileged mode required)
 ```
 
-The wording identifies which control refused, which is worth knowing when something unexpected is denied:
+With rule 15 in place the three configuration dumps are refused by the role instead, so they report
+`Authorization denied for command …`. That change in wording is itself the check that rule 15 is working: the
+message identifies which control refused, which is worth knowing whenever something unexpected is denied:
 
 | message | mechanism |
 | --- | --- |
