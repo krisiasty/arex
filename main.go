@@ -21,9 +21,12 @@ func main() {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	store := collector.NewStore(cfg.Switches)
+	store, err := collector.NewStore(cfg.Switches)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
 
-	// Start one poller goroutine per switch.
+	// One poller goroutine per switch.
 	for _, sw := range cfg.Switches {
 		client := eapi.NewClient(
 			sw.Host,
@@ -32,33 +35,26 @@ func main() {
 			cfg.ScrapeTimeout.Duration,
 			cfg.TLSSkipVerify,
 		)
-		data := store.All()
-		// Find the SwitchData for this switch by label.
-		var sd *collector.SwitchData
-		for _, d := range data {
-			if d.Label == sw.Label() {
-				sd = d
-				break
-			}
-		}
-		go collector.PollLoop(client, sd, cfg.PollInterval.Duration)
+		go collector.PollLoop(client, store.Get(sw.Label()), cfg.PollInterval.Duration)
 	}
 
-	http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
 		metrics.Write(w, store, cfg.StalenessLimit.Duration)
 	})
-
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
 
 	log.Printf("arex listening on %s", cfg.ListenAddress)
 	srv := &http.Server{
-		Addr:         cfg.ListenAddress,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		Addr:              cfg.ListenAddress,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
 	}
 	log.Fatal(srv.ListenAndServe())
 }
