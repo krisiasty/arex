@@ -400,6 +400,66 @@ inert no matter what it says. Check
 for **every** account on every access path at once, including the session you type it in, so do it with a second
 privileged session open and a way to roll back.
 
+### Reference configuration
+
+Everything below has been verified on an EOS 4.35.4M switch: eAPI reachable in the management VRF, all nine of
+arex's commands permitted, and everything else refused.
+
+```text
+management api http-commands
+   no shutdown
+   protocol https
+   no protocol http
+   !
+   vrf management
+      no shutdown
+!
+aaa authorization exec default local
+aaa authorization commands all default local
+!
+role prometheus-ro
+   10 deny mode config-all command .*
+   20 permit command show .*
+!
+username prometheus role prometheus-ro secret sha512 <hash>
+```
+
+Apply the `aaa` lines last and with care: they subject **every** account to role checks the moment they commit,
+including the session you are typing in. Have a second privileged session open, confirm your administrative
+accounts resolve to a role that permits configuration, and keep a way to roll back.
+
+Then confirm the result. As `prometheus`, all of these must be refused:
+
+```text
+sw1>enable
+% Authorization denied for command 'enable'
+sw1>show running-config
+% Invalid input (privileged mode required)
+sw1>show startup-config
+% Invalid input (privileged mode required)
+sw1>show tech-support
+% Incomplete command (privileged mode required)
+```
+
+The wording identifies which control refused, which is worth knowing when something unexpected is denied:
+
+| message | mechanism |
+| --- | --- |
+| `Authorization denied for command …` | command authorization, i.e. the role |
+| `Invalid input (privileged mode required)` | privilege level |
+
+`enable` is refused by the role, and the configuration dumps by the privilege level. The two are independent and
+both are load-bearing: the role stops elevation, and the privilege level stops privileged reads that `show .*`
+would otherwise permit.
+
+Finally, confirm arex itself is unaffected — its role becomes live at the same moment:
+
+```bash
+curl -s localhost:9100/metrics | grep arista_command_success
+```
+
+All nine at 1. Any at 0 and `-debug` reports the refusal verbatim in its `cause=` field.
+
 ## Running
 
 ```bash
