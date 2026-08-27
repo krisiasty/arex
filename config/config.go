@@ -19,7 +19,7 @@ type Config struct {
 
 // SwitchConfig holds connection details for a single switch.
 type SwitchConfig struct {
-	Host     string `json:"host"`     // e.g. "https://192.168.1.1"
+	Host     string `json:"host"` // e.g. "https://192.168.1.1"
 	Username string `json:"username"`
 	Password string `json:"password"`
 	// Optional human-readable name used as the "switch" label.
