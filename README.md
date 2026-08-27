@@ -323,11 +323,17 @@ role prometheus-ro
 username prometheus role prometheus-ro secret SHA512 <hash>
 ```
 
-Rule 10 is not redundant. A permit-only role restricts nothing unless EOS denies whatever no rule matches, and an
-explicit denial of configuration mode does not depend on that assumption holding.
+This role has been verified under enforcement. With command authorization enabled, all nine commands arex issues
+are permitted, and everything else — including `enable` — is refused:
 
-This role has been verified under enforcement: with command authorization enabled, all nine commands arex issues
-are permitted and nothing else is.
+```text
+sw1>enable
+% Authorization denied for command 'enable'
+```
+
+That refusal is the important one, and it comes from EOS denying any command no rule matches. Rule 10 is therefore
+belt-and-braces rather than load-bearing; it is kept because an explicit statement of intent survives someone
+later adding a permit rule that turns out to be broader than they meant.
 
 Rule 20 permits every `show` rather than listing the commands arex issues. An exact list would be tighter, but the
 command set grows: two commands were added to arex in a single development cycle, and a list-based role would have
@@ -335,17 +341,19 @@ started refusing them. `show .*` still permits privileged reads such as `show ru
 privilege level is what refuses those, which is why the two settings below work together and neither is sufficient
 alone.
 
-**A stock switch restricts a monitoring account far less than it appears to.** Three separate things have to hold,
-and on the switches tested during development none of them did:
+**A stock switch restricts a monitoring account far less than it appears to**, and the single setting that fixes
+it is command authorization:
 
-| requirement | default | if missing |
+| | with command authorization | without it (the default) |
 | --- | --- | --- |
-| an enable secret is set | absent | `enable` elevates to privilege 15 with no password |
-| the user is not granted `privilege 15` | — | the account starts elevated |
-| command authorization is enabled | disabled | role rules are ignored entirely |
+| role rules | enforced | **ignored entirely** |
+| commands matching no rule | denied | permitted |
+| `enable` | denied by the role | **elevates with no password** |
 
-They are not alternatives. Omitting any one of them leaves the account effectively unrestricted, and the first is
-the one most often missed because the privilege level *looks* like it is working:
+Without it, a monitoring account is unrestricted in practice regardless of how careful the role looks. The
+privilege level appears to hold — a privilege-1 user is refused `show running-config` — right up until anyone
+types `enable`, and eAPI accepts `enable` as a command like any other, so this is reachable in one request over
+the network:
 
 ```text
 sw1>show running-config
@@ -355,10 +363,11 @@ sw1#show running-config
 ! ... the entire configuration
 ```
 
-This is reachable over the network, not only from a terminal: eAPI accepts `enable` as a command like any other,
-so `{"cmds":["enable","show running-config"]}` elevates within a single request.
+Setting an `enable secret` closes that specific path and is worth doing as defence in depth, since it still holds
+if command authorization is ever turned off. But it is not the fix — enabling authorization with a role that
+permits only what is needed is.
 
-**Verify all three.** Each of these must be refused:
+**Verify.** With authorization enabled and the role above, each of these must be refused:
 
 ```bash
 # 1. a privileged read, unelevated
@@ -369,7 +378,7 @@ curl -k -u prometheus:<password> https://<switch>/command-api \
 curl -k -u prometheus:<password> https://<switch>/command-api -d '{"jsonrpc":"2.0","method":"runCmds",
   "params":{"version":1,"cmds":["enable","show running-config"],"format":"json"},"id":1}'
 
-# 3. a command the role forbids -- this catches command authorization being disabled
+# 3. a command the role forbids -- catches authorization being disabled
 curl -k -u prometheus:<password> https://<switch>/command-api \
   -d '{"jsonrpc":"2.0","method":"runCmds","params":{"version":1,"cmds":["configure"],"format":"json"},"id":1}'
 ```
@@ -381,9 +390,9 @@ A refusal looks like this, and the useful part is in `data`, not `message`:
  "data":[{"errors":["Invalid input (privileged mode required)"]}]}
 ```
 
-If any of the three returns configuration instead, treat the credentials in your arex config as switch
-administrator credentials, because that is what they are. They sit in a plaintext file readable by whatever runs
-arex, and arex never needs any of that access.
+If any of them returns configuration instead, treat the credentials in your arex config as switch administrator
+credentials, because that is what they are. They sit in a plaintext file readable by whatever runs arex, and arex
+never needs any of that access.
 
 Command authorization has to be enabled globally before role rules are consulted at all; until it is, a role is
 inert no matter what it says. Check
