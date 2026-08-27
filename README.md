@@ -326,6 +326,9 @@ username prometheus role prometheus-ro secret SHA512 <hash>
 Rule 10 is not redundant. A permit-only role restricts nothing unless EOS denies whatever no rule matches, and an
 explicit denial of configuration mode does not depend on that assumption holding.
 
+This role has been verified under enforcement: with command authorization enabled, all nine commands arex issues
+are permitted and nothing else is.
+
 Rule 20 permits every `show` rather than listing the commands arex issues. An exact list would be tighter, but the
 command set grows: two commands were added to arex in a single development cycle, and a list-based role would have
 started refusing them. `show .*` still permits privileged reads such as `show running-config` — the default
@@ -382,7 +385,8 @@ If any of the three returns configuration instead, treat the credentials in your
 administrator credentials, because that is what they are. They sit in a plaintext file readable by whatever runs
 arex, and arex never needs any of that access.
 
-Command authorization generally has to be enabled globally before role rules are consulted at all; check
+Command authorization has to be enabled globally before role rules are consulted at all; until it is, a role is
+inert no matter what it says. Check
 `show running-config section aaa`, `show aaa` and `show users accounts detail`. Enabling it starts enforcing roles
 for **every** account on every access path at once, including the session you type it in, so do it with a second
 privileged session open and a way to roll back.
