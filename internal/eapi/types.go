@@ -133,6 +133,7 @@ type Fan struct {
 	Uptime                    float64 `json:"uptime"`
 	SpeedStable               bool    `json:"speedStable"`
 	SpeedHwOverride           bool    `json:"speedHwOverride"`
+	VendorModel               string  `json:"vendorModel"`
 	LastSpeedStableChangeTime float64 `json:"lastSpeedStableChangeTime"`
 }
 

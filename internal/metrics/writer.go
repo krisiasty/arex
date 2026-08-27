@@ -1,16 +1,19 @@
+// Package metrics renders collected switch data in the Prometheus text
+// exposition format (https://prometheus.io/docs/instrumenting/exposition_formats/).
 package metrics
 
 import (
 	"fmt"
 	"io"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/krisiasty/arex/internal/collector"
 	"github.com/krisiasty/arex/internal/eapi"
 )
 
-// Write renders all metrics for all switches in Prometheus text exposition
-// format (https://prometheus.io/docs/instrumenting/exposition_formats/).
+// Write renders metrics for every switch in the store.
 func Write(w io.Writer, store *collector.Store, stalenessLimit time.Duration) {
 	writeHelp(w)
 	now := time.Now()
@@ -19,140 +22,189 @@ func Write(w io.Writer, store *collector.Store, stalenessLimit time.Duration) {
 	}
 }
 
+// gauge emits one sample.
+func gauge(w io.Writer, name, lbls string, v float64) {
+	_, _ = fmt.Fprintf(w, "%s{%s} %g\n", name, lbls, v)
+}
+
+// counter emits one integer sample.
+func counter(w io.Writer, name, lbls string, v uint64) {
+	_, _ = fmt.Fprintf(w, "%s{%s} %d\n", name, lbls, v)
+}
+
+// boolGauge emits 1 or 0.
+func boolGauge(w io.Writer, name, lbls string, b bool) {
+	gauge(w, name, lbls, boolToFloat(b))
+}
+
+// timestamp emits an epoch, skipping the zero value EOS uses for "never".
+func timestamp(w io.Writer, name, lbls string, epoch float64) {
+	if epoch <= 0 {
+		return
+	}
+	gauge(w, name, lbls, epoch)
+}
+
 // writeSwitch renders metrics for a single switch.
+//
+// Scrape health is always emitted. Beyond that, last-known-good data is
+// served even when the most recent poll failed: riding out a transient
+// eAPI failure is the main advantage of polling out-of-band, and dropping
+// every series on one refused connection throws it away.
 func writeSwitch(w io.Writer, sw *collector.SwitchData, now time.Time, stalenessLimit time.Duration) {
 	sw.RLock()
 	defer sw.RUnlock()
 
-	host := sw.Label
-	scrapeErr := sw.ScrapeErr
-	lastSuccess := sw.LastSuccess
+	sl := labels("switch", sw.Label)
 
-	upVal := 1.0
-	if scrapeErr != nil {
-		upVal = 0.0
+	boolGauge(w, "arista_scrape_success", sl, sw.ScrapeErr == nil)
+
+	if sw.LastSuccess.IsZero() {
+		gauge(w, "arista_scrape_age_seconds", sl, -1)
+		return // never collected: there is nothing to serve
 	}
 
-	age := now.Sub(lastSuccess).Seconds()
-	if lastSuccess.IsZero() {
-		age = -1 // not yet collected
+	age := now.Sub(sw.LastSuccess)
+	gauge(w, "arista_scrape_age_seconds", sl, age.Seconds())
+	if age > stalenessLimit {
+		return // too old to be worth publishing
 	}
 
-	_, _ = fmt.Fprintf(w, "arista_scrape_success{switch=%q} %g\n", host, upVal)
-	_, _ = fmt.Fprintf(w, "arista_scrape_age_seconds{switch=%q} %g\n", host, age)
-
-	// Do not emit stale metrics — Prometheus will handle disappearing series.
-	if !lastSuccess.IsZero() && now.Sub(lastSuccess) > stalenessLimit {
-		return
-	}
-	if scrapeErr != nil {
-		return
+	for _, cli := range collector.Commands() {
+		_, failed := sw.CommandErrors[cli]
+		boolGauge(w, "arista_command_success", join(sl, labels("command", cli)), !failed)
 	}
 
-	writeVersion(w, host, sw.Version)
-	writeCPUMemory(w, host, sw.ProcessTop)
-	writeTemperature(w, host, sw.EnvTemp)
-	writePower(w, host, sw.EnvPower)
-	writeCooling(w, host, sw.EnvCooling)
-	writeInterfaces(w, host, sw.Interfaces)
-	writeBGP(w, host, sw.BGPSummary)
+	writeVersion(w, sl, sw.Version)
+	writeCPUMemory(w, sl, sw.ProcessTop)
+	writeTemperature(w, sl, sw.EnvTemp)
+	writePower(w, sl, sw.EnvPower)
+	writeCooling(w, sl, sw.EnvCooling)
+	writeInterfaces(w, sl, sw.Interfaces)
+	writeBGP(w, sl, sw.BGPSummary)
+	writeTransceivers(w, sl, sw.Optics)
+	writePhy(w, sl, sw.Phy)
 }
 
-// writeVersion emits switch identity and resource metrics from show version.
-func writeVersion(w io.Writer, host string, v eapi.ShowVersion) {
-	// Static identity as an info metric — use in PromQL joins.
-	_, _ = fmt.Fprintf(w, "arista_info{switch=%q,model=%q,serial=%q,version=%q,mac=%q,arch=%q} 1\n",
-		host, v.ModelName, v.SerialNumber, v.Version, v.SystemMacAddress, v.Architecture)
+// writeVersion emits identity, boot time and available memory.
+func writeVersion(w io.Writer, sl string, v eapi.ShowVersion) {
+	gauge(w, "arista_info", join(sl, labels(
+		"model", v.ModelName,
+		"serial", v.SerialNumber,
+		"version", v.Version,
+		"mac", v.SystemMacAddress,
+		"arch", v.Architecture,
+	)), 1)
 
-	// Bootup timestamp — derive uptime in PromQL as: time() - arista_boot_timestamp_seconds
-	_, _ = fmt.Fprintf(w, "arista_boot_timestamp_seconds{switch=%q} %g\n", host, v.BootupTimestamp)
+	// Uptime is derivable in PromQL: time() - arista_boot_timestamp_seconds
+	timestamp(w, "arista_boot_timestamp_seconds", sl, v.BootupTimestamp)
 
-	// Memory from show version (kilobytes → bytes)
-	_, _ = fmt.Fprintf(w, "arista_memory_total_bytes{switch=%q} %d\n", host, v.MemTotal*1024)
-	_, _ = fmt.Fprintf(w, "arista_memory_free_bytes{switch=%q} %d\n", host, v.MemFree*1024)
+	// kilobytes -> bytes. show version's memFree tracks MemAvailable, not
+	// MemFree: it agrees with top's free+buffcache to within 0.05% and sits
+	// ~5.3 GiB above top's strict memFree. Named for what it measures.
+	gauge(w, "arista_memory_total_bytes", sl, float64(v.MemTotal)*1024)
+	gauge(w, "arista_memory_available_bytes", sl, float64(v.MemFree)*1024)
 }
 
-// writeCPUMemory emits CPU and load average metrics from show processes top once.
-func writeCPUMemory(w io.Writer, host string, p eapi.ShowProcessesTop) {
+// writeCPUMemory emits CPU, load and the strict memory breakdown.
+func writeCPUMemory(w io.Writer, sl string, p eapi.ShowProcessesTop) {
 	cpu := p.CpuInfo.Cpu
-	_, _ = fmt.Fprintf(w, "arista_cpu_user_percent{switch=%q} %g\n", host, cpu.User)
-	_, _ = fmt.Fprintf(w, "arista_cpu_system_percent{switch=%q} %g\n", host, cpu.System)
-	_, _ = fmt.Fprintf(w, "arista_cpu_idle_percent{switch=%q} %g\n", host, cpu.Idle)
-	_, _ = fmt.Fprintf(w, "arista_cpu_iowait_percent{switch=%q} %g\n", host, cpu.IoWait)
+	gauge(w, "arista_cpu_user_percent", sl, cpu.User)
+	gauge(w, "arista_cpu_system_percent", sl, cpu.System)
+	gauge(w, "arista_cpu_nice_percent", sl, cpu.Nice)
+	gauge(w, "arista_cpu_idle_percent", sl, cpu.Idle)
+	gauge(w, "arista_cpu_iowait_percent", sl, cpu.IoWait)
+	gauge(w, "arista_cpu_steal_percent", sl, cpu.Stolen)
 
 	if len(p.TimeInfo.LoadAvg) == 3 {
-		_, _ = fmt.Fprintf(w, "arista_load_avg_1m{switch=%q} %g\n", host, p.TimeInfo.LoadAvg[0])
-		_, _ = fmt.Fprintf(w, "arista_load_avg_5m{switch=%q} %g\n", host, p.TimeInfo.LoadAvg[1])
-		_, _ = fmt.Fprintf(w, "arista_load_avg_15m{switch=%q} %g\n", host, p.TimeInfo.LoadAvg[2])
+		gauge(w, "arista_load_avg_1m", sl, p.TimeInfo.LoadAvg[0])
+		gauge(w, "arista_load_avg_5m", sl, p.TimeInfo.LoadAvg[1])
+		gauge(w, "arista_load_avg_15m", sl, p.TimeInfo.LoadAvg[2])
+	}
+
+	// Strict free, plus used and cache, from the same sample so they are
+	// mutually consistent. Alert on arista_memory_available_bytes instead:
+	// Linux spends idle RAM on cache, so low free memory is normal.
+	m := p.MemInfo.Physical
+	if m.Total > 0 {
+		gauge(w, "arista_memory_free_bytes", sl, float64(m.Free)*1024)
+		gauge(w, "arista_memory_used_bytes", sl, float64(m.Used)*1024)
+		gauge(w, "arista_memory_buffer_bytes", sl, float64(m.Buffer)*1024)
 	}
 }
 
-// writeTemperature emits metrics from show system environment temperature.
-func writeTemperature(w io.Writer, host string, env eapi.ShowEnvironmentTemp) {
-	systemOk := boolToFloat(env.SystemStatus == "temperatureOk")
-	_, _ = fmt.Fprintf(w, "arista_temperature_system_ok{switch=%q} %g\n", host, systemOk)
+// writeTemperature emits system and PSU sensors.
+//
+// PSU sensors come from this command rather than from environment power:
+// only here do they carry thresholds, historical maximum, alert state and a
+// human-readable description.
+func writeTemperature(w io.Writer, sl string, env eapi.ShowEnvironmentTemp) {
+	boolGauge(w, "arista_temperature_system_ok", sl, env.SystemStatus == "temperatureOk")
+	boolGauge(w, "arista_temperature_shutdown_on_overheat", sl, env.ShutdownOnOverheat)
 
-	emitSensor := func(s eapi.TempSensor, location string) {
-		l := fmt.Sprintf("switch=%q,sensor=%q,location=%q,description=%q",
-			host, s.Name, location, s.Description)
-		_, _ = fmt.Fprintf(w, "arista_temperature_celsius{%s} %g\n", l, s.CurrentTemperature)
-		_, _ = fmt.Fprintf(w, "arista_temperature_max_celsius{%s} %g\n", l, s.MaxTemperature)
-		_, _ = fmt.Fprintf(w, "arista_temperature_overheat_threshold_celsius{%s} %g\n", l, s.OverheatThreshold)
-		_, _ = fmt.Fprintf(w, "arista_temperature_critical_threshold_celsius{%s} %g\n", l, s.CriticalThreshold)
-		_, _ = fmt.Fprintf(w, "arista_temperature_alert{%s} %g\n", l, boolToFloat(s.InAlertState))
-		_, _ = fmt.Fprintf(w, "arista_temperature_sensor_ok{%s} %g\n", l, boolToFloat(s.HwStatus == "ok"))
+	emit := func(prefix, extra string, s eapi.TempSensor) {
+		l := join(sl, extra, labels(
+			"sensor", s.Name,
+			"description", s.Description,
+			"position", s.Position,
+		))
+		gauge(w, prefix+"_celsius", l, s.CurrentTemperature)
+		gauge(w, prefix+"_max_celsius", l, s.MaxTemperature)
+		gauge(w, prefix+"_overheat_threshold_celsius", l, s.OverheatThreshold)
+		gauge(w, prefix+"_critical_threshold_celsius", l, s.CriticalThreshold)
+		boolGauge(w, prefix+"_alert", l, s.InAlertState)
+		boolGauge(w, prefix+"_sensor_ok", l, s.HwStatus == "ok")
 	}
 
 	for _, s := range env.TempSensors {
-		emitSensor(s, "system")
+		emit("arista_temperature", labels("location", "system"), s)
 	}
-	// PSU temp sensors are emitted from writePower to avoid duplicates.
-}
-
-// writePower emits metrics from show system environment power.
-func writePower(w io.Writer, host string, env eapi.ShowEnvironmentPower) {
-	for slot, psu := range env.PowerSupplies {
-		pl := fmt.Sprintf("switch=%q,psu=%q,model=%q", host, slot, psu.ModelName)
-
-		_, _ = fmt.Fprintf(w, "arista_psu_ok{%s} %g\n", pl, boolToFloat(psu.State == "ok"))
-		_, _ = fmt.Fprintf(w, "arista_psu_capacity_watts{%s} %g\n", pl, psu.Capacity)
-		_, _ = fmt.Fprintf(w, "arista_psu_output_power_watts{%s} %g\n", pl, psu.OutputPower)
-		_, _ = fmt.Fprintf(w, "arista_psu_input_voltage_volts{%s} %g\n", pl, psu.InputVoltage)
-		_, _ = fmt.Fprintf(w, "arista_psu_output_voltage_volts{%s} %g\n", pl, psu.OutputVoltage)
-		_, _ = fmt.Fprintf(w, "arista_psu_input_current_amps{%s} %g\n", pl, psu.InputCurrent)
-		_, _ = fmt.Fprintf(w, "arista_psu_output_current_amps{%s} %g\n", pl, psu.OutputCurrent)
-		_, _ = fmt.Fprintf(w, "arista_psu_boot_timestamp_seconds{%s} %g\n", pl, psu.Uptime)
-
-		// PSU temp sensors
-		for sensorName, sensor := range psu.TempSensors {
-			sl := fmt.Sprintf("switch=%q,psu=%q,sensor=%q", host, slot, sensorName)
-			_, _ = fmt.Fprintf(w, "arista_psu_temperature_celsius{%s} %g\n", sl, sensor.Temperature)
-			_, _ = fmt.Fprintf(w, "arista_psu_temperature_sensor_ok{%s} %g\n", sl,
-				boolToFloat(sensor.Status == "ok"))
+	for _, slot := range env.PowerSupplySlots {
+		for _, s := range slot.TempSensors {
+			emit("arista_psu_temperature", labels("psu", slot.RelPos), s)
 		}
 	}
 }
 
-// writeCooling emits metrics from show system environment cooling.
-func writeCooling(w io.Writer, host string, env eapi.ShowEnvironmentCooling) {
-	_, _ = fmt.Fprintf(w, "arista_cooling_ok{switch=%q} %g\n", host,
-		boolToFloat(env.SystemStatus == "coolingOk"))
-	_, _ = fmt.Fprintf(w, "arista_cooling_ambient_temperature_celsius{switch=%q} %g\n",
-		host, env.AmbientTemperature)
-	_, _ = fmt.Fprintf(w, "arista_cooling_info{switch=%q,airflow=%q,mode=%q} 1\n",
-		host, env.AirflowDirection, env.CoolingMode)
+// writePower emits PSU electrical metrics.
+func writePower(w io.Writer, sl string, env eapi.ShowEnvironmentPower) {
+	for _, slot := range slices.Sorted(maps.Keys(env.PowerSupplies)) {
+		psu := env.PowerSupplies[slot]
+		l := join(sl, labels("psu", slot))
+		gauge(w, "arista_psu_info", join(l, labels("model", psu.ModelName)), 1)
+
+		boolGauge(w, "arista_psu_ok", l, psu.State == "ok")
+		gauge(w, "arista_psu_capacity_watts", l, psu.Capacity)
+		gauge(w, "arista_psu_output_power_watts", l, psu.OutputPower)
+		gauge(w, "arista_psu_input_voltage_volts", l, psu.InputVoltage)
+		gauge(w, "arista_psu_output_voltage_volts", l, psu.OutputVoltage)
+		gauge(w, "arista_psu_input_current_amps", l, psu.InputCurrent)
+		gauge(w, "arista_psu_output_current_amps", l, psu.OutputCurrent)
+		timestamp(w, "arista_psu_boot_timestamp_seconds", l, psu.Uptime)
+	}
+}
+
+// writeCooling emits cooling status and per-fan metrics.
+func writeCooling(w io.Writer, sl string, env eapi.ShowEnvironmentCooling) {
+	boolGauge(w, "arista_cooling_ok", sl, env.SystemStatus == "coolingOk")
+	boolGauge(w, "arista_cooling_fans_ok", sl, env.FansStatus == "fanAlarmOk")
+	boolGauge(w, "arista_cooling_shutdown_on_insufficient_fans", sl, env.ShutdownOnInsufficientFans)
+	gauge(w, "arista_cooling_ambient_temperature_celsius", sl, env.AmbientTemperature)
+	gauge(w, "arista_cooling_info", join(sl, labels(
+		"airflow", env.AirflowDirection,
+		"mode", env.CoolingMode,
+	)), 1)
 
 	emitFan := func(f eapi.Fan, tray, location string) {
-		l := fmt.Sprintf("switch=%q,tray=%q,fan=%q,location=%q",
-			host, tray, f.Label, location)
-		_, _ = fmt.Fprintf(w, "arista_fan_ok{%s} %g\n", l, boolToFloat(f.Status == "ok"))
-		_, _ = fmt.Fprintf(w, "arista_fan_speed_configured_percent{%s} %d\n", l, f.ConfiguredSpeed)
-		_, _ = fmt.Fprintf(w, "arista_fan_speed_actual_percent{%s} %d\n", l, f.ActualSpeed)
-		_, _ = fmt.Fprintf(w, "arista_fan_speed_max_rpm{%s} %d\n", l, f.MaxSpeed)
-		_, _ = fmt.Fprintf(w, "arista_fan_speed_stable{%s} %g\n", l, boolToFloat(f.SpeedStable))
-		_, _ = fmt.Fprintf(w, "arista_fan_boot_timestamp_seconds{%s} %g\n", l, f.Uptime)
+		l := join(sl, labels("tray", tray, "fan", f.Label, "location", location))
+		gauge(w, "arista_fan_info", join(l, labels("vendor_model", f.VendorModel)), 1)
+		boolGauge(w, "arista_fan_ok", l, f.Status == "ok")
+		gauge(w, "arista_fan_speed_configured_percent", l, float64(f.ConfiguredSpeed))
+		gauge(w, "arista_fan_speed_actual_percent", l, float64(f.ActualSpeed))
+		gauge(w, "arista_fan_speed_max_rpm", l, float64(f.MaxSpeed))
+		boolGauge(w, "arista_fan_speed_stable", l, f.SpeedStable)
+		timestamp(w, "arista_fan_boot_timestamp_seconds", l, f.Uptime)
 	}
-
 	for _, tray := range env.FanTraySlots {
 		for _, f := range tray.Fans {
 			emitFan(f, tray.Label, "fantray")
@@ -165,144 +217,238 @@ func writeCooling(w io.Writer, host string, env eapi.ShowEnvironmentCooling) {
 	}
 }
 
-// writeInterfaces emits metrics from show interfaces.
-func writeInterfaces(w io.Writer, host string, ifaces eapi.ShowInterfaces) {
-	for name, iface := range ifaces.Interfaces {
-		l := fmt.Sprintf("switch=%q,interface=%q", host, name)
-		linkUp := boolToFloat(iface.LineProtocolStatus == "up")
+// writeInterfaces emits per-interface state and counters.
+func writeInterfaces(w io.Writer, sl string, ifaces eapi.ShowInterfaces) {
+	for _, name := range slices.Sorted(maps.Keys(ifaces.Interfaces)) {
+		iface := ifaces.Interfaces[name]
+		l := join(sl, labels("interface", name))
+		c := iface.InterfaceCounters
 
-		_, _ = fmt.Fprintf(w, "arista_interface_link_up{%s} %g\n", l, linkUp)
-		_, _ = fmt.Fprintf(w, "arista_interface_in_octets_total{%s} %d\n", l, iface.InterfaceCounters.InOctets)
-		_, _ = fmt.Fprintf(w, "arista_interface_out_octets_total{%s} %d\n", l, iface.InterfaceCounters.OutOctets)
-		_, _ = fmt.Fprintf(w, "arista_interface_in_errors_total{%s} %d\n", l, iface.InterfaceCounters.InputErrors)
-		_, _ = fmt.Fprintf(w, "arista_interface_out_errors_total{%s} %d\n", l, iface.InterfaceCounters.OutputErrors)
-		_, _ = fmt.Fprintf(w, "arista_interface_in_discards_total{%s} %d\n", l, iface.InterfaceCounters.InDiscards)
-		_, _ = fmt.Fprintf(w, "arista_interface_out_discards_total{%s} %d\n", l, iface.InterfaceCounters.OutDiscards)
+		// Description and membership live on an info metric: editing a port
+		// description must not change the identity of its counter series.
+		gauge(w, "arista_interface_info", join(l, labels(
+			"description", iface.Description,
+			"membership", iface.InterfaceMembership,
+			"mtu", itoa(iface.MTU),
+		)), 1)
+
+		boolGauge(w, "arista_interface_link_up", l, iface.LineProtocolStatus == "up")
+		if iface.Bandwidth > 0 {
+			gauge(w, "arista_interface_speed_bits_per_second", l, float64(iface.Bandwidth))
+		}
+
+		counter(w, "arista_interface_in_octets_total", l, c.InOctets)
+		counter(w, "arista_interface_out_octets_total", l, c.OutOctets)
+		counter(w, "arista_interface_in_errors_total", l, c.InputErrors)
+		counter(w, "arista_interface_out_errors_total", l, c.OutputErrors)
+		counter(w, "arista_interface_in_discards_total", l, c.InDiscards)
+		counter(w, "arista_interface_out_discards_total", l, c.OutDiscards)
+		counter(w, "arista_interface_link_status_changes_total", l, c.LinkStatusChanges)
+
+		for _, p := range []struct {
+			cast    string
+			in, out uint64
+		}{
+			{"broadcast", c.InBroadcastPkts, c.OutBroadcastPkts},
+			{"multicast", c.InMulticastPkts, c.OutMulticastPkts},
+			{"unicast", c.InUcastPkts, c.OutUcastPkts},
+		} {
+			cl := join(l, labels("cast", p.cast))
+			counter(w, "arista_interface_in_packets_total", cl, p.in)
+			counter(w, "arista_interface_out_packets_total", cl, p.out)
+		}
+
+		d := c.InputErrorsDetail
+		for _, e := range []struct {
+			cause string
+			v     uint64
+		}{
+			{"alignmentErrors", d.AlignmentErrors}, {"fcsErrors", d.FcsErrors},
+			{"giantFrames", d.GiantFrames}, {"runtFrames", d.RuntFrames},
+			{"rxPause", d.RxPause}, {"symbolErrors", d.SymbolErrors},
+		} {
+			counter(w, "arista_interface_in_errors_detail_total", join(l, labels("cause", e.cause)), e.v)
+		}
+		o := c.OutputErrorsDetail
+		for _, e := range []struct {
+			cause string
+			v     uint64
+		}{
+			{"collisions", o.Collisions}, {"deferredTransmissions", o.DeferredTransmissions},
+			{"lateCollisions", o.LateCollisions}, {"txPause", o.TxPause},
+		} {
+			counter(w, "arista_interface_out_errors_detail_total", join(l, labels("cause", e.cause)), e.v)
+		}
+
+		timestamp(w, "arista_interface_last_counter_clear_timestamp_seconds", l, c.LastClear)
+		timestamp(w, "arista_interface_counter_refresh_timestamp_seconds", l, c.CounterRefreshTime)
+		timestamp(w, "arista_interface_last_status_change_timestamp_seconds", l, iface.LastStatusChangeTimestamp)
 	}
 }
 
-// writeBGP emits metrics from show ip bgp summary.
-func writeBGP(w io.Writer, host string, bgp eapi.ShowBGPSummary) {
-	for vrf, v := range bgp.Vrfs {
-		for peer, p := range v.Peers {
-			l := fmt.Sprintf("switch=%q,vrf=%q,peer=%q,asn=%s", host, vrf, peer, p.Asn)
-			peerUp := boolToFloat(p.PeerState == "Established")
-			_, _ = fmt.Fprintf(w, "arista_bgp_peer_up{%s} %g\n", l, peerUp)
-			_, _ = fmt.Fprintf(w, "arista_bgp_peer_prefixes_received{%s} %d\n", l, p.PrefixReceived)
-			// uptime is 0 when peer is down — only emit when meaningful
-			if p.PeerState == "Established" {
-				_, _ = fmt.Fprintf(w, "arista_bgp_peer_uptime_seconds{%s} %g\n", l, p.UpDownTime)
+// writeBGP emits per-peer state across every VRF.
+func writeBGP(w io.Writer, sl string, bgp eapi.ShowBGPSummary) {
+	for _, vrf := range slices.Sorted(maps.Keys(bgp.Vrfs)) {
+		v := bgp.Vrfs[vrf]
+		for _, peer := range slices.Sorted(maps.Keys(v.Peers)) {
+			p := v.Peers[peer]
+			l := join(sl, labels("vrf", vrf, "peer", peer, "asn", p.Asn))
+
+			gauge(w, "arista_bgp_peer_info", join(l, labels("description", p.Description)), 1)
+			boolGauge(w, "arista_bgp_peer_up", l, p.PeerState == "Established")
+			boolGauge(w, "arista_bgp_peer_under_maintenance", l, p.UnderMaintenance)
+			gauge(w, "arista_bgp_peer_prefixes_received", l, float64(p.PrefixReceived))
+			gauge(w, "arista_bgp_peer_prefixes_accepted", l, float64(p.PrefixAccepted))
+			gauge(w, "arista_bgp_peer_prefixes_advertised", l, float64(p.PrefixAdvertised))
+
+			// upDownTime is the last transition, up or down -- a timestamp,
+			// not a duration. Emitted for down peers too: knowing when a
+			// session dropped is the more useful case.
+			timestamp(w, "arista_bgp_peer_state_change_timestamp_seconds", l, p.UpDownTime)
+		}
+	}
+}
+
+// domParam maps an EOS threshold key to its metric prefix and unit suffix.
+var domParams = []struct {
+	key, prefix, unit string
+	reading           func(eapi.Transceiver) float64
+}{
+	{"temperature", "arista_transceiver_temperature", "celsius",
+		func(x eapi.Transceiver) float64 { return x.Temperature }},
+	{"voltage", "arista_transceiver_voltage", "volts",
+		func(x eapi.Transceiver) float64 { return x.Voltage }},
+	{"txBias", "arista_transceiver_tx_bias", "milliamps",
+		func(x eapi.Transceiver) float64 { return x.TxBias }},
+	{"txPower", "arista_transceiver_tx_power", "dbm",
+		func(x eapi.Transceiver) float64 { return x.TxPower }},
+	{"rxPower", "arista_transceiver_rx_power", "dbm",
+		func(x eapi.Transceiver) float64 { return x.RxPower }},
+}
+
+// writeTransceivers emits DOM readings and the optic's own limits.
+//
+// totalRxPower is deliberately not emitted: EOS reports it with the
+// *Overridden flags but no limit values at all.
+func writeTransceivers(w io.Writer, sl string, t eapi.ShowTransceiverDetail) {
+	for _, name := range slices.Sorted(maps.Keys(t.Interfaces)) {
+		x := t.Interfaces[name]
+		l := join(sl, labels("interface", name))
+
+		gauge(w, "arista_transceiver_info", join(l, labels(
+			"slot", x.Slot,
+			"channel", x.Channel,
+			"media_type", x.MediaType,
+			"vendor_sn", string(x.VendorSn),
+		)), 1)
+		timestamp(w, "arista_transceiver_update_timestamp_seconds", l, x.UpdateTime)
+
+		for _, p := range domParams {
+			gauge(w, p.prefix+"_"+p.unit, l, p.reading(x))
+
+			th, ok := x.Details[p.key]
+			if !ok {
+				continue
+			}
+			// A nil limit means EOS reported none. Emitting 0 instead would
+			// hand alert rules a fabricated threshold.
+			for _, t := range []struct {
+				level string
+				v     *float64
+			}{
+				{"high_alarm", th.HighAlarm}, {"high_warn", th.HighWarn},
+				{"low_alarm", th.LowAlarm}, {"low_warn", th.LowWarn},
+			} {
+				if t.v == nil {
+					continue
+				}
+				gauge(w, p.prefix+"_threshold_"+p.unit, join(l, labels("level", t.level)), *t.v)
 			}
 		}
 	}
 }
 
-// writeHelp emits HELP and TYPE lines for all metrics.
-// Placed once at the top of the output.
-func writeHelp(w io.Writer) {
-	lines := []string{
-		"# HELP arista_scrape_success 1 if last scrape succeeded, 0 otherwise",
-		"# TYPE arista_scrape_success gauge",
-		"# HELP arista_scrape_age_seconds Seconds since last successful scrape (-1 if never)",
-		"# TYPE arista_scrape_age_seconds gauge",
-		"# HELP arista_info Switch identity (model, serial, version). Always 1.",
-		"# TYPE arista_info gauge",
-		"# HELP arista_boot_timestamp_seconds Unix timestamp of last boot",
-		"# TYPE arista_boot_timestamp_seconds gauge",
-		"# HELP arista_memory_total_bytes Total physical memory in bytes",
-		"# TYPE arista_memory_total_bytes gauge",
-		"# HELP arista_memory_free_bytes Free physical memory in bytes",
-		"# TYPE arista_memory_free_bytes gauge",
-		"# HELP arista_cpu_user_percent CPU time spent in user space",
-		"# TYPE arista_cpu_user_percent gauge",
-		"# HELP arista_cpu_system_percent CPU time spent in kernel space",
-		"# TYPE arista_cpu_system_percent gauge",
-		"# HELP arista_cpu_idle_percent CPU idle percentage",
-		"# TYPE arista_cpu_idle_percent gauge",
-		"# HELP arista_cpu_iowait_percent CPU time waiting on I/O",
-		"# TYPE arista_cpu_iowait_percent gauge",
-		"# HELP arista_load_avg_1m 1-minute load average",
-		"# TYPE arista_load_avg_1m gauge",
-		"# HELP arista_load_avg_5m 5-minute load average",
-		"# TYPE arista_load_avg_5m gauge",
-		"# HELP arista_load_avg_15m 15-minute load average",
-		"# TYPE arista_load_avg_15m gauge",
-		"# HELP arista_temperature_system_ok 1 if overall temperature status is ok",
-		"# TYPE arista_temperature_system_ok gauge",
-		"# HELP arista_temperature_celsius Current sensor temperature in Celsius",
-		"# TYPE arista_temperature_celsius gauge",
-		"# HELP arista_temperature_max_celsius Historical maximum sensor temperature",
-		"# TYPE arista_temperature_max_celsius gauge",
-		"# HELP arista_temperature_overheat_threshold_celsius Overheat threshold in Celsius",
-		"# TYPE arista_temperature_overheat_threshold_celsius gauge",
-		"# HELP arista_temperature_critical_threshold_celsius Critical threshold in Celsius",
-		"# TYPE arista_temperature_critical_threshold_celsius gauge",
-		"# HELP arista_temperature_alert 1 if sensor is in alert state",
-		"# TYPE arista_temperature_alert gauge",
-		"# HELP arista_temperature_sensor_ok 1 if sensor hardware status is ok",
-		"# TYPE arista_temperature_sensor_ok gauge",
-		"# HELP arista_psu_ok 1 if PSU state is ok",
-		"# TYPE arista_psu_ok gauge",
-		"# HELP arista_psu_capacity_watts PSU rated capacity in watts",
-		"# TYPE arista_psu_capacity_watts gauge",
-		"# HELP arista_psu_output_power_watts PSU current output power in watts",
-		"# TYPE arista_psu_output_power_watts gauge",
-		"# HELP arista_psu_input_voltage_volts PSU input voltage",
-		"# TYPE arista_psu_input_voltage_volts gauge",
-		"# HELP arista_psu_output_voltage_volts PSU output voltage",
-		"# TYPE arista_psu_output_voltage_volts gauge",
-		"# HELP arista_psu_input_current_amps PSU input current in amps",
-		"# TYPE arista_psu_input_current_amps gauge",
-		"# HELP arista_psu_output_current_amps PSU output current in amps",
-		"# TYPE arista_psu_output_current_amps gauge",
-		"# HELP arista_psu_boot_timestamp_seconds Unix timestamp when PSU came online",
-		"# TYPE arista_psu_boot_timestamp_seconds gauge",
-		"# HELP arista_psu_temperature_celsius PSU sensor temperature in Celsius",
-		"# TYPE arista_psu_temperature_celsius gauge",
-		"# HELP arista_psu_temperature_sensor_ok 1 if PSU temperature sensor is ok",
-		"# TYPE arista_psu_temperature_sensor_ok gauge",
-		"# HELP arista_cooling_ok 1 if overall cooling status is ok",
-		"# TYPE arista_cooling_ok gauge",
-		"# HELP arista_cooling_ambient_temperature_celsius Ambient temperature in Celsius",
-		"# TYPE arista_cooling_ambient_temperature_celsius gauge",
-		"# HELP arista_cooling_info Cooling configuration info. Always 1.",
-		"# TYPE arista_cooling_info gauge",
-		"# HELP arista_fan_ok 1 if fan status is ok",
-		"# TYPE arista_fan_ok gauge",
-		"# HELP arista_fan_speed_configured_percent Configured fan speed as percentage",
-		"# TYPE arista_fan_speed_configured_percent gauge",
-		"# HELP arista_fan_speed_actual_percent Actual fan speed as percentage",
-		"# TYPE arista_fan_speed_actual_percent gauge",
-		"# HELP arista_fan_speed_max_rpm Fan maximum speed in RPM",
-		"# TYPE arista_fan_speed_max_rpm gauge",
-		"# HELP arista_fan_speed_stable 1 if fan speed has stabilised",
-		"# TYPE arista_fan_speed_stable gauge",
-		"# HELP arista_fan_boot_timestamp_seconds Unix timestamp when fan came online",
-		"# TYPE arista_fan_boot_timestamp_seconds gauge",
-		"# HELP arista_interface_link_up 1 if interface line protocol is up",
-		"# TYPE arista_interface_link_up gauge",
-		"# HELP arista_interface_in_octets_total Total inbound octets",
-		"# TYPE arista_interface_in_octets_total counter",
-		"# HELP arista_interface_out_octets_total Total outbound octets",
-		"# TYPE arista_interface_out_octets_total counter",
-		"# HELP arista_interface_in_errors_total Total inbound errors",
-		"# TYPE arista_interface_in_errors_total counter",
-		"# HELP arista_interface_out_errors_total Total outbound errors",
-		"# TYPE arista_interface_out_errors_total counter",
-		"# HELP arista_interface_in_discards_total Total inbound discards",
-		"# TYPE arista_interface_in_discards_total counter",
-		"# HELP arista_interface_out_discards_total Total outbound discards",
-		"# TYPE arista_interface_out_discards_total counter",
-		"# HELP arista_bgp_peer_up 1 if BGP peer is in Established state",
-		"# TYPE arista_bgp_peer_up gauge",
-		"# HELP arista_bgp_peer_prefixes_received Number of prefixes received from peer",
-		"# TYPE arista_bgp_peer_prefixes_received gauge",
-		"# HELP arista_bgp_peer_uptime_seconds Seconds since BGP session was established",
-		"# TYPE arista_bgp_peer_uptime_seconds gauge",
+// writePhy emits the PHY subset: MAC faults, PCS, FEC and PMA.
+//
+// Serdes is excluded: half the payload, eye values are meaningless on a
+// down link, and every field drifts between polls.
+func writePhy(w io.Writer, sl string, phy eapi.ShowPhyDetail) {
+	for _, name := range slices.Sorted(maps.Keys(phy.Interfaces)) {
+		iface := phy.Interfaces[name]
+		il := join(sl, labels("interface", name))
+
+		boolGauge(w, "arista_phy_interface_up", il, iface.InterfaceState.Current == "up")
+		counter(w, "arista_phy_interface_changes_total", il, iface.InterfaceState.Changes)
+
+		writeBoolAttr(w, "arista_phy_mac_local_fault", il, iface.MacFaults.LocalFault)
+		writeBoolAttr(w, "arista_phy_mac_remote_fault", il, iface.MacFaults.RemoteFault)
+
+		for _, p := range iface.PhyStatuses {
+			// Multiple PHYs per interface (line side, system side).
+			l := join(il, labels("phy", p.Description.Location))
+
+			gauge(w, "arista_phy_info", join(l, labels(
+				"chip", p.Chip.ModelName,
+				"firmware", p.Chip.FirmwareRev,
+				"oper_speed", p.OperSpeed,
+			)), 1)
+			gauge(w, "arista_phy_interrupt_count", l, float64(p.InterruptCount))
+
+			boolGauge(w, "arista_phy_link_up", l, p.PhyState.Value == "linkUp")
+			counter(w, "arista_phy_link_changes_total", l, p.PhyState.Changes)
+
+			boolGauge(w, "arista_phy_pcs_link_up", l, p.PCS.LinkStatus.Value == "up")
+			counter(w, "arista_phy_pcs_link_changes_total", l, p.PCS.LinkStatus.Changes)
+			writeBoolAttr(w, "arista_phy_pcs_high_ber", l, p.PCS.HighBer)
+			writeCounterAttr(w, "arista_phy_pcs_last_high_ber_count", l, p.PCS.LastHighBerCount)
+			writeCounterAttr(w, "arista_phy_pcs_last_errored_block_count", l, p.PCS.LastErroredBlockCount)
+
+			// Present only on links without FEC; alignment lock replaces it.
+			if p.PCS.BlockLock != nil {
+				writeBoolAttr(w, "arista_phy_pcs_block_lock", l, *p.PCS.BlockLock)
+			}
+
+			boolGauge(w, "arista_phy_pma_link_up", l, p.PMA.LinkStatus.Value == "up")
+			counter(w, "arista_phy_pma_link_changes_total", l, p.PMA.LinkStatus.Changes)
+			writeBoolAttr(w, "arista_phy_pma_signal_detect", l, p.PMA.SignalDetect)
+
+			if p.FEC == nil {
+				continue
+			}
+			fl := join(l, labels(
+				"encoding", p.FEC.Encoding,
+				"codeword_size", p.FEC.CodewordSize,
+			))
+			writeBoolAttr(w, "arista_phy_fec_alignment_lock", fl, p.FEC.AlignmentLock)
+			writeCounterAttr(w, "arista_phy_fec_corrected_codewords", fl, p.FEC.CorrectedCodewords)
+			writeCounterAttr(w, "arista_phy_fec_uncorrected_codewords", fl, p.FEC.UncorrectedCodewords)
+
+			// Per-lane, and only reported at native speeds.
+			for _, lane := range slices.Sorted(maps.Keys(p.FEC.CorrectedSymbols)) {
+				sym := p.FEC.CorrectedSymbols[lane]
+				writeCounterAttr(w, "arista_phy_fec_corrected_symbols",
+					join(fl, labels("lane", lane)), sym)
+			}
+		}
 	}
-	for _, l := range lines {
-		_, _ = fmt.Fprintln(w, l)
-	}
+}
+
+// writeBoolAttr emits a PHY boolean plus its transition counter.
+func writeBoolAttr(w io.Writer, name, lbls string, a eapi.PhyBoolAttr) {
+	boolGauge(w, name, lbls, a.Value)
+	counter(w, name+"_changes_total", lbls, a.Changes)
+}
+
+// writeCounterAttr emits a PHY numeric attribute as three series.
+//
+// Value is a gauge: its semantics are ambiguous (uncorrectedCodewords read 3
+// with 13 changes) and the underlying counters are clearable, so rate() over
+// it could be nonsense. Changes only rises, so it is the rate signal, and
+// LastChange distinguishes "broken now" from "was broken, since repaired".
+func writeCounterAttr(w io.Writer, name, lbls string, a eapi.PhyCounterAttr) {
+	gauge(w, name, lbls, a.Value)
+	counter(w, name+"_changes_total", lbls, a.Changes)
+	timestamp(w, name+"_last_change_timestamp_seconds", lbls, a.LastChange)
 }
 
 func boolToFloat(b bool) float64 {
