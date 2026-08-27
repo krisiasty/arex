@@ -1,0 +1,288 @@
+{
+    "interfaces": {
+        "Ethernet1/1": {
+            "slot": "Ethernet1",
+            "channel": "1",
+            "vendorSn": "XXX000ab0002",
+            "mediaType": "40GBASE-SR4",
+            "narrowBand": false,
+            "updateTime": 1787858156.6825793,
+            "temperature": 35.09765625,
+            "voltage": 3.2270000000000003,
+            "txBias": 6.546,
+            "txPower": -1.5932943866659102,
+            "rxPower": -1.4333151638846502,
+            "details": {
+                "temperature": {
+                    "highAlarm": 85.0,
+                    "highAlarmOverridden": false,
+                    "highWarn": 70.0,
+                    "highWarnOverridden": false,
+                    "lowAlarm": -10.0,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": 0.0,
+                    "lowWarnOverridden": false
+                },
+                "voltage": {
+                    "highAlarm": 3.6,
+                    "highAlarmOverridden": false,
+                    "highWarn": 3.5,
+                    "highWarnOverridden": false,
+                    "lowAlarm": 2.9000000000000004,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": 3.1,
+                    "lowWarnOverridden": false
+                },
+                "txBias": {
+                    "highAlarm": 15.0,
+                    "highAlarmOverridden": false,
+                    "highWarn": 12.0,
+                    "highWarnOverridden": false,
+                    "lowAlarm": 0.0,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": 2.0,
+                    "lowWarnOverridden": false
+                },
+                "txPower": {
+                    "highAlarm": 4.000023459279557,
+                    "highAlarmOverridden": false,
+                    "highWarn": 2.3999979288687143,
+                    "highWarnOverridden": false,
+                    "lowAlarm": -10.599818449923369,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": -7.599502278873523,
+                    "lowWarnOverridden": false
+                },
+                "rxPower": {
+                    "highAlarm": 4.000023459279557,
+                    "highAlarmOverridden": false,
+                    "highWarn": 2.3999979288687143,
+                    "highWarnOverridden": false,
+                    "lowAlarm": -18.013429130455776,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": -15.003129173815964,
+                    "lowWarnOverridden": false
+                },
+                "totalRxPower": {
+                    "highAlarmOverridden": false,
+                    "highWarnOverridden": false,
+                    "lowAlarmOverridden": false,
+                    "lowWarnOverridden": false
+                }
+            }
+        },
+        "Ethernet7/1": {
+            "slot": "Ethernet7",
+            "channel": "1",
+            "vendorSn": "XXX000a`0003",
+            "mediaType": "100GBASE-SR4",
+            "narrowBand": false,
+            "updateTime": 1787858156.6825793,
+            "temperature": 43.9375,
+            "voltage": 3.2869,
+            "txBias": 6.78,
+            "txPower": 0.29018329546481425,
+            "rxPower": -30.0,
+            "details": {
+                "temperature": {
+                    "highAlarm": 80.0,
+                    "highAlarmOverridden": false,
+                    "highWarn": 70.0,
+                    "highWarnOverridden": false,
+                    "lowAlarm": -10.0,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": 0.0,
+                    "lowWarnOverridden": false
+                },
+                "voltage": {
+                    "highAlarm": 3.6300000000000003,
+                    "highAlarmOverridden": false,
+                    "highWarn": 3.4650000000000003,
+                    "highWarnOverridden": false,
+                    "lowAlarm": 2.97,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": 3.1350000000000002,
+                    "lowWarnOverridden": false
+                },
+                "txBias": {
+                    "highAlarm": 11.0,
+                    "highAlarmOverridden": false,
+                    "highWarn": 9.5,
+                    "highWarnOverridden": false,
+                    "lowAlarm": 1.0,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": 2.0,
+                    "lowWarnOverridden": false
+                },
+                "txPower": {
+                    "highAlarm": 5.399914195935072,
+                    "highAlarmOverridden": false,
+                    "highWarn": 2.3999979288687143,
+                    "highWarnOverridden": false,
+                    "lowAlarm": -11.402614338028528,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": -8.401321529074337,
+                    "lowWarnOverridden": false
+                },
+                "rxPower": {
+                    "highAlarm": 5.399914195935072,
+                    "highAlarmOverridden": false,
+                    "highWarn": 2.3999979288687143,
+                    "highWarnOverridden": false,
+                    "lowAlarm": -13.306831194338884,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": -10.301183562535002,
+                    "lowWarnOverridden": false
+                },
+                "totalRxPower": {
+                    "highAlarmOverridden": false,
+                    "highWarnOverridden": false,
+                    "lowAlarmOverridden": false,
+                    "lowWarnOverridden": false
+                }
+            }
+        },
+        "Ethernet7/2": {
+            "slot": "Ethernet7",
+            "channel": "2",
+            "vendorSn": "XXX000a`0003",
+            "mediaType": "100GBASE-SR4",
+            "narrowBand": false,
+            "updateTime": 1787858156.6825793,
+            "temperature": 43.9375,
+            "voltage": 3.2869,
+            "txBias": 6.59,
+            "txPower": 0.31206419827462284,
+            "rxPower": -30.0,
+            "details": {
+                "temperature": {
+                    "highAlarm": 80.0,
+                    "highAlarmOverridden": false,
+                    "highWarn": 70.0,
+                    "highWarnOverridden": false,
+                    "lowAlarm": -10.0,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": 0.0,
+                    "lowWarnOverridden": false
+                },
+                "voltage": {
+                    "highAlarm": 3.6300000000000003,
+                    "highAlarmOverridden": false,
+                    "highWarn": 3.4650000000000003,
+                    "highWarnOverridden": false,
+                    "lowAlarm": 2.97,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": 3.1350000000000002,
+                    "lowWarnOverridden": false
+                },
+                "txBias": {
+                    "highAlarm": 11.0,
+                    "highAlarmOverridden": false,
+                    "highWarn": 9.5,
+                    "highWarnOverridden": false,
+                    "lowAlarm": 1.0,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": 2.0,
+                    "lowWarnOverridden": false
+                },
+                "txPower": {
+                    "highAlarm": 5.399914195935072,
+                    "highAlarmOverridden": false,
+                    "highWarn": 2.3999979288687143,
+                    "highWarnOverridden": false,
+                    "lowAlarm": -11.402614338028528,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": -8.401321529074337,
+                    "lowWarnOverridden": false
+                },
+                "rxPower": {
+                    "highAlarm": 5.399914195935072,
+                    "highAlarmOverridden": false,
+                    "highWarn": 2.3999979288687143,
+                    "highWarnOverridden": false,
+                    "lowAlarm": -13.306831194338884,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": -10.301183562535002,
+                    "lowWarnOverridden": false
+                },
+                "totalRxPower": {
+                    "highAlarmOverridden": false,
+                    "highWarnOverridden": false,
+                    "lowAlarmOverridden": false,
+                    "lowWarnOverridden": false
+                }
+            }
+        },
+        "Ethernet31/1": {
+            "slot": "Ethernet31",
+            "channel": "1",
+            "vendorSn": "XXX000AB0001A",
+            "mediaType": "40GBASE-LRL4",
+            "narrowBand": false,
+            "updateTime": 1787858156.6825793,
+            "temperature": 38.73828125,
+            "voltage": 3.3046,
+            "txBias": 30.75,
+            "txPower": -0.48711062722327725,
+            "rxPower": -0.7350321072677986,
+            "details": {
+                "temperature": {
+                    "highAlarm": 85.0,
+                    "highAlarmOverridden": false,
+                    "highWarn": 80.0,
+                    "highWarnOverridden": false,
+                    "lowAlarm": -5.0,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": 0.0,
+                    "lowWarnOverridden": false
+                },
+                "voltage": {
+                    "highAlarm": 3.6,
+                    "highAlarmOverridden": false,
+                    "highWarn": 3.5,
+                    "highWarnOverridden": false,
+                    "lowAlarm": 2.9000000000000004,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": 3.0,
+                    "lowWarnOverridden": false
+                },
+                "txBias": {
+                    "highAlarm": 80.0,
+                    "highAlarmOverridden": false,
+                    "highWarn": 70.0,
+                    "highWarnOverridden": false,
+                    "lowAlarm": 0.0,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": 10.0,
+                    "lowWarnOverridden": false
+                },
+                "txPower": {
+                    "highAlarm": 2.5000502848689585,
+                    "highAlarmOverridden": false,
+                    "highWarn": 2.000018654066018,
+                    "highWarnOverridden": false,
+                    "lowAlarm": -7.500682433658049,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": -7.000570999772329,
+                    "lowWarnOverridden": false
+                },
+                "rxPower": {
+                    "highAlarm": 3.000082025538127,
+                    "highAlarmOverridden": false,
+                    "highWarn": 2.000018654066018,
+                    "highWarnOverridden": false,
+                    "lowAlarm": -12.502636844309393,
+                    "lowAlarmOverridden": false,
+                    "lowWarn": -11.49966742310231,
+                    "lowWarnOverridden": false
+                },
+                "totalRxPower": {
+                    "highAlarmOverridden": false,
+                    "highWarnOverridden": false,
+                    "lowAlarmOverridden": false,
+                    "lowWarnOverridden": false
+                }
+            }
+        }
+    }
+}

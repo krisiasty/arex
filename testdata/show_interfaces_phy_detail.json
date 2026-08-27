@@ -1,0 +1,573 @@
+{
+    "interfacePhyStatuses": {
+        "Ethernet1/1": {
+            "phyStatuses": [
+                {
+                    "description": {
+                        "phyChipName": "BCM56870-TSCF16",
+                        "location": "line"
+                    },
+                    "chip": {
+                        "oui": 0,
+                        "model": 0,
+                        "rev": 0,
+                        "hwRev": "A",
+                        "modelName": "BCM56870-TSCF16",
+                        "firmwareRev": "D103"
+                    },
+                    "pcs": {
+                        "linkStatus": {
+                            "value": "up",
+                            "changes": 47,
+                            "lastChange": 1781003929.0739021
+                        },
+                        "blockLock": {
+                            "value": true,
+                            "changes": 19,
+                            "lastChange": 1781003932.953407
+                        },
+                        "highBer": {
+                            "value": false,
+                            "changes": 0,
+                            "lastChange": 0.0
+                        },
+                        "lastHighBerCount": {
+                            "value": 0,
+                            "changes": 0,
+                            "lastChange": 0.0
+                        },
+                        "lastErroredBlockCount": {
+                            "value": 0,
+                            "changes": 0,
+                            "lastChange": 0.0
+                        },
+                        "laneBlockLock": {},
+                        "laneDeskew": {},
+                        "laneAlignmentMarkerLock": {},
+                        "bipErrors": {},
+                        "laneMap": {}
+                    },
+                    "pma": {
+                        "linkStatus": {
+                            "value": "up",
+                            "changes": 31,
+                            "lastChange": 1781003932.953444
+                        },
+                        "signalDetect": {
+                            "value": true,
+                            "changes": 23,
+                            "lastChange": 1779437786.3391678
+                        },
+                        "laneSignalDetect": {
+                            "0": {
+                                "value": true,
+                                "changes": 23,
+                                "lastChange": 1779437786.3391478
+                            }
+                        },
+                        "laneLinkStatus": {
+                            "0": {
+                                "value": "up",
+                                "changes": 31,
+                                "lastChange": 1781003932.953429
+                            }
+                        },
+                        "laneTxStatus": {}
+                    },
+                    "phyState": {
+                        "value": "linkUp",
+                        "changes": 24,
+                        "lastChange": 1781003929.9938688
+                    },
+                    "operSpeed": "10Gbps",
+                    "interruptCount": 0,
+                    "serdes": {
+                        "0": {
+                            "rxPpm": 3,
+                            "vga": 1,
+                            "txPpm": 0,
+                            "dfeTaps": {
+                                "1": 0,
+                                "2": 0,
+                                "3": 0,
+                                "4": 0,
+                                "5": 0,
+                                "6": 0
+                            },
+                            "txTaps": {
+                                "0": 65,
+                                "1": 16,
+                                "2": 0,
+                                "3": 0,
+                                "-1": 5
+                            },
+                            "mainPeakingFilter": 0,
+                            "lowFrequncyPeakingFilter": 3,
+                            "eyeLeft": 328,
+                            "eyeRight": 296,
+                            "eyeUpper": 115,
+                            "eyeLower": 151
+                        }
+                    }
+                }
+            ],
+            "interfaceState": {
+                "value": "up",
+                "changes": 26,
+                "lastChange": 1781003930.6136856
+            },
+            "transceiver": {
+                "mediaType": {
+                    "value": "40GBASE-SR4",
+                    "changes": 6,
+                    "lastChange": 1778585793.043672
+                },
+                "vendorSn": "XXX000ab0002    "
+            },
+            "macFaults": {
+                "localFault": {
+                    "value": false,
+                    "changes": 56,
+                    "lastChange": 1781003929.0739264
+                },
+                "remoteFault": {
+                    "value": false,
+                    "changes": 26,
+                    "lastChange": 1779437644.63155
+                }
+            }
+        },
+        "Ethernet4/1": {
+            "phyStatuses": [
+                {
+                    "description": {
+                        "phyChipName": "BCM56870-TSCF16",
+                        "location": "line"
+                    },
+                    "chip": {
+                        "oui": 0,
+                        "model": 0,
+                        "rev": 0,
+                        "hwRev": "A",
+                        "modelName": "BCM56870-TSCF16",
+                        "firmwareRev": "D103"
+                    },
+                    "pcs": {
+                        "linkStatus": {
+                            "value": "up",
+                            "changes": 61,
+                            "lastChange": 1787068238.765029
+                        },
+                        "highBer": {
+                            "value": false,
+                            "changes": 0,
+                            "lastChange": 0.0
+                        },
+                        "lastHighBerCount": {
+                            "value": 0,
+                            "changes": 0,
+                            "lastChange": 0.0
+                        },
+                        "lastErroredBlockCount": {
+                            "value": 0,
+                            "changes": 0,
+                            "lastChange": 0.0
+                        },
+                        "laneDeskew": {}
+                    },
+                    "fec": {
+                        "encoding": "reedSolomon",
+                        "codewordSize": "528",
+                        "alignmentLock": {
+                            "value": true,
+                            "changes": 31,
+                            "lastChange": 1787068239.2124088
+                        },
+                        "correctedCodewords": {
+                            "value": 5,
+                            "changes": 6,
+                            "lastChange": 1787066000.4227245
+                        },
+                        "uncorrectedCodewords": {
+                            "value": 3,
+                            "changes": 13,
+                            "lastChange": 1787068239.2125041
+                        },
+                        "correctedSymbols": {},
+                        "laneMap": {}
+                    },
+                    "pma": {
+                        "linkStatus": {
+                            "value": "up",
+                            "changes": 33,
+                            "lastChange": 1787068239.2125683
+                        },
+                        "signalDetect": {
+                            "value": true,
+                            "changes": 37,
+                            "lastChange": 1787068239.212567
+                        },
+                        "laneSignalDetect": {
+                            "0": {
+                                "value": true,
+                                "changes": 37,
+                                "lastChange": 1787068239.2125487
+                            }
+                        },
+                        "laneLinkStatus": {
+                            "0": {
+                                "value": "up",
+                                "changes": 33,
+                                "lastChange": 1787068239.2125583
+                            }
+                        },
+                        "laneTxStatus": {}
+                    },
+                    "phyState": {
+                        "value": "linkUp",
+                        "changes": 28,
+                        "lastChange": 1787068240.652866
+                    },
+                    "operSpeed": "25Gbps",
+                    "interruptCount": 0,
+                    "serdes": {
+                        "0": {
+                            "rxPpm": -8,
+                            "vga": 15,
+                            "txPpm": 0,
+                            "dfeTaps": {
+                                "1": 19,
+                                "2": -8,
+                                "3": 0,
+                                "4": 0,
+                                "5": -3,
+                                "6": 3
+                            },
+                            "txTaps": {
+                                "0": 65,
+                                "1": 16,
+                                "2": 0,
+                                "3": 0,
+                                "-1": 5
+                            },
+                            "mainPeakingFilter": 0,
+                            "lowFrequncyPeakingFilter": 1,
+                            "eyeLeft": 265,
+                            "eyeRight": 312,
+                            "eyeUpper": 149,
+                            "eyeLower": 144
+                        }
+                    }
+                }
+            ],
+            "interfaceState": {
+                "value": "up",
+                "changes": 30,
+                "lastChange": 1787068241.253714
+            },
+            "transceiver": {
+                "mediaType": {
+                    "value": "100GBASE-SR4",
+                    "changes": 2,
+                    "lastChange": 1777294204.9763367
+                },
+                "vendorSn": "XXX000a`0004    "
+            },
+            "macFaults": {
+                "localFault": {
+                    "value": false,
+                    "changes": 62,
+                    "lastChange": 1787068238.7650526
+                },
+                "remoteFault": {
+                    "value": false,
+                    "changes": 14,
+                    "lastChange": 1787065997.44431
+                }
+            }
+        },
+        "Ethernet29/1": {
+            "phyStatuses": [
+                {
+                    "description": {
+                        "phyChipName": "BCM56870-TSCF16",
+                        "location": "line"
+                    },
+                    "chip": {
+                        "oui": 0,
+                        "model": 0,
+                        "rev": 0,
+                        "hwRev": "A",
+                        "modelName": "BCM56870-TSCF16",
+                        "firmwareRev": "D103"
+                    },
+                    "pcs": {
+                        "linkStatus": {
+                            "value": "up",
+                            "changes": 3,
+                            "lastChange": 1777294249.5476127
+                        },
+                        "highBer": {
+                            "value": false,
+                            "changes": 0,
+                            "lastChange": 0.0
+                        },
+                        "lastHighBerCount": {
+                            "value": 0,
+                            "changes": 0,
+                            "lastChange": 0.0
+                        },
+                        "lastErroredBlockCount": {
+                            "value": 0,
+                            "changes": 0,
+                            "lastChange": 0.0
+                        },
+                        "laneDeskew": {}
+                    },
+                    "fec": {
+                        "encoding": "reedSolomon",
+                        "codewordSize": "528",
+                        "alignmentLock": {
+                            "value": true,
+                            "changes": 1,
+                            "lastChange": 1777294255.2277963
+                        },
+                        "correctedCodewords": {
+                            "value": 0,
+                            "changes": 0,
+                            "lastChange": 0.0
+                        },
+                        "uncorrectedCodewords": {
+                            "value": 0,
+                            "changes": 0,
+                            "lastChange": 0.0
+                        },
+                        "correctedSymbols": {
+                            "0": {
+                                "value": 0,
+                                "changes": 0,
+                                "lastChange": 0.0
+                            },
+                            "1": {
+                                "value": 0,
+                                "changes": 0,
+                                "lastChange": 0.0
+                            },
+                            "2": {
+                                "value": 0,
+                                "changes": 0,
+                                "lastChange": 0.0
+                            },
+                            "3": {
+                                "value": 0,
+                                "changes": 0,
+                                "lastChange": 0.0
+                            }
+                        },
+                        "laneMap": {
+                            "0": 0,
+                            "1": 1,
+                            "2": 2,
+                            "3": 3
+                        }
+                    },
+                    "pma": {
+                        "linkStatus": {
+                            "value": "up",
+                            "changes": 1,
+                            "lastChange": 1777294255.2281196
+                        },
+                        "signalDetect": {
+                            "value": true,
+                            "changes": 1,
+                            "lastChange": 1777294255.228119
+                        },
+                        "laneSignalDetect": {
+                            "0": {
+                                "value": true,
+                                "changes": 1,
+                                "lastChange": 1777294255.228
+                            },
+                            "1": {
+                                "value": true,
+                                "changes": 1,
+                                "lastChange": 1777294255.228
+                            },
+                            "2": {
+                                "value": true,
+                                "changes": 1,
+                                "lastChange": 1777294255.228
+                            },
+                            "3": {
+                                "value": true,
+                                "changes": 1,
+                                "lastChange": 1777294255.228
+                            }
+                        },
+                        "laneLinkStatus": {
+                            "0": {
+                                "value": "up",
+                                "changes": 1,
+                                "lastChange": 1777294255.228
+                            },
+                            "1": {
+                                "value": "up",
+                                "changes": 1,
+                                "lastChange": 1777294255.228
+                            },
+                            "2": {
+                                "value": "up",
+                                "changes": 1,
+                                "lastChange": 1777294255.228
+                            },
+                            "3": {
+                                "value": "up",
+                                "changes": 1,
+                                "lastChange": 1777294255.228
+                            }
+                        },
+                        "laneTxStatus": {}
+                    },
+                    "phyState": {
+                        "value": "linkUp",
+                        "changes": 2,
+                        "lastChange": 1777294251.2379067
+                    },
+                    "operSpeed": "100Gbps",
+                    "interruptCount": 0,
+                    "serdes": {
+                        "0": {
+                            "rxPpm": 1,
+                            "vga": 16,
+                            "txPpm": 0,
+                            "dfeTaps": {
+                                "1": 14,
+                                "2": -10,
+                                "3": 0,
+                                "4": 3,
+                                "5": -2,
+                                "6": 3
+                            },
+                            "txTaps": {
+                                "0": 65,
+                                "1": 16,
+                                "2": 0,
+                                "3": 0,
+                                "-1": 5
+                            },
+                            "mainPeakingFilter": 0,
+                            "lowFrequncyPeakingFilter": 1,
+                            "eyeLeft": 250,
+                            "eyeRight": 312,
+                            "eyeUpper": 144,
+                            "eyeLower": 142
+                        },
+                        "1": {
+                            "rxPpm": 1,
+                            "vga": 16,
+                            "txPpm": 0,
+                            "dfeTaps": {
+                                "1": 16,
+                                "2": -12,
+                                "3": 2,
+                                "4": -2,
+                                "5": 1,
+                                "6": 3
+                            },
+                            "txTaps": {
+                                "0": 65,
+                                "1": 16,
+                                "2": 0,
+                                "3": 0,
+                                "-1": 5
+                            },
+                            "mainPeakingFilter": 0,
+                            "lowFrequncyPeakingFilter": 1,
+                            "eyeLeft": 234,
+                            "eyeRight": 296,
+                            "eyeUpper": 136,
+                            "eyeLower": 140
+                        },
+                        "2": {
+                            "rxPpm": 1,
+                            "vga": 16,
+                            "txPpm": 0,
+                            "dfeTaps": {
+                                "1": 12,
+                                "2": -13,
+                                "3": 2,
+                                "4": -1,
+                                "5": 1,
+                                "6": 3
+                            },
+                            "txTaps": {
+                                "0": 65,
+                                "1": 16,
+                                "2": 0,
+                                "3": 0,
+                                "-1": 5
+                            },
+                            "mainPeakingFilter": 0,
+                            "lowFrequncyPeakingFilter": 1,
+                            "eyeLeft": 234,
+                            "eyeRight": 296,
+                            "eyeUpper": 144,
+                            "eyeLower": 147
+                        },
+                        "3": {
+                            "rxPpm": 1,
+                            "vga": 16,
+                            "txPpm": 0,
+                            "dfeTaps": {
+                                "1": 13,
+                                "2": -10,
+                                "3": 1,
+                                "4": -1,
+                                "5": 1,
+                                "6": 2
+                            },
+                            "txTaps": {
+                                "0": 65,
+                                "1": 16,
+                                "2": 0,
+                                "3": 0,
+                                "-1": 5
+                            },
+                            "mainPeakingFilter": 0,
+                            "lowFrequncyPeakingFilter": 1,
+                            "eyeLeft": 265,
+                            "eyeRight": 296,
+                            "eyeUpper": 140,
+                            "eyeLower": 144
+                        }
+                    }
+                }
+            ],
+            "interfaceState": {
+                "value": "up",
+                "changes": 4,
+                "lastChange": 1777294251.8452563
+            },
+            "transceiver": {
+                "mediaType": {
+                    "value": "100GBASE-SR4",
+                    "changes": 2,
+                    "lastChange": 1777294202.42125
+                },
+                "vendorSn": "XXX000a`0005    "
+            },
+            "macFaults": {
+                "localFault": {
+                    "value": false,
+                    "changes": 4,
+                    "lastChange": 1777294249.5469935
+                },
+                "remoteFault": {
+                    "value": false,
+                    "changes": 2,
+                    "lastChange": 1777294249.235035
+                }
+            }
+        }
+    }
+}

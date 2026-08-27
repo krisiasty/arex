@@ -1,0 +1,88 @@
+{
+    "vrfs": {
+        "default": {
+            "vrf": "default",
+            "routerId": "192.0.2.1",
+            "asn": "4200000001",
+            "peers": {
+                "198.51.100.10": {
+                    "version": 4,
+                    "msgReceived": 206803,
+                    "msgSent": 206762,
+                    "inMsgQueue": 0,
+                    "outMsgQueue": 0,
+                    "asn": "4200000000",
+                    "prefixAccepted": 2,
+                    "prefixReceived": 2,
+                    "upDownTime": 1777294253.151276,
+                    "underMaintenance": false,
+                    "peerState": "Established",
+                    "prefixAdvertised": 2
+                },
+                "198.51.100.11": {
+                    "version": 4,
+                    "msgReceived": 206698,
+                    "msgSent": 206722,
+                    "inMsgQueue": 0,
+                    "outMsgQueue": 0,
+                    "asn": "4200000000",
+                    "prefixAccepted": 2,
+                    "prefixReceived": 2,
+                    "upDownTime": 1777294253.21742,
+                    "underMaintenance": false,
+                    "peerState": "Established",
+                    "prefixAdvertised": 3
+                }
+            }
+        },
+        "INTERNET": {
+            "vrf": "INTERNET",
+            "routerId": "192.0.2.1",
+            "asn": "4200000001",
+            "peers": {
+                "203.0.113.164": {
+                    "description": "transit-rtr-01",
+                    "version": 4,
+                    "msgReceived": 368218,
+                    "msgSent": 413487,
+                    "inMsgQueue": 0,
+                    "outMsgQueue": 0,
+                    "asn": "64500",
+                    "prefixAccepted": 48,
+                    "prefixReceived": 50,
+                    "upDownTime": 1782975126.94243,
+                    "underMaintenance": false,
+                    "peerState": "Established",
+                    "prefixAdvertised": 19
+                },
+                "203.0.113.168": {
+                    "description": "transit-rtr-02",
+                    "version": 4,
+                    "msgReceived": 369743,
+                    "msgSent": 413561,
+                    "inMsgQueue": 0,
+                    "outMsgQueue": 0,
+                    "asn": "64500",
+                    "prefixAccepted": 48,
+                    "prefixReceived": 50,
+                    "upDownTime": 1782975133.223014,
+                    "underMaintenance": true,
+                    "peerState": "Idle",
+                    "prefixAdvertised": 19
+                }
+            }
+        },
+        "TENANT_PRIV": {
+            "vrf": "TENANT_PRIV",
+            "routerId": "192.0.2.1",
+            "asn": "4200000001",
+            "peers": {}
+        },
+        "TENANT_PUBLIC": {
+            "vrf": "TENANT_PUBLIC",
+            "routerId": "192.0.2.1",
+            "asn": "4200000001",
+            "peers": {}
+        }
+    }
+}

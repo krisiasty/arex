@@ -1,0 +1,26 @@
+{
+    "timeInfo": {
+        "currentTime": 1787857380.9584563,
+        "upTime": 10563294.49,
+        "users": 1,
+        "loadAvg": [1.26, 1.19, 1.19]
+    },
+    "threadsStateInfo": { "total": 261, "run": 2, "sleep": 259, "stop": 0, "zombie": 0 },
+    "cpuInfo": {
+        "%Cpu(s)": {
+            "user": 13.5, "system": 3.8, "nice": 0.0, "idle": 82.7,
+            "ioWait": 0.0, "hwIrq": 0.0, "swIrq": 0.0, "stolen": 0.0
+        }
+    },
+    "memInfo": {
+        "physicalMem": { "memTotal": 16280678, "memUsed": 3599667, "memFree": 7159603, "memBuffer": 6654156 },
+        "swapMem": { "memTotal": 0, "memUsed": 0, "memFree": 0, "memBuffer": 12681113 }
+    },
+    "processes": {
+        "11821": {
+            "cmd": "ntpsecq", "userName": "root", "priority": "20", "niceValue": 0,
+            "virtMem": "8403752", "residentMem": "15772", "sharedMem": "7052",
+            "status": "R", "cpuPctType": "{:.1f}", "cpuPct": 37.5, "memPct": 0.1, "activeTime": 6
+        }
+    }
+}

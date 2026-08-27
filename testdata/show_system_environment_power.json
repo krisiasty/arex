@@ -1,0 +1,28 @@
+{
+    "powerSupplies": {
+        "1": {
+            "modelName": "PWR-511-AC-BLUE", "capacity": 500.0, "dominant": false,
+            "inputCurrent": 0.4072265625, "outputCurrent": 6.6640625,
+            "inputVoltage": 230.5, "outputVoltage": 12.0234375, "outputPower": 80.0,
+            "state": "ok", "uptime": 1777294197.5810893, "managed": true,
+            "fans": { "FanP1/1": { "status": "ok", "speed": 34 } },
+            "tempSensors": {
+                "TempSensorP1/1": { "status": "ok", "temperature": 22.0 },
+                "TempSensorP1/2": { "status": "ok", "temperature": 31.0 },
+                "TempSensorP1/3": { "status": "ok", "temperature": 34.0 }
+            }
+        },
+        "2": {
+            "modelName": "PWR-511-AC-BLUE", "capacity": 500.0, "dominant": false,
+            "inputCurrent": 0.4013671875, "outputCurrent": 6.4140625,
+            "inputVoltage": 229.5, "outputVoltage": 12.015625, "outputPower": 77.0,
+            "state": "ok", "uptime": 1779363238.0081682, "managed": true,
+            "fans": { "FanP2/1": { "status": "ok", "speed": 34 } },
+            "tempSensors": {
+                "TempSensorP2/1": { "status": "ok", "temperature": 21.0 },
+                "TempSensorP2/2": { "status": "ok", "temperature": 30.0 },
+                "TempSensorP2/3": { "status": "ok", "temperature": 34.0 }
+            }
+        }
+    }
+}

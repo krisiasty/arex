@@ -1,0 +1,739 @@
+# HELP arista_scrape_success 1 if the last poll of this switch succeeded
+# TYPE arista_scrape_success gauge
+# HELP arista_scrape_age_seconds Seconds since the last successful poll (-1 if never)
+# TYPE arista_scrape_age_seconds gauge
+# HELP arista_command_success 1 if this eAPI command succeeded in the last poll
+# TYPE arista_command_success gauge
+# HELP arista_info Switch identity labels. Always 1
+# TYPE arista_info gauge
+# HELP arista_boot_timestamp_seconds Unix timestamp of last boot
+# TYPE arista_boot_timestamp_seconds gauge
+# HELP arista_memory_total_bytes Total physical memory
+# TYPE arista_memory_total_bytes gauge
+# HELP arista_memory_available_bytes Memory available for allocation, including reclaimable cache. Alert on this, not on free
+# TYPE arista_memory_available_bytes gauge
+# HELP arista_memory_free_bytes Strictly unused memory. Normally low: Linux spends idle RAM on cache
+# TYPE arista_memory_free_bytes gauge
+# HELP arista_memory_used_bytes Memory in use
+# TYPE arista_memory_used_bytes gauge
+# HELP arista_memory_buffer_bytes Buffer and cache memory as reported by EOS; does not reconcile exactly with total/used/free
+# TYPE arista_memory_buffer_bytes gauge
+# HELP arista_cpu_user_percent CPU time in user space
+# TYPE arista_cpu_user_percent gauge
+# HELP arista_cpu_system_percent CPU time in kernel space
+# TYPE arista_cpu_system_percent gauge
+# HELP arista_cpu_nice_percent CPU time on niced processes
+# TYPE arista_cpu_nice_percent gauge
+# HELP arista_cpu_idle_percent CPU idle percentage
+# TYPE arista_cpu_idle_percent gauge
+# HELP arista_cpu_iowait_percent CPU time waiting on I/O
+# TYPE arista_cpu_iowait_percent gauge
+# HELP arista_cpu_steal_percent CPU time stolen by the hypervisor (vEOS)
+# TYPE arista_cpu_steal_percent gauge
+# HELP arista_load_avg_1m 1-minute load average
+# TYPE arista_load_avg_1m gauge
+# HELP arista_load_avg_5m 5-minute load average
+# TYPE arista_load_avg_5m gauge
+# HELP arista_load_avg_15m 15-minute load average
+# TYPE arista_load_avg_15m gauge
+# HELP arista_temperature_system_ok 1 if overall temperature status is ok
+# TYPE arista_temperature_system_ok gauge
+# HELP arista_temperature_shutdown_on_overheat 1 if the switch is configured to shut down on overheat
+# TYPE arista_temperature_shutdown_on_overheat gauge
+# HELP arista_psu_info PSU model labels. Always 1
+# TYPE arista_psu_info gauge
+# HELP arista_psu_ok 1 if PSU state is ok
+# TYPE arista_psu_ok gauge
+# HELP arista_psu_capacity_watts PSU rated capacity
+# TYPE arista_psu_capacity_watts gauge
+# HELP arista_psu_output_power_watts PSU current output power
+# TYPE arista_psu_output_power_watts gauge
+# HELP arista_psu_input_voltage_volts PSU input voltage
+# TYPE arista_psu_input_voltage_volts gauge
+# HELP arista_psu_output_voltage_volts PSU output voltage
+# TYPE arista_psu_output_voltage_volts gauge
+# HELP arista_psu_input_current_amps PSU input current
+# TYPE arista_psu_input_current_amps gauge
+# HELP arista_psu_output_current_amps PSU output current
+# TYPE arista_psu_output_current_amps gauge
+# HELP arista_psu_boot_timestamp_seconds Unix timestamp when the PSU came online
+# TYPE arista_psu_boot_timestamp_seconds gauge
+# HELP arista_cooling_ok 1 if overall cooling status is ok
+# TYPE arista_cooling_ok gauge
+# HELP arista_cooling_fans_ok 1 if the fan alarm status is ok
+# TYPE arista_cooling_fans_ok gauge
+# HELP arista_cooling_shutdown_on_insufficient_fans 1 if the switch is configured to shut down on insufficient fans
+# TYPE arista_cooling_shutdown_on_insufficient_fans gauge
+# HELP arista_cooling_ambient_temperature_celsius Ambient temperature
+# TYPE arista_cooling_ambient_temperature_celsius gauge
+# HELP arista_cooling_info Cooling configuration labels. Always 1
+# TYPE arista_cooling_info gauge
+# HELP arista_fan_info Fan vendor model labels. Always 1
+# TYPE arista_fan_info gauge
+# HELP arista_fan_ok 1 if fan status is ok
+# TYPE arista_fan_ok gauge
+# HELP arista_fan_speed_configured_percent Configured fan speed as a percentage
+# TYPE arista_fan_speed_configured_percent gauge
+# HELP arista_fan_speed_actual_percent Actual fan speed as a percentage
+# TYPE arista_fan_speed_actual_percent gauge
+# HELP arista_fan_speed_max_rpm Fan maximum speed in RPM
+# TYPE arista_fan_speed_max_rpm gauge
+# HELP arista_fan_speed_stable 1 if fan speed has stabilised
+# TYPE arista_fan_speed_stable gauge
+# HELP arista_fan_boot_timestamp_seconds Unix timestamp when the fan came online
+# TYPE arista_fan_boot_timestamp_seconds gauge
+# HELP arista_interface_info Interface description, port-channel membership and MTU. Always 1
+# TYPE arista_interface_info gauge
+# HELP arista_interface_link_up 1 if the interface line protocol is up
+# TYPE arista_interface_link_up gauge
+# HELP arista_interface_speed_bits_per_second Negotiated interface speed
+# TYPE arista_interface_speed_bits_per_second gauge
+# HELP arista_interface_in_octets_total Inbound octets
+# TYPE arista_interface_in_octets_total counter
+# HELP arista_interface_out_octets_total Outbound octets
+# TYPE arista_interface_out_octets_total counter
+# HELP arista_interface_in_errors_total Inbound errors
+# TYPE arista_interface_in_errors_total counter
+# HELP arista_interface_out_errors_total Outbound errors
+# TYPE arista_interface_out_errors_total counter
+# HELP arista_interface_in_discards_total Inbound discards
+# TYPE arista_interface_in_discards_total counter
+# HELP arista_interface_out_discards_total Outbound discards
+# TYPE arista_interface_out_discards_total counter
+# HELP arista_interface_link_status_changes_total Link state transitions since counters were cleared
+# TYPE arista_interface_link_status_changes_total counter
+# HELP arista_interface_in_packets_total Inbound packets by cast
+# TYPE arista_interface_in_packets_total counter
+# HELP arista_interface_out_packets_total Outbound packets by cast
+# TYPE arista_interface_out_packets_total counter
+# HELP arista_interface_in_errors_detail_total Inbound errors broken down by cause
+# TYPE arista_interface_in_errors_detail_total counter
+# HELP arista_interface_out_errors_detail_total Outbound errors broken down by cause
+# TYPE arista_interface_out_errors_detail_total counter
+# HELP arista_interface_last_counter_clear_timestamp_seconds Unix timestamp counters were last cleared
+# TYPE arista_interface_last_counter_clear_timestamp_seconds gauge
+# HELP arista_interface_counter_refresh_timestamp_seconds Unix timestamp counters were last refreshed by EOS
+# TYPE arista_interface_counter_refresh_timestamp_seconds gauge
+# HELP arista_interface_last_status_change_timestamp_seconds Unix timestamp the interface last changed state
+# TYPE arista_interface_last_status_change_timestamp_seconds gauge
+# HELP arista_bgp_peer_info BGP peer description labels. Always 1
+# TYPE arista_bgp_peer_info gauge
+# HELP arista_bgp_peer_up 1 if the BGP peer is Established
+# TYPE arista_bgp_peer_up gauge
+# HELP arista_bgp_peer_under_maintenance 1 if the BGP peer is under maintenance
+# TYPE arista_bgp_peer_under_maintenance gauge
+# HELP arista_bgp_peer_prefixes_received Prefixes received from the peer
+# TYPE arista_bgp_peer_prefixes_received gauge
+# HELP arista_bgp_peer_prefixes_accepted Prefixes accepted after policy; below received means prefixes were rejected
+# TYPE arista_bgp_peer_prefixes_accepted gauge
+# HELP arista_bgp_peer_prefixes_advertised Prefixes advertised to the peer
+# TYPE arista_bgp_peer_prefixes_advertised gauge
+# HELP arista_bgp_peer_state_change_timestamp_seconds Unix timestamp the session last changed state, up or down
+# TYPE arista_bgp_peer_state_change_timestamp_seconds gauge
+# HELP arista_transceiver_info Transceiver slot, lane, media type and serial. Always 1
+# TYPE arista_transceiver_info gauge
+# HELP arista_transceiver_update_timestamp_seconds Unix timestamp EOS last refreshed this optic's DOM data
+# TYPE arista_transceiver_update_timestamp_seconds gauge
+# HELP arista_phy_interface_up 1 if the PHY reports the interface up
+# TYPE arista_phy_interface_up gauge
+# HELP arista_phy_interface_changes_total Interface state transitions seen by the PHY
+# TYPE arista_phy_interface_changes_total counter
+# HELP arista_phy_info PHY chip, firmware and operating speed. Always 1
+# TYPE arista_phy_info gauge
+# HELP arista_phy_interrupt_count PHY interrupt count
+# TYPE arista_phy_interrupt_count gauge
+# HELP arista_phy_link_up 1 if the PHY state is linkUp
+# TYPE arista_phy_link_up gauge
+# HELP arista_phy_link_changes_total PHY state transitions since boot
+# TYPE arista_phy_link_changes_total counter
+# HELP arista_phy_pcs_link_up 1 if the PCS link is up
+# TYPE arista_phy_pcs_link_up gauge
+# HELP arista_phy_pcs_link_changes_total PCS link transitions since boot
+# TYPE arista_phy_pcs_link_changes_total counter
+# HELP arista_phy_pma_link_up 1 if the PMA link is up
+# TYPE arista_phy_pma_link_up gauge
+# HELP arista_phy_pma_link_changes_total PMA link transitions since boot
+# TYPE arista_phy_pma_link_changes_total counter
+# HELP arista_temperature_celsius Current system temperature in Celsius
+# TYPE arista_temperature_celsius gauge
+# HELP arista_temperature_max_celsius Historical maximum system temperature
+# TYPE arista_temperature_max_celsius gauge
+# HELP arista_temperature_overheat_threshold_celsius Overheat threshold reported by the system sensor
+# TYPE arista_temperature_overheat_threshold_celsius gauge
+# HELP arista_temperature_critical_threshold_celsius Critical threshold reported by the system sensor
+# TYPE arista_temperature_critical_threshold_celsius gauge
+# HELP arista_temperature_alert 1 if the system sensor is in alert state
+# TYPE arista_temperature_alert gauge
+# HELP arista_temperature_sensor_ok 1 if the system sensor hardware is ok
+# TYPE arista_temperature_sensor_ok gauge
+# HELP arista_psu_temperature_celsius Current PSU temperature in Celsius
+# TYPE arista_psu_temperature_celsius gauge
+# HELP arista_psu_temperature_max_celsius Historical maximum PSU temperature
+# TYPE arista_psu_temperature_max_celsius gauge
+# HELP arista_psu_temperature_overheat_threshold_celsius Overheat threshold reported by the PSU sensor
+# TYPE arista_psu_temperature_overheat_threshold_celsius gauge
+# HELP arista_psu_temperature_critical_threshold_celsius Critical threshold reported by the PSU sensor
+# TYPE arista_psu_temperature_critical_threshold_celsius gauge
+# HELP arista_psu_temperature_alert 1 if the PSU sensor is in alert state
+# TYPE arista_psu_temperature_alert gauge
+# HELP arista_psu_temperature_sensor_ok 1 if the PSU sensor hardware is ok
+# TYPE arista_psu_temperature_sensor_ok gauge
+# HELP arista_transceiver_temperature_celsius Transceiver module temperature
+# TYPE arista_transceiver_temperature_celsius gauge
+# HELP arista_transceiver_temperature_threshold_celsius Threshold for transceiver module temperature as reported by the optic; level is high_alarm, high_warn, low_alarm or low_warn
+# TYPE arista_transceiver_temperature_threshold_celsius gauge
+# HELP arista_transceiver_voltage_volts Transceiver supply voltage
+# TYPE arista_transceiver_voltage_volts gauge
+# HELP arista_transceiver_voltage_threshold_volts Threshold for transceiver supply voltage as reported by the optic; level is high_alarm, high_warn, low_alarm or low_warn
+# TYPE arista_transceiver_voltage_threshold_volts gauge
+# HELP arista_transceiver_tx_bias_milliamps Transceiver laser bias current for this lane
+# TYPE arista_transceiver_tx_bias_milliamps gauge
+# HELP arista_transceiver_tx_bias_threshold_milliamps Threshold for transceiver laser bias current for this lane as reported by the optic; level is high_alarm, high_warn, low_alarm or low_warn
+# TYPE arista_transceiver_tx_bias_threshold_milliamps gauge
+# HELP arista_transceiver_tx_power_dbm Transceiver transmit optical power for this lane
+# TYPE arista_transceiver_tx_power_dbm gauge
+# HELP arista_transceiver_tx_power_threshold_dbm Threshold for transceiver transmit optical power for this lane as reported by the optic; level is high_alarm, high_warn, low_alarm or low_warn
+# TYPE arista_transceiver_tx_power_threshold_dbm gauge
+# HELP arista_transceiver_rx_power_dbm Transceiver receive optical power for this lane
+# TYPE arista_transceiver_rx_power_dbm gauge
+# HELP arista_transceiver_rx_power_threshold_dbm Threshold for transceiver receive optical power for this lane as reported by the optic; level is high_alarm, high_warn, low_alarm or low_warn
+# TYPE arista_transceiver_rx_power_threshold_dbm gauge
+# HELP arista_phy_mac_local_fault 1 if the MAC reports a local fault
+# TYPE arista_phy_mac_local_fault gauge
+# HELP arista_phy_mac_local_fault_changes_total Transitions of arista_phy_mac_local_fault since boot
+# TYPE arista_phy_mac_local_fault_changes_total counter
+# HELP arista_phy_mac_remote_fault 1 if the MAC reports a remote fault
+# TYPE arista_phy_mac_remote_fault gauge
+# HELP arista_phy_mac_remote_fault_changes_total Transitions of arista_phy_mac_remote_fault since boot
+# TYPE arista_phy_mac_remote_fault_changes_total counter
+# HELP arista_phy_pcs_high_ber 1 if the PCS reports a high bit error rate
+# TYPE arista_phy_pcs_high_ber gauge
+# HELP arista_phy_pcs_high_ber_changes_total Transitions of arista_phy_pcs_high_ber since boot
+# TYPE arista_phy_pcs_high_ber_changes_total counter
+# HELP arista_phy_pcs_block_lock 1 if PCS block lock is achieved; absent on links running FEC
+# TYPE arista_phy_pcs_block_lock gauge
+# HELP arista_phy_pcs_block_lock_changes_total Transitions of arista_phy_pcs_block_lock since boot
+# TYPE arista_phy_pcs_block_lock_changes_total counter
+# HELP arista_phy_pma_signal_detect 1 if the PMA detects a signal
+# TYPE arista_phy_pma_signal_detect gauge
+# HELP arista_phy_pma_signal_detect_changes_total Transitions of arista_phy_pma_signal_detect since boot
+# TYPE arista_phy_pma_signal_detect_changes_total counter
+# HELP arista_phy_fec_alignment_lock 1 if FEC alignment lock is achieved; absent on links without FEC
+# TYPE arista_phy_fec_alignment_lock gauge
+# HELP arista_phy_fec_alignment_lock_changes_total Transitions of arista_phy_fec_alignment_lock since boot
+# TYPE arista_phy_fec_alignment_lock_changes_total counter
+# HELP arista_phy_pcs_last_high_ber_count PCS high-BER count as last observed (gauge: EOS semantics are ambiguous and the counter is clearable)
+# TYPE arista_phy_pcs_last_high_ber_count gauge
+# HELP arista_phy_pcs_last_high_ber_count_changes_total Times arista_phy_pcs_last_high_ber_count changed since boot; the reliable rate signal
+# TYPE arista_phy_pcs_last_high_ber_count_changes_total counter
+# HELP arista_phy_pcs_last_high_ber_count_last_change_timestamp_seconds Unix timestamp arista_phy_pcs_last_high_ber_count last changed
+# TYPE arista_phy_pcs_last_high_ber_count_last_change_timestamp_seconds gauge
+# HELP arista_phy_pcs_last_errored_block_count PCS errored block count as last observed (gauge: EOS semantics are ambiguous and the counter is clearable)
+# TYPE arista_phy_pcs_last_errored_block_count gauge
+# HELP arista_phy_pcs_last_errored_block_count_changes_total Times arista_phy_pcs_last_errored_block_count changed since boot; the reliable rate signal
+# TYPE arista_phy_pcs_last_errored_block_count_changes_total counter
+# HELP arista_phy_pcs_last_errored_block_count_last_change_timestamp_seconds Unix timestamp arista_phy_pcs_last_errored_block_count last changed
+# TYPE arista_phy_pcs_last_errored_block_count_last_change_timestamp_seconds gauge
+# HELP arista_phy_fec_corrected_codewords FEC codewords corrected (gauge: EOS semantics are ambiguous and the counter is clearable)
+# TYPE arista_phy_fec_corrected_codewords gauge
+# HELP arista_phy_fec_corrected_codewords_changes_total Times arista_phy_fec_corrected_codewords changed since boot; the reliable rate signal
+# TYPE arista_phy_fec_corrected_codewords_changes_total counter
+# HELP arista_phy_fec_corrected_codewords_last_change_timestamp_seconds Unix timestamp arista_phy_fec_corrected_codewords last changed
+# TYPE arista_phy_fec_corrected_codewords_last_change_timestamp_seconds gauge
+# HELP arista_phy_fec_uncorrected_codewords FEC codewords that could not be corrected; frames were lost (gauge: EOS semantics are ambiguous and the counter is clearable)
+# TYPE arista_phy_fec_uncorrected_codewords gauge
+# HELP arista_phy_fec_uncorrected_codewords_changes_total Times arista_phy_fec_uncorrected_codewords changed since boot; the reliable rate signal
+# TYPE arista_phy_fec_uncorrected_codewords_changes_total counter
+# HELP arista_phy_fec_uncorrected_codewords_last_change_timestamp_seconds Unix timestamp arista_phy_fec_uncorrected_codewords last changed
+# TYPE arista_phy_fec_uncorrected_codewords_last_change_timestamp_seconds gauge
+# HELP arista_phy_fec_corrected_symbols FEC symbols corrected on this lane (gauge: EOS semantics are ambiguous and the counter is clearable)
+# TYPE arista_phy_fec_corrected_symbols gauge
+# HELP arista_phy_fec_corrected_symbols_changes_total Times arista_phy_fec_corrected_symbols changed since boot; the reliable rate signal
+# TYPE arista_phy_fec_corrected_symbols_changes_total counter
+# HELP arista_phy_fec_corrected_symbols_last_change_timestamp_seconds Unix timestamp arista_phy_fec_corrected_symbols last changed
+# TYPE arista_phy_fec_corrected_symbols_last_change_timestamp_seconds gauge
+arista_scrape_success{switch="sw1"} 1
+arista_scrape_age_seconds{switch="sw1"} <age>
+arista_command_success{switch="sw1",command="show version"} 1
+arista_command_success{switch="sw1",command="show processes top once"} 1
+arista_command_success{switch="sw1",command="show system environment temperature"} 1
+arista_command_success{switch="sw1",command="show system environment power"} 1
+arista_command_success{switch="sw1",command="show system environment cooling"} 1
+arista_command_success{switch="sw1",command="show interfaces"} 1
+arista_command_success{switch="sw1",command="show ip bgp summary vrf all"} 1
+arista_command_success{switch="sw1",command="show interfaces transceiver detail"} 1
+arista_command_success{switch="sw1",command="show interfaces phy detail"} 1
+arista_info{switch="sw1",model="DCS-7050CX3-32C-R",serial="ABC1234567X",version="4.35.4M",mac="00:1c:73:00:00:01",arch="x86_64"} 1
+arista_boot_timestamp_seconds{switch="sw1"} 1.7772940864660642e+09
+arista_memory_total_bytes{switch="sw1"} 1.6671453184e+10
+arista_memory_available_bytes{switch="sw1"} 1.297831936e+10
+arista_cpu_user_percent{switch="sw1"} 13.5
+arista_cpu_system_percent{switch="sw1"} 3.8
+arista_cpu_nice_percent{switch="sw1"} 0
+arista_cpu_idle_percent{switch="sw1"} 82.7
+arista_cpu_iowait_percent{switch="sw1"} 0
+arista_cpu_steal_percent{switch="sw1"} 0
+arista_load_avg_1m{switch="sw1"} 1.26
+arista_load_avg_5m{switch="sw1"} 1.19
+arista_load_avg_15m{switch="sw1"} 1.19
+arista_memory_free_bytes{switch="sw1"} 7.331433472e+09
+arista_memory_used_bytes{switch="sw1"} 3.686059008e+09
+arista_memory_buffer_bytes{switch="sw1"} 6.813855744e+09
+arista_temperature_system_ok{switch="sw1"} 1
+arista_temperature_shutdown_on_overheat{switch="sw1"} 1
+arista_temperature_celsius{switch="sw1",location="system",sensor="TempSensor1",description="Cpu temp sensor",position="other"} 28.00308548455791
+arista_temperature_max_celsius{switch="sw1",location="system",sensor="TempSensor1",description="Cpu temp sensor",position="other"} 33.50639798508577
+arista_temperature_overheat_threshold_celsius{switch="sw1",location="system",sensor="TempSensor1",description="Cpu temp sensor",position="other"} 95
+arista_temperature_critical_threshold_celsius{switch="sw1",location="system",sensor="TempSensor1",description="Cpu temp sensor",position="other"} 115
+arista_temperature_alert{switch="sw1",location="system",sensor="TempSensor1",description="Cpu temp sensor",position="other"} 0
+arista_temperature_sensor_ok{switch="sw1",location="system",sensor="TempSensor1",description="Cpu temp sensor",position="other"} 1
+arista_temperature_celsius{switch="sw1",location="system",sensor="TempSensor2",description="CPU board temp sensor",position="other"} 23
+arista_temperature_max_celsius{switch="sw1",location="system",sensor="TempSensor2",description="CPU board temp sensor",position="other"} 27.875
+arista_temperature_overheat_threshold_celsius{switch="sw1",location="system",sensor="TempSensor2",description="CPU board temp sensor",position="other"} 75
+arista_temperature_critical_threshold_celsius{switch="sw1",location="system",sensor="TempSensor2",description="CPU board temp sensor",position="other"} 85
+arista_temperature_alert{switch="sw1",location="system",sensor="TempSensor2",description="CPU board temp sensor",position="other"} 0
+arista_temperature_sensor_ok{switch="sw1",location="system",sensor="TempSensor2",description="CPU board temp sensor",position="other"} 1
+arista_temperature_celsius{switch="sw1",location="system",sensor="TempSensor3",description="Back-panel temp sensor",position="outlet"} 21
+arista_temperature_max_celsius{switch="sw1",location="system",sensor="TempSensor3",description="Back-panel temp sensor",position="outlet"} 26.25
+arista_temperature_overheat_threshold_celsius{switch="sw1",location="system",sensor="TempSensor3",description="Back-panel temp sensor",position="outlet"} 75
+arista_temperature_critical_threshold_celsius{switch="sw1",location="system",sensor="TempSensor3",description="Back-panel temp sensor",position="outlet"} 85
+arista_temperature_alert{switch="sw1",location="system",sensor="TempSensor3",description="Back-panel temp sensor",position="outlet"} 0
+arista_temperature_sensor_ok{switch="sw1",location="system",sensor="TempSensor3",description="Back-panel temp sensor",position="outlet"} 1
+arista_temperature_celsius{switch="sw1",location="system",sensor="TempSensor4",description="POSVDD_CPU_S0 Pol Loop0",position="other"} 27
+arista_temperature_max_celsius{switch="sw1",location="system",sensor="TempSensor4",description="POSVDD_CPU_S0 Pol Loop0",position="other"} 32
+arista_temperature_overheat_threshold_celsius{switch="sw1",location="system",sensor="TempSensor4",description="POSVDD_CPU_S0 Pol Loop0",position="other"} 115
+arista_temperature_critical_threshold_celsius{switch="sw1",location="system",sensor="TempSensor4",description="POSVDD_CPU_S0 Pol Loop0",position="other"} 125
+arista_temperature_alert{switch="sw1",location="system",sensor="TempSensor4",description="POSVDD_CPU_S0 Pol Loop0",position="other"} 0
+arista_temperature_sensor_ok{switch="sw1",location="system",sensor="TempSensor4",description="POSVDD_CPU_S0 Pol Loop0",position="other"} 1
+arista_temperature_celsius{switch="sw1",location="system",sensor="TempSensor7",description="Front-panel temp sensor",position="inlet"} 32.125
+arista_temperature_max_celsius{switch="sw1",location="system",sensor="TempSensor7",description="Front-panel temp sensor",position="inlet"} 35.75
+arista_temperature_overheat_threshold_celsius{switch="sw1",location="system",sensor="TempSensor7",description="Front-panel temp sensor",position="inlet"} 60
+arista_temperature_critical_threshold_celsius{switch="sw1",location="system",sensor="TempSensor7",description="Front-panel temp sensor",position="inlet"} 65
+arista_temperature_alert{switch="sw1",location="system",sensor="TempSensor7",description="Front-panel temp sensor",position="inlet"} 0
+arista_temperature_sensor_ok{switch="sw1",location="system",sensor="TempSensor7",description="Front-panel temp sensor",position="inlet"} 1
+arista_temperature_celsius{switch="sw1",location="system",sensor="TempSensor8",description="SwitchAsic top left outer sensor",position="other"} 39.24048000000005
+arista_temperature_max_celsius{switch="sw1",location="system",sensor="TempSensor8",description="SwitchAsic top left outer sensor",position="other"} 44.59088000000003
+arista_temperature_overheat_threshold_celsius{switch="sw1",location="system",sensor="TempSensor8",description="SwitchAsic top left outer sensor",position="other"} 100
+arista_temperature_critical_threshold_celsius{switch="sw1",location="system",sensor="TempSensor8",description="SwitchAsic top left outer sensor",position="other"} 110
+arista_temperature_alert{switch="sw1",location="system",sensor="TempSensor8",description="SwitchAsic top left outer sensor",position="other"} 0
+arista_temperature_sensor_ok{switch="sw1",location="system",sensor="TempSensor8",description="SwitchAsic top left outer sensor",position="other"} 1
+arista_temperature_celsius{switch="sw1",location="system",sensor="TempSensor300",description="SATA flash",position="other"} 31
+arista_temperature_max_celsius{switch="sw1",location="system",sensor="TempSensor300",description="SATA flash",position="other"} 35
+arista_temperature_overheat_threshold_celsius{switch="sw1",location="system",sensor="TempSensor300",description="SATA flash",position="other"} 90
+arista_temperature_critical_threshold_celsius{switch="sw1",location="system",sensor="TempSensor300",description="SATA flash",position="other"} 95
+arista_temperature_alert{switch="sw1",location="system",sensor="TempSensor300",description="SATA flash",position="other"} 0
+arista_temperature_sensor_ok{switch="sw1",location="system",sensor="TempSensor300",description="SATA flash",position="other"} 1
+arista_psu_temperature_celsius{switch="sw1",psu="1",sensor="TempSensorP1/1",description="Inlet ambient sensor",position="other"} 21
+arista_psu_temperature_max_celsius{switch="sw1",psu="1",sensor="TempSensorP1/1",description="Inlet ambient sensor",position="other"} 26
+arista_psu_temperature_overheat_threshold_celsius{switch="sw1",psu="1",sensor="TempSensorP1/1",description="Inlet ambient sensor",position="other"} 65
+arista_psu_temperature_critical_threshold_celsius{switch="sw1",psu="1",sensor="TempSensorP1/1",description="Inlet ambient sensor",position="other"} 69
+arista_psu_temperature_alert{switch="sw1",psu="1",sensor="TempSensorP1/1",description="Inlet ambient sensor",position="other"} 0
+arista_psu_temperature_sensor_ok{switch="sw1",psu="1",sensor="TempSensorP1/1",description="Inlet ambient sensor",position="other"} 1
+arista_psu_temperature_celsius{switch="sw1",psu="1",sensor="TempSensorP1/2",description="Secondary sensor",position="other"} 31
+arista_psu_temperature_max_celsius{switch="sw1",psu="1",sensor="TempSensorP1/2",description="Secondary sensor",position="other"} 34
+arista_psu_temperature_overheat_threshold_celsius{switch="sw1",psu="1",sensor="TempSensorP1/2",description="Secondary sensor",position="other"} 103
+arista_psu_temperature_critical_threshold_celsius{switch="sw1",psu="1",sensor="TempSensorP1/2",description="Secondary sensor",position="other"} 107
+arista_psu_temperature_alert{switch="sw1",psu="1",sensor="TempSensorP1/2",description="Secondary sensor",position="other"} 0
+arista_psu_temperature_sensor_ok{switch="sw1",psu="1",sensor="TempSensorP1/2",description="Secondary sensor",position="other"} 1
+arista_psu_temperature_celsius{switch="sw1",psu="1",sensor="TempSensorP1/3",description="Primary sensor",position="other"} 34
+arista_psu_temperature_max_celsius{switch="sw1",psu="1",sensor="TempSensorP1/3",description="Primary sensor",position="other"} 38
+arista_psu_temperature_overheat_threshold_celsius{switch="sw1",psu="1",sensor="TempSensorP1/3",description="Primary sensor",position="other"} 97
+arista_psu_temperature_critical_threshold_celsius{switch="sw1",psu="1",sensor="TempSensorP1/3",description="Primary sensor",position="other"} 101
+arista_psu_temperature_alert{switch="sw1",psu="1",sensor="TempSensorP1/3",description="Primary sensor",position="other"} 0
+arista_psu_temperature_sensor_ok{switch="sw1",psu="1",sensor="TempSensorP1/3",description="Primary sensor",position="other"} 1
+arista_psu_temperature_celsius{switch="sw1",psu="2",sensor="TempSensorP2/1",description="Inlet ambient sensor",position="other"} 21
+arista_psu_temperature_max_celsius{switch="sw1",psu="2",sensor="TempSensorP2/1",description="Inlet ambient sensor",position="other"} 26
+arista_psu_temperature_overheat_threshold_celsius{switch="sw1",psu="2",sensor="TempSensorP2/1",description="Inlet ambient sensor",position="other"} 65
+arista_psu_temperature_critical_threshold_celsius{switch="sw1",psu="2",sensor="TempSensorP2/1",description="Inlet ambient sensor",position="other"} 69
+arista_psu_temperature_alert{switch="sw1",psu="2",sensor="TempSensorP2/1",description="Inlet ambient sensor",position="other"} 0
+arista_psu_temperature_sensor_ok{switch="sw1",psu="2",sensor="TempSensorP2/1",description="Inlet ambient sensor",position="other"} 1
+arista_psu_temperature_celsius{switch="sw1",psu="2",sensor="TempSensorP2/2",description="Secondary sensor",position="other"} 30
+arista_psu_temperature_max_celsius{switch="sw1",psu="2",sensor="TempSensorP2/2",description="Secondary sensor",position="other"} 36
+arista_psu_temperature_overheat_threshold_celsius{switch="sw1",psu="2",sensor="TempSensorP2/2",description="Secondary sensor",position="other"} 103
+arista_psu_temperature_critical_threshold_celsius{switch="sw1",psu="2",sensor="TempSensorP2/2",description="Secondary sensor",position="other"} 107
+arista_psu_temperature_alert{switch="sw1",psu="2",sensor="TempSensorP2/2",description="Secondary sensor",position="other"} 0
+arista_psu_temperature_sensor_ok{switch="sw1",psu="2",sensor="TempSensorP2/2",description="Secondary sensor",position="other"} 1
+arista_psu_temperature_celsius{switch="sw1",psu="2",sensor="TempSensorP2/3",description="Primary sensor",position="other"} 34
+arista_psu_temperature_max_celsius{switch="sw1",psu="2",sensor="TempSensorP2/3",description="Primary sensor",position="other"} 38
+arista_psu_temperature_overheat_threshold_celsius{switch="sw1",psu="2",sensor="TempSensorP2/3",description="Primary sensor",position="other"} 97
+arista_psu_temperature_critical_threshold_celsius{switch="sw1",psu="2",sensor="TempSensorP2/3",description="Primary sensor",position="other"} 101
+arista_psu_temperature_alert{switch="sw1",psu="2",sensor="TempSensorP2/3",description="Primary sensor",position="other"} 0
+arista_psu_temperature_sensor_ok{switch="sw1",psu="2",sensor="TempSensorP2/3",description="Primary sensor",position="other"} 1
+arista_psu_info{switch="sw1",psu="1",model="PWR-511-AC-BLUE"} 1
+arista_psu_ok{switch="sw1",psu="1"} 1
+arista_psu_capacity_watts{switch="sw1",psu="1"} 500
+arista_psu_output_power_watts{switch="sw1",psu="1"} 80
+arista_psu_input_voltage_volts{switch="sw1",psu="1"} 230.5
+arista_psu_output_voltage_volts{switch="sw1",psu="1"} 12.0234375
+arista_psu_input_current_amps{switch="sw1",psu="1"} 0.4072265625
+arista_psu_output_current_amps{switch="sw1",psu="1"} 6.6640625
+arista_psu_boot_timestamp_seconds{switch="sw1",psu="1"} 1.7772941975810893e+09
+arista_psu_info{switch="sw1",psu="2",model="PWR-511-AC-BLUE"} 1
+arista_psu_ok{switch="sw1",psu="2"} 1
+arista_psu_capacity_watts{switch="sw1",psu="2"} 500
+arista_psu_output_power_watts{switch="sw1",psu="2"} 77
+arista_psu_input_voltage_volts{switch="sw1",psu="2"} 229.5
+arista_psu_output_voltage_volts{switch="sw1",psu="2"} 12.015625
+arista_psu_input_current_amps{switch="sw1",psu="2"} 0.4013671875
+arista_psu_output_current_amps{switch="sw1",psu="2"} 6.4140625
+arista_psu_boot_timestamp_seconds{switch="sw1",psu="2"} 1.7793632380081682e+09
+arista_cooling_ok{switch="sw1"} 1
+arista_cooling_fans_ok{switch="sw1"} 1
+arista_cooling_shutdown_on_insufficient_fans{switch="sw1"} 1
+arista_cooling_ambient_temperature_celsius{switch="sw1"} 21.5
+arista_cooling_info{switch="sw1",airflow="backToFrontAirflow",mode="automatic"} 1
+arista_fan_info{switch="sw1",tray="1",fan="1/1",location="fantray",vendor_model="SanAce40MR"} 1
+arista_fan_ok{switch="sw1",tray="1",fan="1/1",location="fantray"} 1
+arista_fan_speed_configured_percent{switch="sw1",tray="1",fan="1/1",location="fantray"} 33
+arista_fan_speed_actual_percent{switch="sw1",tray="1",fan="1/1",location="fantray"} 34
+arista_fan_speed_max_rpm{switch="sw1",tray="1",fan="1/1",location="fantray"} 25000
+arista_fan_speed_stable{switch="sw1",tray="1",fan="1/1",location="fantray"} 1
+arista_fan_boot_timestamp_seconds{switch="sw1",tray="1",fan="1/1",location="fantray"} 1.7772941891848712e+09
+arista_fan_info{switch="sw1",tray="1",fan="1/2",location="fantray",vendor_model="SanAce40MR"} 1
+arista_fan_ok{switch="sw1",tray="1",fan="1/2",location="fantray"} 1
+arista_fan_speed_configured_percent{switch="sw1",tray="1",fan="1/2",location="fantray"} 33
+arista_fan_speed_actual_percent{switch="sw1",tray="1",fan="1/2",location="fantray"} 34
+arista_fan_speed_max_rpm{switch="sw1",tray="1",fan="1/2",location="fantray"} 25000
+arista_fan_speed_stable{switch="sw1",tray="1",fan="1/2",location="fantray"} 1
+arista_fan_boot_timestamp_seconds{switch="sw1",tray="1",fan="1/2",location="fantray"} 1.777294189184772e+09
+arista_fan_info{switch="sw1",tray="2",fan="2/1",location="fantray",vendor_model="SanAce40MR"} 1
+arista_fan_ok{switch="sw1",tray="2",fan="2/1",location="fantray"} 1
+arista_fan_speed_configured_percent{switch="sw1",tray="2",fan="2/1",location="fantray"} 33
+arista_fan_speed_actual_percent{switch="sw1",tray="2",fan="2/1",location="fantray"} 34
+arista_fan_speed_max_rpm{switch="sw1",tray="2",fan="2/1",location="fantray"} 25000
+arista_fan_speed_stable{switch="sw1",tray="2",fan="2/1",location="fantray"} 1
+arista_fan_boot_timestamp_seconds{switch="sw1",tray="2",fan="2/1",location="fantray"} 1.7772941891846733e+09
+arista_fan_info{switch="sw1",tray="2",fan="2/2",location="fantray",vendor_model="SanAce40MR"} 1
+arista_fan_ok{switch="sw1",tray="2",fan="2/2",location="fantray"} 1
+arista_fan_speed_configured_percent{switch="sw1",tray="2",fan="2/2",location="fantray"} 33
+arista_fan_speed_actual_percent{switch="sw1",tray="2",fan="2/2",location="fantray"} 34
+arista_fan_speed_max_rpm{switch="sw1",tray="2",fan="2/2",location="fantray"} 25000
+arista_fan_speed_stable{switch="sw1",tray="2",fan="2/2",location="fantray"} 1
+arista_fan_boot_timestamp_seconds{switch="sw1",tray="2",fan="2/2",location="fantray"} 1.7772941891845376e+09
+arista_fan_info{switch="sw1",tray="PowerSupply1",fan="PowerSupply1/1",location="psu",vendor_model="EmersonCSU500DP3FanR"} 1
+arista_fan_ok{switch="sw1",tray="PowerSupply1",fan="PowerSupply1/1",location="psu"} 1
+arista_fan_speed_configured_percent{switch="sw1",tray="PowerSupply1",fan="PowerSupply1/1",location="psu"} 30
+arista_fan_speed_actual_percent{switch="sw1",tray="PowerSupply1",fan="PowerSupply1/1",location="psu"} 33
+arista_fan_speed_max_rpm{switch="sw1",tray="PowerSupply1",fan="PowerSupply1/1",location="psu"} 22600
+arista_fan_speed_stable{switch="sw1",tray="PowerSupply1",fan="PowerSupply1/1",location="psu"} 1
+arista_fan_boot_timestamp_seconds{switch="sw1",tray="PowerSupply1",fan="PowerSupply1/1",location="psu"} 1.7772941975810285e+09
+arista_fan_info{switch="sw1",tray="PowerSupply2",fan="PowerSupply2/1",location="psu",vendor_model="EmersonCSU500DP3FanR"} 1
+arista_fan_ok{switch="sw1",tray="PowerSupply2",fan="PowerSupply2/1",location="psu"} 1
+arista_fan_speed_configured_percent{switch="sw1",tray="PowerSupply2",fan="PowerSupply2/1",location="psu"} 30
+arista_fan_speed_actual_percent{switch="sw1",tray="PowerSupply2",fan="PowerSupply2/1",location="psu"} 34
+arista_fan_speed_max_rpm{switch="sw1",tray="PowerSupply2",fan="PowerSupply2/1",location="psu"} 22600
+arista_fan_speed_stable{switch="sw1",tray="PowerSupply2",fan="PowerSupply2/1",location="psu"} 1
+arista_fan_boot_timestamp_seconds{switch="sw1",tray="PowerSupply2",fan="PowerSupply2/1",location="psu"} 1.7772941978458254e+09
+arista_interface_info{switch="sw1",interface="Ethernet1/1",description="host-a01 (planned) bond10",membership="Member of Port-Channel7",mtu="9214"} 1
+arista_interface_link_up{switch="sw1",interface="Ethernet1/1"} 1
+arista_interface_speed_bits_per_second{switch="sw1",interface="Ethernet1/1"} 1e+10
+arista_interface_in_octets_total{switch="sw1",interface="Ethernet1/1"} 40456835181534
+arista_interface_out_octets_total{switch="sw1",interface="Ethernet1/1"} 21727559405642
+arista_interface_in_errors_total{switch="sw1",interface="Ethernet1/1"} 0
+arista_interface_out_errors_total{switch="sw1",interface="Ethernet1/1"} 0
+arista_interface_in_discards_total{switch="sw1",interface="Ethernet1/1"} 0
+arista_interface_out_discards_total{switch="sw1",interface="Ethernet1/1"} 0
+arista_interface_link_status_changes_total{switch="sw1",interface="Ethernet1/1"} 26
+arista_interface_in_packets_total{switch="sw1",interface="Ethernet1/1",cast="broadcast"} 48394
+arista_interface_out_packets_total{switch="sw1",interface="Ethernet1/1",cast="broadcast"} 152356461
+arista_interface_in_packets_total{switch="sw1",interface="Ethernet1/1",cast="multicast"} 9134405
+arista_interface_out_packets_total{switch="sw1",interface="Ethernet1/1",cast="multicast"} 13931492
+arista_interface_in_packets_total{switch="sw1",interface="Ethernet1/1",cast="unicast"} 38237371718
+arista_interface_out_packets_total{switch="sw1",interface="Ethernet1/1",cast="unicast"} 27332151620
+arista_interface_in_errors_detail_total{switch="sw1",interface="Ethernet1/1",cause="alignmentErrors"} 0
+arista_interface_in_errors_detail_total{switch="sw1",interface="Ethernet1/1",cause="fcsErrors"} 0
+arista_interface_in_errors_detail_total{switch="sw1",interface="Ethernet1/1",cause="giantFrames"} 0
+arista_interface_in_errors_detail_total{switch="sw1",interface="Ethernet1/1",cause="runtFrames"} 0
+arista_interface_in_errors_detail_total{switch="sw1",interface="Ethernet1/1",cause="rxPause"} 0
+arista_interface_in_errors_detail_total{switch="sw1",interface="Ethernet1/1",cause="symbolErrors"} 0
+arista_interface_out_errors_detail_total{switch="sw1",interface="Ethernet1/1",cause="collisions"} 0
+arista_interface_out_errors_detail_total{switch="sw1",interface="Ethernet1/1",cause="deferredTransmissions"} 0
+arista_interface_out_errors_detail_total{switch="sw1",interface="Ethernet1/1",cause="lateCollisions"} 0
+arista_interface_out_errors_detail_total{switch="sw1",interface="Ethernet1/1",cause="txPause"} 0
+arista_interface_last_counter_clear_timestamp_seconds{switch="sw1",interface="Ethernet1/1"} 1.7772940864627748e+09
+arista_interface_counter_refresh_timestamp_seconds{switch="sw1",interface="Ethernet1/1"} 1.7878573234055357e+09
+arista_interface_last_status_change_timestamp_seconds{switch="sw1",interface="Ethernet1/1"} 1.7810039306136832e+09
+arista_interface_info{switch="sw1",interface="Ethernet2/1",description="",membership="",mtu="9214"} 1
+arista_interface_link_up{switch="sw1",interface="Ethernet2/1"} 0
+arista_interface_speed_bits_per_second{switch="sw1",interface="Ethernet2/1"} 2.5e+10
+arista_interface_in_octets_total{switch="sw1",interface="Ethernet2/1"} 5000000000
+arista_interface_out_octets_total{switch="sw1",interface="Ethernet2/1"} 6000000000
+arista_interface_in_errors_total{switch="sw1",interface="Ethernet2/1"} 4211
+arista_interface_out_errors_total{switch="sw1",interface="Ethernet2/1"} 19
+arista_interface_in_discards_total{switch="sw1",interface="Ethernet2/1"} 17
+arista_interface_out_discards_total{switch="sw1",interface="Ethernet2/1"} 23
+arista_interface_link_status_changes_total{switch="sw1",interface="Ethernet2/1"} 431
+arista_interface_in_packets_total{switch="sw1",interface="Ethernet2/1",cast="broadcast"} 3
+arista_interface_out_packets_total{switch="sw1",interface="Ethernet2/1",cast="broadcast"} 4
+arista_interface_in_packets_total{switch="sw1",interface="Ethernet2/1",cast="multicast"} 12
+arista_interface_out_packets_total{switch="sw1",interface="Ethernet2/1",cast="multicast"} 9
+arista_interface_in_packets_total{switch="sw1",interface="Ethernet2/1",cast="unicast"} 4000000
+arista_interface_out_packets_total{switch="sw1",interface="Ethernet2/1",cast="unicast"} 5000000
+arista_interface_in_errors_detail_total{switch="sw1",interface="Ethernet2/1",cause="alignmentErrors"} 5
+arista_interface_in_errors_detail_total{switch="sw1",interface="Ethernet2/1",cause="fcsErrors"} 4190
+arista_interface_in_errors_detail_total{switch="sw1",interface="Ethernet2/1",cause="giantFrames"} 2
+arista_interface_in_errors_detail_total{switch="sw1",interface="Ethernet2/1",cause="runtFrames"} 11
+arista_interface_in_errors_detail_total{switch="sw1",interface="Ethernet2/1",cause="rxPause"} 7
+arista_interface_in_errors_detail_total{switch="sw1",interface="Ethernet2/1",cause="symbolErrors"} 3
+arista_interface_out_errors_detail_total{switch="sw1",interface="Ethernet2/1",cause="collisions"} 1
+arista_interface_out_errors_detail_total{switch="sw1",interface="Ethernet2/1",cause="deferredTransmissions"} 3
+arista_interface_out_errors_detail_total{switch="sw1",interface="Ethernet2/1",cause="lateCollisions"} 2
+arista_interface_out_errors_detail_total{switch="sw1",interface="Ethernet2/1",cause="txPause"} 13
+arista_interface_last_counter_clear_timestamp_seconds{switch="sw1",interface="Ethernet2/1"} 1.7772940864627748e+09
+arista_interface_counter_refresh_timestamp_seconds{switch="sw1",interface="Ethernet2/1"} 1.787857324e+09
+arista_interface_last_status_change_timestamp_seconds{switch="sw1",interface="Ethernet2/1"} 1.781003931e+09
+arista_interface_info{switch="sw1",interface="Management1",description="",membership="",mtu="1500"} 1
+arista_interface_link_up{switch="sw1",interface="Management1"} 1
+arista_interface_speed_bits_per_second{switch="sw1",interface="Management1"} 1e+09
+arista_interface_in_octets_total{switch="sw1",interface="Management1"} 39207144987
+arista_interface_out_octets_total{switch="sw1",interface="Management1"} 176734862885
+arista_interface_in_errors_total{switch="sw1",interface="Management1"} 0
+arista_interface_out_errors_total{switch="sw1",interface="Management1"} 0
+arista_interface_in_discards_total{switch="sw1",interface="Management1"} 0
+arista_interface_out_discards_total{switch="sw1",interface="Management1"} 0
+arista_interface_link_status_changes_total{switch="sw1",interface="Management1"} 7
+arista_interface_in_packets_total{switch="sw1",interface="Management1",cast="broadcast"} 0
+arista_interface_out_packets_total{switch="sw1",interface="Management1",cast="broadcast"} 0
+arista_interface_in_packets_total{switch="sw1",interface="Management1",cast="multicast"} 0
+arista_interface_out_packets_total{switch="sw1",interface="Management1",cast="multicast"} 0
+arista_interface_in_packets_total{switch="sw1",interface="Management1",cast="unicast"} 261160288
+arista_interface_out_packets_total{switch="sw1",interface="Management1",cast="unicast"} 420005282
+arista_interface_in_errors_detail_total{switch="sw1",interface="Management1",cause="alignmentErrors"} 0
+arista_interface_in_errors_detail_total{switch="sw1",interface="Management1",cause="fcsErrors"} 0
+arista_interface_in_errors_detail_total{switch="sw1",interface="Management1",cause="giantFrames"} 0
+arista_interface_in_errors_detail_total{switch="sw1",interface="Management1",cause="runtFrames"} 0
+arista_interface_in_errors_detail_total{switch="sw1",interface="Management1",cause="rxPause"} 0
+arista_interface_in_errors_detail_total{switch="sw1",interface="Management1",cause="symbolErrors"} 0
+arista_interface_out_errors_detail_total{switch="sw1",interface="Management1",cause="collisions"} 0
+arista_interface_out_errors_detail_total{switch="sw1",interface="Management1",cause="deferredTransmissions"} 0
+arista_interface_out_errors_detail_total{switch="sw1",interface="Management1",cause="lateCollisions"} 0
+arista_interface_out_errors_detail_total{switch="sw1",interface="Management1",cause="txPause"} 0
+arista_interface_last_counter_clear_timestamp_seconds{switch="sw1",interface="Management1"} 1.7772940864627752e+09
+arista_interface_counter_refresh_timestamp_seconds{switch="sw1",interface="Management1"} 1.7878573558855107e+09
+arista_interface_last_status_change_timestamp_seconds{switch="sw1",interface="Management1"} 1.7793633330626771e+09
+arista_bgp_peer_info{switch="sw1",vrf="INTERNET",peer="203.0.113.164",asn="64500",description="transit-rtr-01"} 1
+arista_bgp_peer_up{switch="sw1",vrf="INTERNET",peer="203.0.113.164",asn="64500"} 1
+arista_bgp_peer_under_maintenance{switch="sw1",vrf="INTERNET",peer="203.0.113.164",asn="64500"} 0
+arista_bgp_peer_prefixes_received{switch="sw1",vrf="INTERNET",peer="203.0.113.164",asn="64500"} 50
+arista_bgp_peer_prefixes_accepted{switch="sw1",vrf="INTERNET",peer="203.0.113.164",asn="64500"} 48
+arista_bgp_peer_prefixes_advertised{switch="sw1",vrf="INTERNET",peer="203.0.113.164",asn="64500"} 19
+arista_bgp_peer_state_change_timestamp_seconds{switch="sw1",vrf="INTERNET",peer="203.0.113.164",asn="64500"} 1.78297512694243e+09
+arista_bgp_peer_info{switch="sw1",vrf="INTERNET",peer="203.0.113.168",asn="64500",description="transit-rtr-02"} 1
+arista_bgp_peer_up{switch="sw1",vrf="INTERNET",peer="203.0.113.168",asn="64500"} 0
+arista_bgp_peer_under_maintenance{switch="sw1",vrf="INTERNET",peer="203.0.113.168",asn="64500"} 1
+arista_bgp_peer_prefixes_received{switch="sw1",vrf="INTERNET",peer="203.0.113.168",asn="64500"} 50
+arista_bgp_peer_prefixes_accepted{switch="sw1",vrf="INTERNET",peer="203.0.113.168",asn="64500"} 48
+arista_bgp_peer_prefixes_advertised{switch="sw1",vrf="INTERNET",peer="203.0.113.168",asn="64500"} 19
+arista_bgp_peer_state_change_timestamp_seconds{switch="sw1",vrf="INTERNET",peer="203.0.113.168",asn="64500"} 1.782975133223014e+09
+arista_bgp_peer_info{switch="sw1",vrf="default",peer="198.51.100.10",asn="4200000000",description=""} 1
+arista_bgp_peer_up{switch="sw1",vrf="default",peer="198.51.100.10",asn="4200000000"} 1
+arista_bgp_peer_under_maintenance{switch="sw1",vrf="default",peer="198.51.100.10",asn="4200000000"} 0
+arista_bgp_peer_prefixes_received{switch="sw1",vrf="default",peer="198.51.100.10",asn="4200000000"} 2
+arista_bgp_peer_prefixes_accepted{switch="sw1",vrf="default",peer="198.51.100.10",asn="4200000000"} 2
+arista_bgp_peer_prefixes_advertised{switch="sw1",vrf="default",peer="198.51.100.10",asn="4200000000"} 2
+arista_bgp_peer_state_change_timestamp_seconds{switch="sw1",vrf="default",peer="198.51.100.10",asn="4200000000"} 1.777294253151276e+09
+arista_bgp_peer_info{switch="sw1",vrf="default",peer="198.51.100.11",asn="4200000000",description=""} 1
+arista_bgp_peer_up{switch="sw1",vrf="default",peer="198.51.100.11",asn="4200000000"} 1
+arista_bgp_peer_under_maintenance{switch="sw1",vrf="default",peer="198.51.100.11",asn="4200000000"} 0
+arista_bgp_peer_prefixes_received{switch="sw1",vrf="default",peer="198.51.100.11",asn="4200000000"} 2
+arista_bgp_peer_prefixes_accepted{switch="sw1",vrf="default",peer="198.51.100.11",asn="4200000000"} 2
+arista_bgp_peer_prefixes_advertised{switch="sw1",vrf="default",peer="198.51.100.11",asn="4200000000"} 3
+arista_bgp_peer_state_change_timestamp_seconds{switch="sw1",vrf="default",peer="198.51.100.11",asn="4200000000"} 1.77729425321742e+09
+arista_transceiver_info{switch="sw1",interface="Ethernet1/1",slot="Ethernet1",channel="1",media_type="40GBASE-SR4",vendor_sn="XXX000ab0002"} 1
+arista_transceiver_update_timestamp_seconds{switch="sw1",interface="Ethernet1/1"} 1.7878581566825793e+09
+arista_transceiver_temperature_celsius{switch="sw1",interface="Ethernet1/1"} 35.09765625
+arista_transceiver_temperature_threshold_celsius{switch="sw1",interface="Ethernet1/1",level="high_alarm"} 85
+arista_transceiver_temperature_threshold_celsius{switch="sw1",interface="Ethernet1/1",level="high_warn"} 70
+arista_transceiver_temperature_threshold_celsius{switch="sw1",interface="Ethernet1/1",level="low_alarm"} -10
+arista_transceiver_temperature_threshold_celsius{switch="sw1",interface="Ethernet1/1",level="low_warn"} 0
+arista_transceiver_voltage_volts{switch="sw1",interface="Ethernet1/1"} 3.2270000000000003
+arista_transceiver_voltage_threshold_volts{switch="sw1",interface="Ethernet1/1",level="high_alarm"} 3.6
+arista_transceiver_voltage_threshold_volts{switch="sw1",interface="Ethernet1/1",level="high_warn"} 3.5
+arista_transceiver_voltage_threshold_volts{switch="sw1",interface="Ethernet1/1",level="low_alarm"} 2.9000000000000004
+arista_transceiver_voltage_threshold_volts{switch="sw1",interface="Ethernet1/1",level="low_warn"} 3.1
+arista_transceiver_tx_bias_milliamps{switch="sw1",interface="Ethernet1/1"} 6.546
+arista_transceiver_tx_bias_threshold_milliamps{switch="sw1",interface="Ethernet1/1",level="high_alarm"} 15
+arista_transceiver_tx_bias_threshold_milliamps{switch="sw1",interface="Ethernet1/1",level="high_warn"} 12
+arista_transceiver_tx_bias_threshold_milliamps{switch="sw1",interface="Ethernet1/1",level="low_alarm"} 0
+arista_transceiver_tx_bias_threshold_milliamps{switch="sw1",interface="Ethernet1/1",level="low_warn"} 2
+arista_transceiver_tx_power_dbm{switch="sw1",interface="Ethernet1/1"} -1.5932943866659102
+arista_transceiver_tx_power_threshold_dbm{switch="sw1",interface="Ethernet1/1",level="high_alarm"} 4.000023459279557
+arista_transceiver_tx_power_threshold_dbm{switch="sw1",interface="Ethernet1/1",level="high_warn"} 2.3999979288687143
+arista_transceiver_tx_power_threshold_dbm{switch="sw1",interface="Ethernet1/1",level="low_alarm"} -10.599818449923369
+arista_transceiver_tx_power_threshold_dbm{switch="sw1",interface="Ethernet1/1",level="low_warn"} -7.599502278873523
+arista_transceiver_rx_power_dbm{switch="sw1",interface="Ethernet1/1"} -1.4333151638846502
+arista_transceiver_rx_power_threshold_dbm{switch="sw1",interface="Ethernet1/1",level="high_alarm"} 4.000023459279557
+arista_transceiver_rx_power_threshold_dbm{switch="sw1",interface="Ethernet1/1",level="high_warn"} 2.3999979288687143
+arista_transceiver_rx_power_threshold_dbm{switch="sw1",interface="Ethernet1/1",level="low_alarm"} -18.013429130455776
+arista_transceiver_rx_power_threshold_dbm{switch="sw1",interface="Ethernet1/1",level="low_warn"} -15.003129173815964
+arista_transceiver_info{switch="sw1",interface="Ethernet31/1",slot="Ethernet31",channel="1",media_type="40GBASE-LRL4",vendor_sn="XXX000AB0001A"} 1
+arista_transceiver_update_timestamp_seconds{switch="sw1",interface="Ethernet31/1"} 1.7878581566825793e+09
+arista_transceiver_temperature_celsius{switch="sw1",interface="Ethernet31/1"} 38.73828125
+arista_transceiver_temperature_threshold_celsius{switch="sw1",interface="Ethernet31/1",level="high_alarm"} 85
+arista_transceiver_temperature_threshold_celsius{switch="sw1",interface="Ethernet31/1",level="high_warn"} 80
+arista_transceiver_temperature_threshold_celsius{switch="sw1",interface="Ethernet31/1",level="low_alarm"} -5
+arista_transceiver_temperature_threshold_celsius{switch="sw1",interface="Ethernet31/1",level="low_warn"} 0
+arista_transceiver_voltage_volts{switch="sw1",interface="Ethernet31/1"} 3.3046
+arista_transceiver_voltage_threshold_volts{switch="sw1",interface="Ethernet31/1",level="high_alarm"} 3.6
+arista_transceiver_voltage_threshold_volts{switch="sw1",interface="Ethernet31/1",level="high_warn"} 3.5
+arista_transceiver_voltage_threshold_volts{switch="sw1",interface="Ethernet31/1",level="low_alarm"} 2.9000000000000004
+arista_transceiver_voltage_threshold_volts{switch="sw1",interface="Ethernet31/1",level="low_warn"} 3
+arista_transceiver_tx_bias_milliamps{switch="sw1",interface="Ethernet31/1"} 30.75
+arista_transceiver_tx_bias_threshold_milliamps{switch="sw1",interface="Ethernet31/1",level="high_alarm"} 80
+arista_transceiver_tx_bias_threshold_milliamps{switch="sw1",interface="Ethernet31/1",level="high_warn"} 70
+arista_transceiver_tx_bias_threshold_milliamps{switch="sw1",interface="Ethernet31/1",level="low_alarm"} 0
+arista_transceiver_tx_bias_threshold_milliamps{switch="sw1",interface="Ethernet31/1",level="low_warn"} 10
+arista_transceiver_tx_power_dbm{switch="sw1",interface="Ethernet31/1"} -0.48711062722327725
+arista_transceiver_tx_power_threshold_dbm{switch="sw1",interface="Ethernet31/1",level="high_alarm"} 2.5000502848689585
+arista_transceiver_tx_power_threshold_dbm{switch="sw1",interface="Ethernet31/1",level="high_warn"} 2.000018654066018
+arista_transceiver_tx_power_threshold_dbm{switch="sw1",interface="Ethernet31/1",level="low_alarm"} -7.500682433658049
+arista_transceiver_tx_power_threshold_dbm{switch="sw1",interface="Ethernet31/1",level="low_warn"} -7.000570999772329
+arista_transceiver_rx_power_dbm{switch="sw1",interface="Ethernet31/1"} -0.7350321072677986
+arista_transceiver_rx_power_threshold_dbm{switch="sw1",interface="Ethernet31/1",level="high_alarm"} 3.000082025538127
+arista_transceiver_rx_power_threshold_dbm{switch="sw1",interface="Ethernet31/1",level="high_warn"} 2.000018654066018
+arista_transceiver_rx_power_threshold_dbm{switch="sw1",interface="Ethernet31/1",level="low_alarm"} -12.502636844309393
+arista_transceiver_rx_power_threshold_dbm{switch="sw1",interface="Ethernet31/1",level="low_warn"} -11.49966742310231
+arista_transceiver_info{switch="sw1",interface="Ethernet7/1",slot="Ethernet7",channel="1",media_type="100GBASE-SR4",vendor_sn="XXX000a`0003"} 1
+arista_transceiver_update_timestamp_seconds{switch="sw1",interface="Ethernet7/1"} 1.7878581566825793e+09
+arista_transceiver_temperature_celsius{switch="sw1",interface="Ethernet7/1"} 43.9375
+arista_transceiver_temperature_threshold_celsius{switch="sw1",interface="Ethernet7/1",level="high_alarm"} 80
+arista_transceiver_temperature_threshold_celsius{switch="sw1",interface="Ethernet7/1",level="high_warn"} 70
+arista_transceiver_temperature_threshold_celsius{switch="sw1",interface="Ethernet7/1",level="low_alarm"} -10
+arista_transceiver_temperature_threshold_celsius{switch="sw1",interface="Ethernet7/1",level="low_warn"} 0
+arista_transceiver_voltage_volts{switch="sw1",interface="Ethernet7/1"} 3.2869
+arista_transceiver_voltage_threshold_volts{switch="sw1",interface="Ethernet7/1",level="high_alarm"} 3.6300000000000003
+arista_transceiver_voltage_threshold_volts{switch="sw1",interface="Ethernet7/1",level="high_warn"} 3.4650000000000003
+arista_transceiver_voltage_threshold_volts{switch="sw1",interface="Ethernet7/1",level="low_alarm"} 2.97
+arista_transceiver_voltage_threshold_volts{switch="sw1",interface="Ethernet7/1",level="low_warn"} 3.1350000000000002
+arista_transceiver_tx_bias_milliamps{switch="sw1",interface="Ethernet7/1"} 6.78
+arista_transceiver_tx_bias_threshold_milliamps{switch="sw1",interface="Ethernet7/1",level="high_alarm"} 11
+arista_transceiver_tx_bias_threshold_milliamps{switch="sw1",interface="Ethernet7/1",level="high_warn"} 9.5
+arista_transceiver_tx_bias_threshold_milliamps{switch="sw1",interface="Ethernet7/1",level="low_alarm"} 1
+arista_transceiver_tx_bias_threshold_milliamps{switch="sw1",interface="Ethernet7/1",level="low_warn"} 2
+arista_transceiver_tx_power_dbm{switch="sw1",interface="Ethernet7/1"} 0.29018329546481425
+arista_transceiver_tx_power_threshold_dbm{switch="sw1",interface="Ethernet7/1",level="high_alarm"} 5.399914195935072
+arista_transceiver_tx_power_threshold_dbm{switch="sw1",interface="Ethernet7/1",level="high_warn"} 2.3999979288687143
+arista_transceiver_tx_power_threshold_dbm{switch="sw1",interface="Ethernet7/1",level="low_alarm"} -11.402614338028528
+arista_transceiver_tx_power_threshold_dbm{switch="sw1",interface="Ethernet7/1",level="low_warn"} -8.401321529074337
+arista_transceiver_rx_power_dbm{switch="sw1",interface="Ethernet7/1"} -30
+arista_transceiver_rx_power_threshold_dbm{switch="sw1",interface="Ethernet7/1",level="high_alarm"} 5.399914195935072
+arista_transceiver_rx_power_threshold_dbm{switch="sw1",interface="Ethernet7/1",level="high_warn"} 2.3999979288687143
+arista_transceiver_rx_power_threshold_dbm{switch="sw1",interface="Ethernet7/1",level="low_alarm"} -13.306831194338884
+arista_transceiver_rx_power_threshold_dbm{switch="sw1",interface="Ethernet7/1",level="low_warn"} -10.301183562535002
+arista_transceiver_info{switch="sw1",interface="Ethernet7/2",slot="Ethernet7",channel="2",media_type="100GBASE-SR4",vendor_sn="XXX000a`0003"} 1
+arista_transceiver_update_timestamp_seconds{switch="sw1",interface="Ethernet7/2"} 1.7878581566825793e+09
+arista_transceiver_temperature_celsius{switch="sw1",interface="Ethernet7/2"} 43.9375
+arista_transceiver_temperature_threshold_celsius{switch="sw1",interface="Ethernet7/2",level="high_alarm"} 80
+arista_transceiver_temperature_threshold_celsius{switch="sw1",interface="Ethernet7/2",level="high_warn"} 70
+arista_transceiver_temperature_threshold_celsius{switch="sw1",interface="Ethernet7/2",level="low_alarm"} -10
+arista_transceiver_temperature_threshold_celsius{switch="sw1",interface="Ethernet7/2",level="low_warn"} 0
+arista_transceiver_voltage_volts{switch="sw1",interface="Ethernet7/2"} 3.2869
+arista_transceiver_voltage_threshold_volts{switch="sw1",interface="Ethernet7/2",level="high_alarm"} 3.6300000000000003
+arista_transceiver_voltage_threshold_volts{switch="sw1",interface="Ethernet7/2",level="high_warn"} 3.4650000000000003
+arista_transceiver_voltage_threshold_volts{switch="sw1",interface="Ethernet7/2",level="low_alarm"} 2.97
+arista_transceiver_voltage_threshold_volts{switch="sw1",interface="Ethernet7/2",level="low_warn"} 3.1350000000000002
+arista_transceiver_tx_bias_milliamps{switch="sw1",interface="Ethernet7/2"} 6.59
+arista_transceiver_tx_bias_threshold_milliamps{switch="sw1",interface="Ethernet7/2",level="high_alarm"} 11
+arista_transceiver_tx_bias_threshold_milliamps{switch="sw1",interface="Ethernet7/2",level="high_warn"} 9.5
+arista_transceiver_tx_bias_threshold_milliamps{switch="sw1",interface="Ethernet7/2",level="low_alarm"} 1
+arista_transceiver_tx_bias_threshold_milliamps{switch="sw1",interface="Ethernet7/2",level="low_warn"} 2
+arista_transceiver_tx_power_dbm{switch="sw1",interface="Ethernet7/2"} 0.31206419827462284
+arista_transceiver_tx_power_threshold_dbm{switch="sw1",interface="Ethernet7/2",level="high_alarm"} 5.399914195935072
+arista_transceiver_tx_power_threshold_dbm{switch="sw1",interface="Ethernet7/2",level="high_warn"} 2.3999979288687143
+arista_transceiver_tx_power_threshold_dbm{switch="sw1",interface="Ethernet7/2",level="low_alarm"} -11.402614338028528
+arista_transceiver_tx_power_threshold_dbm{switch="sw1",interface="Ethernet7/2",level="low_warn"} -8.401321529074337
+arista_transceiver_rx_power_dbm{switch="sw1",interface="Ethernet7/2"} -30
+arista_transceiver_rx_power_threshold_dbm{switch="sw1",interface="Ethernet7/2",level="high_alarm"} 5.399914195935072
+arista_transceiver_rx_power_threshold_dbm{switch="sw1",interface="Ethernet7/2",level="high_warn"} 2.3999979288687143
+arista_transceiver_rx_power_threshold_dbm{switch="sw1",interface="Ethernet7/2",level="low_alarm"} -13.306831194338884
+arista_transceiver_rx_power_threshold_dbm{switch="sw1",interface="Ethernet7/2",level="low_warn"} -10.301183562535002
+arista_phy_interface_up{switch="sw1",interface="Ethernet1/1"} 0
+arista_phy_interface_changes_total{switch="sw1",interface="Ethernet1/1"} 26
+arista_phy_mac_local_fault{switch="sw1",interface="Ethernet1/1"} 0
+arista_phy_mac_local_fault_changes_total{switch="sw1",interface="Ethernet1/1"} 56
+arista_phy_mac_remote_fault{switch="sw1",interface="Ethernet1/1"} 0
+arista_phy_mac_remote_fault_changes_total{switch="sw1",interface="Ethernet1/1"} 26
+arista_phy_info{switch="sw1",interface="Ethernet1/1",phy="line",chip="BCM56870-TSCF16",firmware="D103",oper_speed="10Gbps"} 1
+arista_phy_interrupt_count{switch="sw1",interface="Ethernet1/1",phy="line"} 0
+arista_phy_link_up{switch="sw1",interface="Ethernet1/1",phy="line"} 1
+arista_phy_link_changes_total{switch="sw1",interface="Ethernet1/1",phy="line"} 24
+arista_phy_pcs_link_up{switch="sw1",interface="Ethernet1/1",phy="line"} 1
+arista_phy_pcs_link_changes_total{switch="sw1",interface="Ethernet1/1",phy="line"} 47
+arista_phy_pcs_high_ber{switch="sw1",interface="Ethernet1/1",phy="line"} 0
+arista_phy_pcs_high_ber_changes_total{switch="sw1",interface="Ethernet1/1",phy="line"} 0
+arista_phy_pcs_last_high_ber_count{switch="sw1",interface="Ethernet1/1",phy="line"} 0
+arista_phy_pcs_last_high_ber_count_changes_total{switch="sw1",interface="Ethernet1/1",phy="line"} 0
+arista_phy_pcs_last_errored_block_count{switch="sw1",interface="Ethernet1/1",phy="line"} 0
+arista_phy_pcs_last_errored_block_count_changes_total{switch="sw1",interface="Ethernet1/1",phy="line"} 0
+arista_phy_pcs_block_lock{switch="sw1",interface="Ethernet1/1",phy="line"} 1
+arista_phy_pcs_block_lock_changes_total{switch="sw1",interface="Ethernet1/1",phy="line"} 19
+arista_phy_pma_link_up{switch="sw1",interface="Ethernet1/1",phy="line"} 1
+arista_phy_pma_link_changes_total{switch="sw1",interface="Ethernet1/1",phy="line"} 31
+arista_phy_pma_signal_detect{switch="sw1",interface="Ethernet1/1",phy="line"} 1
+arista_phy_pma_signal_detect_changes_total{switch="sw1",interface="Ethernet1/1",phy="line"} 23
+arista_phy_interface_up{switch="sw1",interface="Ethernet29/1"} 0
+arista_phy_interface_changes_total{switch="sw1",interface="Ethernet29/1"} 4
+arista_phy_mac_local_fault{switch="sw1",interface="Ethernet29/1"} 0
+arista_phy_mac_local_fault_changes_total{switch="sw1",interface="Ethernet29/1"} 4
+arista_phy_mac_remote_fault{switch="sw1",interface="Ethernet29/1"} 0
+arista_phy_mac_remote_fault_changes_total{switch="sw1",interface="Ethernet29/1"} 2
+arista_phy_info{switch="sw1",interface="Ethernet29/1",phy="line",chip="BCM56870-TSCF16",firmware="D103",oper_speed="100Gbps"} 1
+arista_phy_interrupt_count{switch="sw1",interface="Ethernet29/1",phy="line"} 0
+arista_phy_link_up{switch="sw1",interface="Ethernet29/1",phy="line"} 1
+arista_phy_link_changes_total{switch="sw1",interface="Ethernet29/1",phy="line"} 2
+arista_phy_pcs_link_up{switch="sw1",interface="Ethernet29/1",phy="line"} 1
+arista_phy_pcs_link_changes_total{switch="sw1",interface="Ethernet29/1",phy="line"} 3
+arista_phy_pcs_high_ber{switch="sw1",interface="Ethernet29/1",phy="line"} 0
+arista_phy_pcs_high_ber_changes_total{switch="sw1",interface="Ethernet29/1",phy="line"} 0
+arista_phy_pcs_last_high_ber_count{switch="sw1",interface="Ethernet29/1",phy="line"} 0
+arista_phy_pcs_last_high_ber_count_changes_total{switch="sw1",interface="Ethernet29/1",phy="line"} 0
+arista_phy_pcs_last_errored_block_count{switch="sw1",interface="Ethernet29/1",phy="line"} 0
+arista_phy_pcs_last_errored_block_count_changes_total{switch="sw1",interface="Ethernet29/1",phy="line"} 0
+arista_phy_pma_link_up{switch="sw1",interface="Ethernet29/1",phy="line"} 1
+arista_phy_pma_link_changes_total{switch="sw1",interface="Ethernet29/1",phy="line"} 1
+arista_phy_pma_signal_detect{switch="sw1",interface="Ethernet29/1",phy="line"} 1
+arista_phy_pma_signal_detect_changes_total{switch="sw1",interface="Ethernet29/1",phy="line"} 1
+arista_phy_fec_alignment_lock{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528"} 1
+arista_phy_fec_alignment_lock_changes_total{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528"} 1
+arista_phy_fec_corrected_codewords{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528"} 0
+arista_phy_fec_corrected_codewords_changes_total{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528"} 0
+arista_phy_fec_uncorrected_codewords{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528"} 0
+arista_phy_fec_uncorrected_codewords_changes_total{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528"} 0
+arista_phy_fec_corrected_symbols{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528",lane="0"} 0
+arista_phy_fec_corrected_symbols_changes_total{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528",lane="0"} 0
+arista_phy_fec_corrected_symbols{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528",lane="1"} 0
+arista_phy_fec_corrected_symbols_changes_total{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528",lane="1"} 0
+arista_phy_fec_corrected_symbols{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528",lane="2"} 0
+arista_phy_fec_corrected_symbols_changes_total{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528",lane="2"} 0
+arista_phy_fec_corrected_symbols{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528",lane="3"} 0
+arista_phy_fec_corrected_symbols_changes_total{switch="sw1",interface="Ethernet29/1",phy="line",encoding="reedSolomon",codeword_size="528",lane="3"} 0
+arista_phy_interface_up{switch="sw1",interface="Ethernet4/1"} 0
+arista_phy_interface_changes_total{switch="sw1",interface="Ethernet4/1"} 30
+arista_phy_mac_local_fault{switch="sw1",interface="Ethernet4/1"} 0
+arista_phy_mac_local_fault_changes_total{switch="sw1",interface="Ethernet4/1"} 62
+arista_phy_mac_remote_fault{switch="sw1",interface="Ethernet4/1"} 0
+arista_phy_mac_remote_fault_changes_total{switch="sw1",interface="Ethernet4/1"} 14
+arista_phy_info{switch="sw1",interface="Ethernet4/1",phy="line",chip="BCM56870-TSCF16",firmware="D103",oper_speed="25Gbps"} 1
+arista_phy_interrupt_count{switch="sw1",interface="Ethernet4/1",phy="line"} 0
+arista_phy_link_up{switch="sw1",interface="Ethernet4/1",phy="line"} 1
+arista_phy_link_changes_total{switch="sw1",interface="Ethernet4/1",phy="line"} 28
+arista_phy_pcs_link_up{switch="sw1",interface="Ethernet4/1",phy="line"} 1
+arista_phy_pcs_link_changes_total{switch="sw1",interface="Ethernet4/1",phy="line"} 61
+arista_phy_pcs_high_ber{switch="sw1",interface="Ethernet4/1",phy="line"} 0
+arista_phy_pcs_high_ber_changes_total{switch="sw1",interface="Ethernet4/1",phy="line"} 0
+arista_phy_pcs_last_high_ber_count{switch="sw1",interface="Ethernet4/1",phy="line"} 0
+arista_phy_pcs_last_high_ber_count_changes_total{switch="sw1",interface="Ethernet4/1",phy="line"} 0
+arista_phy_pcs_last_errored_block_count{switch="sw1",interface="Ethernet4/1",phy="line"} 0
+arista_phy_pcs_last_errored_block_count_changes_total{switch="sw1",interface="Ethernet4/1",phy="line"} 0
+arista_phy_pma_link_up{switch="sw1",interface="Ethernet4/1",phy="line"} 1
+arista_phy_pma_link_changes_total{switch="sw1",interface="Ethernet4/1",phy="line"} 33
+arista_phy_pma_signal_detect{switch="sw1",interface="Ethernet4/1",phy="line"} 1
+arista_phy_pma_signal_detect_changes_total{switch="sw1",interface="Ethernet4/1",phy="line"} 37
+arista_phy_fec_alignment_lock{switch="sw1",interface="Ethernet4/1",phy="line",encoding="reedSolomon",codeword_size="528"} 1
+arista_phy_fec_alignment_lock_changes_total{switch="sw1",interface="Ethernet4/1",phy="line",encoding="reedSolomon",codeword_size="528"} 31
+arista_phy_fec_corrected_codewords{switch="sw1",interface="Ethernet4/1",phy="line",encoding="reedSolomon",codeword_size="528"} 5
+arista_phy_fec_corrected_codewords_changes_total{switch="sw1",interface="Ethernet4/1",phy="line",encoding="reedSolomon",codeword_size="528"} 6
+arista_phy_fec_corrected_codewords_last_change_timestamp_seconds{switch="sw1",interface="Ethernet4/1",phy="line",encoding="reedSolomon",codeword_size="528"} 1.7870660004227245e+09
+arista_phy_fec_uncorrected_codewords{switch="sw1",interface="Ethernet4/1",phy="line",encoding="reedSolomon",codeword_size="528"} 3
+arista_phy_fec_uncorrected_codewords_changes_total{switch="sw1",interface="Ethernet4/1",phy="line",encoding="reedSolomon",codeword_size="528"} 13
+arista_phy_fec_uncorrected_codewords_last_change_timestamp_seconds{switch="sw1",interface="Ethernet4/1",phy="line",encoding="reedSolomon",codeword_size="528"} 1.7870682392125041e+09

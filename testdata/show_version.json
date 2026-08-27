@@ -1,0 +1,20 @@
+{
+    "mfgName": "Arista",
+    "modelName": "DCS-7050CX3-32C-R",
+    "hardwareRevision": "11.00",
+    "serialNumber": "ABC1234567X",
+    "systemMacAddress": "00:1c:73:00:00:01",
+    "hwMacAddress": "00:1c:73:00:00:01",
+    "configMacAddress": "00:00:00:00:00:00",
+    "version": "4.35.4M",
+    "architecture": "x86_64",
+    "internalVersion": "4.35.4M-47365815.4354M",
+    "internalBuildId": "821ff7cc-26ac-47ba-afb0-d8617f87904a",
+    "imageFormatVersion": "3.0",
+    "imageOptimization": "Default",
+    "bootupTimestamp": 1777294086.4660642,
+    "uptime": 10562915.66,
+    "memTotal": 16280716,
+    "memFree": 12674140,
+    "isIntlVersion": false
+}

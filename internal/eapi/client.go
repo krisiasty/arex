@@ -57,6 +57,20 @@ type rpcError struct {
 	Message string `json:"message"`
 }
 
+// CommandError means the switch answered and then rejected the request --
+// typically a command it does not support. It is distinct from a transport
+// or authentication failure: retrying commands individually can recover the
+// ones the switch does accept, whereas an unreachable switch will reject
+// every attempt and retrying just multiplies the timeout.
+type CommandError struct {
+	Code    int
+	Message string
+}
+
+func (e *CommandError) Error() string {
+	return fmt.Sprintf("eAPI error %d: %s", e.Code, e.Message)
+}
+
 // Run executes a list of EOS CLI commands and returns the raw JSON results,
 // one entry per command in the same order.
 func (c *Client) Run(cmds []string) ([]json.RawMessage, error) {
@@ -98,7 +112,7 @@ func (c *Client) Run(cmds []string) ([]json.RawMessage, error) {
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 	if rpcResp.Error != nil {
-		return nil, fmt.Errorf("eAPI error %d: %s", rpcResp.Error.Code, rpcResp.Error.Message)
+		return nil, &CommandError{Code: rpcResp.Error.Code, Message: rpcResp.Error.Message}
 	}
 
 	return rpcResp.Result, nil
