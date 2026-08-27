@@ -317,10 +317,20 @@ grant `privilege 15`:
 
 ```text
 role prometheus-ro
-   10 permit command show.*
+   10 deny mode config-all command .*
+   20 permit command show .*
 
 username prometheus role prometheus-ro secret SHA512 <hash>
 ```
+
+Rule 10 is not redundant. A permit-only role restricts nothing unless EOS denies whatever no rule matches, and an
+explicit denial of configuration mode does not depend on that assumption holding.
+
+Rule 20 permits every `show` rather than listing the commands arex issues. An exact list would be tighter, but the
+command set grows: two commands were added to arex in a single development cycle, and a list-based role would have
+started refusing them. `show .*` still permits privileged reads such as `show running-config` — the default
+privilege level is what refuses those, which is why the two settings below work together and neither is sufficient
+alone.
 
 **Do not add `privilege 15` here.** On the switches tested during development, privilege level was the only access
 control actually being enforced — the role was not. A privilege-1 user was correctly refused `show running-config`:
