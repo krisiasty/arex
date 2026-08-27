@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptrace"
+	"strings"
 	"time"
 )
 
@@ -76,6 +77,21 @@ type Response struct {
 type rpcError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
+	// Data holds one entry per command sent. eAPI puts a generic summary in
+	// Message and the actual cause in here, so discarding it turns
+	// "privileged mode required" into "invalid command".
+	Data []struct {
+		Errors []string `json:"errors"`
+	} `json:"data"`
+}
+
+// details flattens the per-command errors, in command order.
+func (e *rpcError) details() []string {
+	var out []string
+	for _, d := range e.Data {
+		out = append(out, d.Errors...)
+	}
+	return out
 }
 
 // statusError turns an HTTP status into an error naming the likely fix.
@@ -110,10 +126,17 @@ func statusError(code int, status string) error {
 type CommandError struct {
 	Code    int
 	Message string
+	// Details are the per-command causes from the eAPI error's data field,
+	// which is where the useful text lives.
+	Details []string
 }
 
 func (e *CommandError) Error() string {
-	return fmt.Sprintf("eAPI error %d: %s", e.Code, e.Message)
+	if len(e.Details) == 0 {
+		return fmt.Sprintf("eAPI error %d: %s", e.Code, e.Message)
+	}
+	return fmt.Sprintf("eAPI error %d: %s (%s)", e.Code, e.Message,
+		strings.Join(e.Details, "; "))
 }
 
 // Run executes a list of EOS CLI commands and returns the raw JSON results,
@@ -202,7 +225,12 @@ func (c *Client) Run(cmds []string) ([]json.RawMessage, error) {
 		outcome = OutcomeEAPIError
 		rl.eapiCode = rpcResp.Error.Code
 		rl.eapiMsg = rpcResp.Error.Message
-		return nil, &CommandError{Code: rpcResp.Error.Code, Message: rpcResp.Error.Message}
+		rl.eapiData = rpcResp.Error.details()
+		return nil, &CommandError{
+			Code:    rpcResp.Error.Code,
+			Message: rpcResp.Error.Message,
+			Details: rpcResp.Error.details(),
+		}
 	}
 
 	return rpcResp.Result, nil
