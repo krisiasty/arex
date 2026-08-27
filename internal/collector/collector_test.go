@@ -179,3 +179,25 @@ func TestEAPIRejectionDoesRetryPerCommand(t *testing.T) {
 			len(f.calls))
 	}
 }
+
+// A switch that has never answered still needs per-command series: a missing
+// series is not 0 in Prometheus, so count(arista_command_success == 0) would
+// silently exclude the switch that is most broken.
+func TestTotalFailureMarksEveryCommandFailed(t *testing.T) {
+	f := newFake()
+	f.allErr = errors.New("unexpected HTTP status: 401 Unauthorized")
+
+	data := &SwitchData{Label: "sw1"}
+	Collect(f, data)
+
+	data.RLock()
+	defer data.RUnlock()
+	if data.CommandErrors == nil {
+		t.Fatal("CommandErrors must be populated so the writer can report per-command state")
+	}
+	for _, cli := range Commands() {
+		if _, failed := data.CommandErrors[cli]; !failed {
+			t.Errorf("command %q should be marked failed after a total failure", cli)
+		}
+	}
+}

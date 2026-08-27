@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -33,6 +34,16 @@ type SwitchData struct {
 	// output in the most recent poll, keyed by CLI string. Data from a
 	// failed command is left at its previous value rather than zeroed.
 	CommandErrors map[string]error
+
+	// CommandLastSuccess records when each command last returned usable
+	// output. Data from a failed command is retained rather than zeroed, so
+	// without a per-command bound one working command would keep the scrape
+	// looking fresh while the rest went arbitrarily stale.
+	CommandLastSuccess map[string]time.Time
+
+	// tracker collapses repeated identical failures so a permanently broken
+	// switch does not emit one log line per poll indefinitely.
+	tracker repeatTracker
 
 	Version    eapi.ShowVersion
 	ProcessTop eapi.ShowProcessesTop
@@ -71,7 +82,10 @@ func NewStore(switches []config.SwitchConfig) (*Store, error) {
 		if _, dup := s.switches[label]; dup {
 			return nil, fmt.Errorf("config: duplicate switch label %q — names must be unique", label)
 		}
-		s.switches[label] = &SwitchData{Label: label}
+		s.switches[label] = &SwitchData{
+			Label:              label,
+			CommandLastSuccess: make(map[string]time.Time),
+		}
 		s.order = append(s.order, label)
 	}
 	return s, nil
@@ -112,36 +126,50 @@ type cmdSpec struct {
 	apply func(*snapshot, *SwitchData)
 }
 
+// The CLI commands arex issues. Exported so the writer can decide, per
+// command, whether that command's data is still fresh enough to publish.
+const (
+	CmdVersion      = "show version"
+	CmdProcessesTop = "show processes top once"
+	CmdEnvTemp      = "show system environment temperature"
+	CmdEnvPower     = "show system environment power"
+	CmdEnvCooling   = "show system environment cooling"
+	CmdInterfaces   = "show interfaces"
+	CmdBGPSummary   = "show ip bgp summary vrf all"
+	CmdTransceivers = "show interfaces transceiver detail"
+	CmdPhy          = "show interfaces phy detail"
+)
+
 // commands is the set of EOS CLI commands arex issues per poll.
 //
 // "vrf all" is required: plain "show ip bgp summary" returns the default VRF
 // only, so peers in any other VRF are invisible.
 var commands = []cmdSpec{
-	{"show version",
+	{CmdVersion,
 		func(s *snapshot) interface{} { return &s.version },
 		func(s *snapshot, d *SwitchData) { d.Version = s.version }},
-	{"show processes top once",
+	{CmdProcessesTop,
 		func(s *snapshot) interface{} { return &s.processTop },
 		func(s *snapshot, d *SwitchData) { d.ProcessTop = s.processTop }},
-	{"show system environment temperature",
+	{CmdEnvTemp,
 		func(s *snapshot) interface{} { return &s.envTemp },
 		func(s *snapshot, d *SwitchData) { d.EnvTemp = s.envTemp }},
-	{"show system environment power",
+	{CmdEnvPower,
 		func(s *snapshot) interface{} { return &s.envPower },
 		func(s *snapshot, d *SwitchData) { d.EnvPower = s.envPower }},
-	{"show system environment cooling",
+	{CmdEnvCooling,
 		func(s *snapshot) interface{} { return &s.envCooling },
 		func(s *snapshot, d *SwitchData) { d.EnvCooling = s.envCooling }},
-	{"show interfaces",
+	{CmdInterfaces,
 		func(s *snapshot) interface{} { return &s.interfaces },
 		func(s *snapshot, d *SwitchData) { d.Interfaces = s.interfaces }},
-	{"show ip bgp summary vrf all",
+	{CmdBGPSummary,
 		func(s *snapshot) interface{} { return &s.bgp },
 		func(s *snapshot, d *SwitchData) { d.BGPSummary = s.bgp }},
-	{"show interfaces transceiver detail",
+	{CmdTransceivers,
 		func(s *snapshot) interface{} { return &s.optics },
 		func(s *snapshot, d *SwitchData) { d.Optics = s.optics }},
-	{"show interfaces phy detail",
+	{CmdPhy,
 		func(s *snapshot) interface{} { return &s.phy },
 		func(s *snapshot, d *SwitchData) { d.Phy = s.phy }},
 }
@@ -217,20 +245,33 @@ func Collect(client Runner, data *SwitchData) {
 		return
 	}
 
-	for cli, cerr := range cmdErrs {
-		log.Printf("[%s] %s: %v", data.Label, cli, cerr)
-	}
-
 	data.mu.Lock()
 	defer data.mu.Unlock()
+
+	if len(cmdErrs) > 0 {
+		// One message for the whole picture, so an unchanging partial
+		// failure is suppressed as a unit rather than per command.
+		summary := fmt.Sprintf("%d of %d commands failed: %s",
+			len(cmdErrs), len(commands), describeCmdErrors(cmdErrs))
+		if line := data.tracker.observe(summary, time.Now()); line != "" {
+			log.Printf("[%s] %s", data.Label, line)
+		}
+	} else if line := data.tracker.recovered(time.Now()); line != "" {
+		log.Printf("[%s] %s", data.Label, line)
+	}
+	now := time.Now()
+	if data.CommandLastSuccess == nil {
+		data.CommandLastSuccess = make(map[string]time.Time, len(commands))
+	}
 	for i, c := range commands {
 		if ok[i] {
 			c.apply(&snap, data)
+			data.CommandLastSuccess[c.cli] = now
 		}
 	}
 	data.CommandErrors = cmdErrs
 	data.ScrapeErr = nil
-	data.LastSuccess = time.Now()
+	data.LastSuccess = now
 }
 
 // worthRetryingIndividually reports whether a failed batch could partly
@@ -281,9 +322,35 @@ func PollLoop(client Runner, data *SwitchData, interval time.Duration) {
 	}
 }
 
+// describeCmdErrors renders per-command failures in a stable order, so an
+// unchanged failure produces an unchanged message and stays suppressed.
+func describeCmdErrors(cmdErrs map[string]error) string {
+	parts := make([]string, 0, len(cmdErrs))
+	for _, c := range commands {
+		if err, ok := cmdErrs[c.cli]; ok {
+			parts = append(parts, fmt.Sprintf("%s (%v)", c.cli, err))
+		}
+	}
+	return strings.Join(parts, "; ")
+}
+
+// setError records a poll in which nothing at all was collected.
+//
+// Every command is marked failed so the writer can still emit
+// arista_command_success for each: a missing series is not zero in
+// Prometheus, and omitting them would exclude the most broken switch from
+// any aggregate over that metric.
 func setError(data *SwitchData, err error) {
-	log.Printf("[%s] %v", data.Label, err)
 	data.mu.Lock()
 	defer data.mu.Unlock()
+
 	data.ScrapeErr = err
+	data.CommandErrors = make(map[string]error, len(commands))
+	for _, c := range commands {
+		data.CommandErrors[c.cli] = err
+	}
+
+	if line := data.tracker.observe(err.Error(), time.Now()); line != "" {
+		log.Printf("[%s] %s", data.Label, line)
+	}
 }
