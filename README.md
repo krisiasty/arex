@@ -2,6 +2,15 @@
 
 Prometheus exporter for Arista switches via eAPI.
 
+Arista EOS ships no Prometheus exporter. Custom binaries can be installed on EOS, but the supported methods for
+installing and managing them assume the switch can reach the outside world from the default VRF — and management
+interfaces normally sit in the `management` VRF instead, which makes that approach impractical.
+
+arex sidesteps the problem by running off-box. It connects out to each switch over eAPI, polls a set of `show`
+commands on an interval, caches the results, and serves them as Prometheus metrics. Nothing is installed on the
+switch, so the VRF the management interface lives in only has to be reachable from wherever arex runs — see
+[switch configuration](#switch-configuration) for the one VRF-specific step this requires on the switch itself.
+
 ## Metrics
 
 | Metric | Type | Description |
@@ -55,16 +64,64 @@ Prometheus exporter for Arista switches via eAPI.
 
 ## Switch configuration
 
-Enable eAPI on each switch:
+### Enable eAPI
+
+eAPI must be enabled in the VRF that carries the management interface. On a switch managed through the `management`
+VRF — the usual case — the `vrf management` stanza is required, and connections to the management address are
+refused without it.
 
 ```
 management api http-commands
    no shutdown
    protocol https
    no protocol http
+   !
+   vrf management
+      no shutdown
+!
 ```
 
-Create a read-only user:
+Both levels of `no shutdown` are required, and this is exactly where eAPI departs from `management ssh`. The SSH
+idiom — shut the service at the top level, enable it per VRF — does not work here. With only the `vrf` stanza set,
+the API stays off entirely:
+
+```
+Enabled: No
+HTTPS server: enabled, set to use port 443
+VRFs: None
+```
+
+The `vrf management` block is present in the running config but inert, and `VRFs: None` is reported regardless. Note
+the tell in the HTTPS server line: `enabled` means configured but not listening, whereas `running` means actually
+serving. Only the top-level `no shutdown` promotes one to the other. Verified on EOS 4.35.4M.
+
+`protocol https` and `no protocol http` are the defaults on current EOS and can be omitted; they are shown to be
+explicit, and to reset a switch where plaintext HTTP was enabled earlier.
+
+If the management interface is in the default VRF, drop the `vrf management` block. If it is in a VRF under another
+name, substitute that name — arex itself needs no VRF setting either way, since it connects from off-box.
+
+Confirm the HTTPS server is running and bound to the right VRF:
+
+```
+show management api http-commands
+```
+
+Expect `Enabled: Yes`, `HTTPS server: running`, `VRFs: management`, and the management interface listed under
+`URLs`. Note the reported `SSL Profile` — a stock switch uses `ARISTA_DEFAULT_SELF_SIGNED_PROFILE`, whose
+certificate no client can verify, so set [`tlsSkipVerify`](#configuration) to `true` unless you have installed a
+certificate signed by a CA that arex trusts.
+
+Then verify eAPI answers from wherever arex will run. This is the same request arex issues:
+
+```bash
+curl -k -u prometheus:secret https://<mgmt-ip>/command-api \
+  -d '{"jsonrpc":"2.0","method":"runCmds","params":{"version":1,"cmds":["show version"],"format":"json"},"id":1}'
+```
+
+### Create a read-only user
+
+arex only ever issues `show` commands, so restrict it to those:
 
 ```
 role prometheus-ro
@@ -102,9 +159,24 @@ See `config.example.json`. All durations are Go duration strings (`30s`, `1m`, e
 | `listenAddress` | `:9100` | Address to serve `/metrics` on |
 | `pollInterval` | `30s` | How often to poll each switch |
 | `scrapeTimeout` | `10s` | eAPI request timeout |
-| `tlsSkipVerify` | `true` | Skip TLS cert verification |
+| `tlsSkipVerify` | `false` | Skip TLS cert verification. Set `true` for switches with self-signed certs |
 | `stalenessLimit` | `90s` | Stop emitting metrics if data is older than this |
 | `switches` | required | List of switch connection configs |
+
+Per-switch fields:
+
+| Field | Description |
+|-------|-------------|
+| `host` | Scheme and address of the switch, e.g. `https://10.10.0.11` |
+| `username` | eAPI username |
+| `password` | eAPI password |
+| `name` | Value for the `switch` label on every metric. Optional, falls back to `host` |
+
+Point `host` at the switch's management address — on a typical switch that address lives in the `management` VRF.
+Keep `name` unique across switches: two entries sharing one label collapse into a single metric series.
+
+There is no VRF setting in arex's own config. It runs off-box, so the VRF is purely a switch-side concern, handled
+by the `vrf management` stanza in [switch configuration](#switch-configuration).
 
 ## Useful PromQL
 

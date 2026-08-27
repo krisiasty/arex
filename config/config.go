@@ -12,7 +12,7 @@ type Config struct {
 	ListenAddress  string         `json:"listenAddress"`  // default ":9100"
 	PollInterval   duration       `json:"pollInterval"`   // default 30s
 	ScrapeTimeout  duration       `json:"scrapeTimeout"`  // default 10s
-	TLSSkipVerify  bool           `json:"tlsSkipVerify"`  // default true
+	TLSSkipVerify  bool           `json:"tlsSkipVerify"`  // default false (Go zero value; no default applied)
 	StalenessLimit duration       `json:"stalenessLimit"` // default 3x pollInterval
 	Switches       []SwitchConfig `json:"switches"`
 }
