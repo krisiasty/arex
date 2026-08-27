@@ -177,7 +177,7 @@ func writeInterfaces(w io.Writer, host string, ifaces eapi.ShowInterfaces) {
 		_, _ = fmt.Fprintf(w, "arista_interface_in_errors_total{%s} %d\n", l, iface.InterfaceCounters.InputErrors)
 		_, _ = fmt.Fprintf(w, "arista_interface_out_errors_total{%s} %d\n", l, iface.InterfaceCounters.OutputErrors)
 		_, _ = fmt.Fprintf(w, "arista_interface_in_discards_total{%s} %d\n", l, iface.InterfaceCounters.InDiscards)
-		_, _ = fmt.Fprintf(w, "arista_interface_out_discards_total{%s} %d\n", l, iface.InterfaceCounters.TotalOutDrops)
+		_, _ = fmt.Fprintf(w, "arista_interface_out_discards_total{%s} %d\n", l, iface.InterfaceCounters.OutDiscards)
 	}
 }
 
@@ -185,13 +185,13 @@ func writeInterfaces(w io.Writer, host string, ifaces eapi.ShowInterfaces) {
 func writeBGP(w io.Writer, host string, bgp eapi.ShowBGPSummary) {
 	for vrf, v := range bgp.Vrfs {
 		for peer, p := range v.Peers {
-			l := fmt.Sprintf("switch=%q,vrf=%q,peer=%q,asn=%d", host, vrf, peer, p.Asn)
+			l := fmt.Sprintf("switch=%q,vrf=%q,peer=%q,asn=%s", host, vrf, peer, p.Asn)
 			peerUp := boolToFloat(p.PeerState == "Established")
 			_, _ = fmt.Fprintf(w, "arista_bgp_peer_up{%s} %g\n", l, peerUp)
 			_, _ = fmt.Fprintf(w, "arista_bgp_peer_prefixes_received{%s} %d\n", l, p.PrefixReceived)
 			// uptime is 0 when peer is down — only emit when meaningful
 			if p.PeerState == "Established" {
-				_, _ = fmt.Fprintf(w, "arista_bgp_peer_uptime_seconds{%s} %g\n", l, p.Uptime)
+				_, _ = fmt.Fprintf(w, "arista_bgp_peer_uptime_seconds{%s} %g\n", l, p.UpDownTime)
 			}
 		}
 	}

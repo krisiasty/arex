@@ -1,0 +1,403 @@
+{
+    "systemStatus": "temperatureOk",
+    "shutdownOnOverheat": true,
+    "powercycleOnOverheat": false,
+    "actionOnOverheat": "actionShutdown",
+    "recoveryModeOnOverheat": "recoveryModeNA",
+    "ambientThreshold": 45,
+    "tempSensors": [
+        {
+            "relPos": "1",
+            "name": "TempSensor1",
+            "description": "Cpu temp sensor",
+            "chipModel": "n/a",
+            "overheatThreshold": 95.0,
+            "criticalThreshold": 115.0,
+            "targetTemperature": 70.0,
+            "hwStatus": "ok",
+            "currentTemperature": 28.00308548455791,
+            "setPointTemperature": 68.4,
+            "maxTemperature": 33.50639798508577,
+            "maxTemperatureLastChange": 1777294205.3646836,
+            "inAlertState": false,
+            "alertCount": 0,
+            "coolingDomains": [
+                "FixedSystem"
+            ],
+            "isPidDriver": false,
+            "pidDriverCount": 0,
+            "pidDriverStats": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "position": "other"
+        },
+        {
+            "relPos": "2",
+            "name": "TempSensor2",
+            "description": "CPU board temp sensor",
+            "chipModel": "MAX6658/MAX6692",
+            "overheatThreshold": 75.0,
+            "criticalThreshold": 85.0,
+            "targetTemperature": 55.0,
+            "hwStatus": "ok",
+            "currentTemperature": 23.0,
+            "setPointTemperature": 53.4,
+            "maxTemperature": 27.875,
+            "maxTemperatureLastChange": 1784792129.0517771,
+            "inAlertState": false,
+            "alertCount": 0,
+            "coolingDomains": [
+                "FixedSystem"
+            ],
+            "isPidDriver": false,
+            "pidDriverCount": 0,
+            "pidDriverStats": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "position": "other"
+        },
+        {
+            "relPos": "3",
+            "name": "TempSensor3",
+            "description": "Back-panel temp sensor",
+            "chipModel": "MAX6658/MAX6692",
+            "overheatThreshold": 75.0,
+            "criticalThreshold": 85.0,
+            "targetTemperature": 55.0,
+            "hwStatus": "ok",
+            "currentTemperature": 21.0,
+            "setPointTemperature": 53.4,
+            "maxTemperature": 26.25,
+            "maxTemperatureLastChange": 1784792114.016273,
+            "inAlertState": false,
+            "alertCount": 0,
+            "coolingDomains": [
+                "FixedSystem"
+            ],
+            "isPidDriver": false,
+            "pidDriverCount": 0,
+            "pidDriverStats": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "position": "outlet"
+        },
+        {
+            "relPos": "4",
+            "name": "TempSensor4",
+            "description": "POSVDD_CPU_S0 Pol Loop0",
+            "chipModel": "n/a",
+            "overheatThreshold": 115.0,
+            "criticalThreshold": 125.0,
+            "targetTemperature": 105.0,
+            "hwStatus": "ok",
+            "currentTemperature": 27.0,
+            "setPointTemperature": 103.4,
+            "maxTemperature": 32.0,
+            "maxTemperatureLastChange": 1784792172.1022544,
+            "inAlertState": false,
+            "alertCount": 0,
+            "coolingDomains": [
+                "FixedSystem"
+            ],
+            "isPidDriver": false,
+            "pidDriverCount": 0,
+            "pidDriverStats": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "position": "other"
+        },
+        {
+            "relPos": "7",
+            "name": "TempSensor7",
+            "description": "Front-panel temp sensor",
+            "chipModel": "MAX6658/MAX6692",
+            "overheatThreshold": 60.0,
+            "criticalThreshold": 65.0,
+            "targetTemperature": 50.0,
+            "hwStatus": "ok",
+            "currentTemperature": 32.125,
+            "setPointTemperature": 48.4,
+            "maxTemperature": 35.75,
+            "maxTemperatureLastChange": 1784792207.186457,
+            "inAlertState": false,
+            "alertCount": 0,
+            "coolingDomains": [
+                "FixedSystem"
+            ],
+            "isPidDriver": false,
+            "pidDriverCount": 505,
+            "pidDriverStats": [
+                1.3618325534300776e-232,
+                8.597246690430763e-21,
+                0.013711807697554044,
+                0.052401449740323174,
+                0.023907090890498896
+            ],
+            "position": "inlet",
+            "lastPidDriverTime": 1787741507.7816577
+        },
+        {
+            "relPos": "8",
+            "name": "TempSensor8",
+            "description": "SwitchAsic top left outer sensor",
+            "chipModel": "n/a",
+            "overheatThreshold": 100.0,
+            "criticalThreshold": 110.0,
+            "targetTemperature": 80.0,
+            "hwStatus": "ok",
+            "currentTemperature": 39.24048000000005,
+            "setPointTemperature": 78.4,
+            "maxTemperature": 44.59088000000003,
+            "maxTemperatureLastChange": 1777824257.8134756,
+            "inAlertState": false,
+            "alertCount": 0,
+            "coolingDomains": [
+                "FixedSystem"
+            ],
+            "isPidDriver": false,
+            "pidDriverCount": 0,
+            "pidDriverStats": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "position": "other"
+        },
+        {
+            "relPos": "300",
+            "name": "TempSensor300",
+            "description": "SATA flash",
+            "chipModel": "n/a",
+            "overheatThreshold": 90.0,
+            "criticalThreshold": 95.0,
+            "targetTemperature": 80.0,
+            "hwStatus": "ok",
+            "currentTemperature": 31.0,
+            "setPointTemperature": 78.4,
+            "maxTemperature": 35.0,
+            "maxTemperatureLastChange": 1782379192.667953,
+            "inAlertState": false,
+            "alertCount": 0,
+            "coolingDomains": [
+                "FixedSystem"
+            ],
+            "isPidDriver": false,
+            "pidDriverCount": 0,
+            "pidDriverStats": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "position": "other"
+        }
+    ],
+    "cardSlots": [],
+    "powerSupplySlots": [
+        {
+            "relPos": "1",
+            "entPhysicalClass": "PowerSupply",
+            "tempSensors": [
+                {
+                    "relPos": "1",
+                    "name": "TempSensorP1/1",
+                    "description": "Inlet ambient sensor",
+                    "chipModel": "n/a",
+                    "overheatThreshold": 65.0,
+                    "criticalThreshold": 69.0,
+                    "targetTemperature": 42.0,
+                    "hwStatus": "ok",
+                    "currentTemperature": 21.0,
+                    "setPointTemperature": 40.4,
+                    "maxTemperature": 26.0,
+                    "maxTemperatureLastChange": 1777294197.581104,
+                    "inAlertState": false,
+                    "alertCount": 0,
+                    "coolingDomains": [
+                        "FixedSystem"
+                    ],
+                    "isPidDriver": false,
+                    "pidDriverCount": 0,
+                    "pidDriverStats": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "position": "other"
+                },
+                {
+                    "relPos": "2",
+                    "name": "TempSensorP1/2",
+                    "description": "Secondary sensor",
+                    "chipModel": "n/a",
+                    "overheatThreshold": 103.0,
+                    "criticalThreshold": 107.0,
+                    "targetTemperature": 60.0,
+                    "hwStatus": "ok",
+                    "currentTemperature": 31.0,
+                    "setPointTemperature": 58.4,
+                    "maxTemperature": 34.0,
+                    "maxTemperatureLastChange": 1784792337.8066015,
+                    "inAlertState": false,
+                    "alertCount": 0,
+                    "coolingDomains": [
+                        "FixedSystem"
+                    ],
+                    "isPidDriver": false,
+                    "pidDriverCount": 0,
+                    "pidDriverStats": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "position": "other"
+                },
+                {
+                    "relPos": "3",
+                    "name": "TempSensorP1/3",
+                    "description": "Primary sensor",
+                    "chipModel": "n/a",
+                    "overheatThreshold": 97.0,
+                    "criticalThreshold": 101.0,
+                    "targetTemperature": 60.0,
+                    "hwStatus": "ok",
+                    "currentTemperature": 34.0,
+                    "setPointTemperature": 58.4,
+                    "maxTemperature": 38.0,
+                    "maxTemperatureLastChange": 1777294197.5811074,
+                    "inAlertState": false,
+                    "alertCount": 0,
+                    "coolingDomains": [
+                        "FixedSystem"
+                    ],
+                    "isPidDriver": false,
+                    "pidDriverCount": 0,
+                    "pidDriverStats": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "position": "other"
+                }
+            ]
+        },
+        {
+            "relPos": "2",
+            "entPhysicalClass": "PowerSupply",
+            "tempSensors": [
+                {
+                    "relPos": "1",
+                    "name": "TempSensorP2/1",
+                    "description": "Inlet ambient sensor",
+                    "chipModel": "n/a",
+                    "overheatThreshold": 65.0,
+                    "criticalThreshold": 69.0,
+                    "targetTemperature": 42.0,
+                    "hwStatus": "ok",
+                    "currentTemperature": 21.0,
+                    "setPointTemperature": 40.4,
+                    "maxTemperature": 26.0,
+                    "maxTemperatureLastChange": 1777294197.8458633,
+                    "inAlertState": false,
+                    "alertCount": 0,
+                    "coolingDomains": [
+                        "FixedSystem"
+                    ],
+                    "isPidDriver": false,
+                    "pidDriverCount": 0,
+                    "pidDriverStats": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "position": "other"
+                },
+                {
+                    "relPos": "2",
+                    "name": "TempSensorP2/2",
+                    "description": "Secondary sensor",
+                    "chipModel": "n/a",
+                    "overheatThreshold": 103.0,
+                    "criticalThreshold": 107.0,
+                    "targetTemperature": 60.0,
+                    "hwStatus": "ok",
+                    "currentTemperature": 30.0,
+                    "setPointTemperature": 58.4,
+                    "maxTemperature": 36.0,
+                    "maxTemperatureLastChange": 1777294197.8458574,
+                    "inAlertState": false,
+                    "alertCount": 0,
+                    "coolingDomains": [
+                        "FixedSystem"
+                    ],
+                    "isPidDriver": false,
+                    "pidDriverCount": 0,
+                    "pidDriverStats": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "position": "other"
+                },
+                {
+                    "relPos": "3",
+                    "name": "TempSensorP2/3",
+                    "description": "Primary sensor",
+                    "chipModel": "n/a",
+                    "overheatThreshold": 97.0,
+                    "criticalThreshold": 101.0,
+                    "targetTemperature": 60.0,
+                    "hwStatus": "ok",
+                    "currentTemperature": 34.0,
+                    "setPointTemperature": 58.4,
+                    "maxTemperature": 38.0,
+                    "maxTemperatureLastChange": 1784792165.095669,
+                    "inAlertState": false,
+                    "alertCount": 0,
+                    "coolingDomains": [
+                        "FixedSystem"
+                    ],
+                    "isPidDriver": false,
+                    "pidDriverCount": 0,
+                    "pidDriverStats": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "position": "other"
+                }
+            ]
+        }
+    ]
+}

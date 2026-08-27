@@ -1,0 +1,62 @@
+{
+    "systemStatus": "coolingOk",
+    "fansStatus": "fanAlarmOk",
+    "ambientTemperature": 21.5,
+    "airflowDirection": "backToFrontAirflow",
+    "currentZones": 1,
+    "configuredZones": 0,
+    "defaultZones": false,
+    "numCoolingZones": [],
+    "shutdownOnInsufficientFans": true,
+    "overrideFanSpeed": 0,
+    "minFanSpeed": 0,
+    "coolingMode": "automatic",
+    "fanTraySlots": [
+        {
+            "label": "1", "status": "ok", "speed": 33, "fanTrayId": 30,
+            "fans": [
+                { "label": "1/1", "maxSpeed": 25000, "configuredSpeed": 33, "actualSpeed": 34,
+                  "status": "ok", "uptime": 1777294189.1848712, "speedStable": true,
+                  "speedHwOverride": false, "lastSpeedStableChangeTime": 1777294241.2850888,
+                  "vendorModel": "SanAce40MR", "coolingDomain": "FixedSystem" },
+                { "label": "1/2", "maxSpeed": 25000, "configuredSpeed": 33, "actualSpeed": 34,
+                  "status": "ok", "uptime": 1777294189.184772, "speedStable": true,
+                  "speedHwOverride": false, "lastSpeedStableChangeTime": 1777294241.28506,
+                  "vendorModel": "SanAce40MR", "coolingDomain": "FixedSystem" }
+            ]
+        },
+        {
+            "label": "2", "status": "ok", "speed": 33, "fanTrayId": 30,
+            "fans": [
+                { "label": "2/1", "maxSpeed": 25000, "configuredSpeed": 33, "actualSpeed": 34,
+                  "status": "ok", "uptime": 1777294189.1846733, "speedStable": true,
+                  "speedHwOverride": false, "lastSpeedStableChangeTime": 1777294241.28511,
+                  "vendorModel": "SanAce40MR", "coolingDomain": "FixedSystem" },
+                { "label": "2/2", "maxSpeed": 25000, "configuredSpeed": 33, "actualSpeed": 34,
+                  "status": "ok", "uptime": 1777294189.1845376, "speedStable": true,
+                  "speedHwOverride": false, "lastSpeedStableChangeTime": 1777294241.2851293,
+                  "vendorModel": "SanAce40MR", "coolingDomain": "FixedSystem" }
+            ]
+        }
+    ],
+    "powerSupplySlots": [
+        {
+            "label": "PowerSupply1", "status": "ok", "speed": 30,
+            "fans": [
+                { "label": "PowerSupply1/1", "maxSpeed": 22600, "configuredSpeed": 30, "actualSpeed": 33,
+                  "status": "ok", "uptime": 1777294197.5810285, "speedStable": true,
+                  "speedHwOverride": true, "lastSpeedStableChangeTime": 1777294338.8009946,
+                  "vendorModel": "EmersonCSU500DP3FanR", "coolingDomain": "FixedSystem" }
+            ]
+        },
+        {
+            "label": "PowerSupply2", "status": "ok", "speed": 30,
+            "fans": [
+                { "label": "PowerSupply2/1", "maxSpeed": 22600, "configuredSpeed": 30, "actualSpeed": 34,
+                  "status": "ok", "uptime": 1777294197.8458254, "speedStable": true,
+                  "speedHwOverride": true, "lastSpeedStableChangeTime": 1779363285.2729616,
+                  "vendorModel": "EmersonCSU500DP3FanR", "coolingDomain": "FixedSystem" }
+            ]
+        }
+    ]
+}

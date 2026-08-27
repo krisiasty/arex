@@ -76,19 +76,19 @@ type ShowEnvironmentPower struct {
 
 // PowerSupply represents a single PSU.
 type PowerSupply struct {
-	ModelName     string                    `json:"modelName"`
-	Capacity      float64                   `json:"capacity"`
-	Dominant      bool                      `json:"dominant"`
-	InputCurrent  float64                   `json:"inputCurrent"`
-	OutputCurrent float64                   `json:"outputCurrent"`
-	InputVoltage  float64                   `json:"inputVoltage"`
-	OutputVoltage float64                   `json:"outputVoltage"`
-	OutputPower   float64                   `json:"outputPower"`
-	State         string                    `json:"state"`
-	Uptime        float64                   `json:"uptime"`
-	Managed       bool                      `json:"managed"`
-	Fans          map[string]PSUFan         `json:"fans"`
-	TempSensors   map[string]PSUTempSensor  `json:"tempSensors"`
+	ModelName     string                   `json:"modelName"`
+	Capacity      float64                  `json:"capacity"`
+	Dominant      bool                     `json:"dominant"`
+	InputCurrent  float64                  `json:"inputCurrent"`
+	OutputCurrent float64                  `json:"outputCurrent"`
+	InputVoltage  float64                  `json:"inputVoltage"`
+	OutputVoltage float64                  `json:"outputVoltage"`
+	OutputPower   float64                  `json:"outputPower"`
+	State         string                   `json:"state"`
+	Uptime        float64                  `json:"uptime"`
+	Managed       bool                     `json:"managed"`
+	Fans          map[string]PSUFan        `json:"fans"`
+	TempSensors   map[string]PSUTempSensor `json:"tempSensors"`
 }
 
 // PSUFan is a fan embedded in a PSU (from show environment power).
@@ -143,37 +143,84 @@ type ShowInterfaces struct {
 
 // Interface represents a single interface entry.
 type Interface struct {
-	Name               string            `json:"name"`
-	LineProtocolStatus string            `json:"lineProtocolStatus"`
-	InterfaceStatus    string            `json:"interfaceStatus"`
-	InterfaceCounters  InterfaceCounters `json:"interfaceCounters"`
+	Name                      string            `json:"name"`
+	LineProtocolStatus        string            `json:"lineProtocolStatus"`
+	InterfaceStatus           string            `json:"interfaceStatus"`
+	Description               string            `json:"description"`
+	InterfaceMembership       string            `json:"interfaceMembership"`
+	Bandwidth                 uint64            `json:"bandwidth"` // bits per second
+	MTU                       int               `json:"mtu"`
+	LastStatusChangeTimestamp float64           `json:"lastStatusChangeTimestamp"`
+	InterfaceCounters         InterfaceCounters `json:"interfaceCounters"`
 }
 
 // InterfaceCounters holds the counter fields for an interface.
 type InterfaceCounters struct {
-	InOctets      uint64 `json:"inOctets"`
-	OutOctets     uint64 `json:"outOctets"`
-	InputErrors   uint64 `json:"inputErrors"`
-	OutputErrors  uint64 `json:"outputErrors"`
-	InDiscards    uint64 `json:"inDiscards"`
-	TotalOutDrops uint64 `json:"totalOutDrops"`
+	InOctets  uint64 `json:"inOctets"`
+	OutOctets uint64 `json:"outOctets"`
+
+	InDiscards  uint64 `json:"inDiscards"`
+	OutDiscards uint64 `json:"outDiscards"`
+
+	InputErrors  uint64 `json:"totalInErrors"`
+	OutputErrors uint64 `json:"totalOutErrors"`
+
+	InUcastPkts     uint64 `json:"inUcastPkts"`
+	InMulticastPkts uint64 `json:"inMulticastPkts"`
+	InBroadcastPkts uint64 `json:"inBroadcastPkts"`
+
+	OutUcastPkts     uint64 `json:"outUcastPkts"`
+	OutMulticastPkts uint64 `json:"outMulticastPkts"`
+	OutBroadcastPkts uint64 `json:"outBroadcastPkts"`
+
+	LinkStatusChanges  uint64  `json:"linkStatusChanges"`
+	LastClear          float64 `json:"lastClear"`
+	CounterRefreshTime float64 `json:"counterRefreshTime"`
+
+	InputErrorsDetail  InputErrorsDetail  `json:"inputErrorsDetail"`
+	OutputErrorsDetail OutputErrorsDetail `json:"outputErrorsDetail"`
 }
 
-// ShowBGPSummary maps the output of "show ip bgp summary".
+// InputErrorsDetail breaks down inbound errors by cause.
+type InputErrorsDetail struct {
+	RuntFrames      uint64 `json:"runtFrames"`
+	GiantFrames     uint64 `json:"giantFrames"`
+	FcsErrors       uint64 `json:"fcsErrors"`
+	AlignmentErrors uint64 `json:"alignmentErrors"`
+	SymbolErrors    uint64 `json:"symbolErrors"`
+	RxPause         uint64 `json:"rxPause"`
+}
+
+// OutputErrorsDetail breaks down outbound errors by cause.
+type OutputErrorsDetail struct {
+	Collisions            uint64 `json:"collisions"`
+	LateCollisions        uint64 `json:"lateCollisions"`
+	DeferredTransmissions uint64 `json:"deferredTransmissions"`
+	TxPause               uint64 `json:"txPause"`
+}
+
+// ShowBGPSummary maps the output of "show ip bgp summary vrf all".
 type ShowBGPSummary struct {
 	Vrfs map[string]BGPVrf `json:"vrfs"`
 }
 
 // BGPVrf represents BGP state within a single VRF.
 type BGPVrf struct {
-	RouterId string              `json:"routerId"`
-	Peers    map[string]BGPPeer  `json:"peers"`
+	RouterID string             `json:"routerId"`
+	Asn      string             `json:"asn"`
+	Peers    map[string]BGPPeer `json:"peers"`
 }
 
 // BGPPeer represents a single BGP neighbor.
+//
+// Asn is a string: EOS quotes it, and 4-byte private ASNs exceed int32.
 type BGPPeer struct {
-	PeerState      string  `json:"peerState"`
-	PrefixReceived int     `json:"prefixReceived"`
-	Uptime         float64 `json:"uptime"`
-	Asn            int     `json:"asn"`
+	PeerState        string  `json:"peerState"`
+	Description      string  `json:"description"`
+	Asn              string  `json:"asn"`
+	PrefixReceived   int     `json:"prefixReceived"`
+	PrefixAccepted   int     `json:"prefixAccepted"`
+	PrefixAdvertised int     `json:"prefixAdvertised"`
+	UnderMaintenance bool    `json:"underMaintenance"`
+	UpDownTime       float64 `json:"upDownTime"`
 }
