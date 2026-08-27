@@ -353,6 +353,19 @@ curl -k -u prometheus:<password> https://<switch>/command-api \
 Expect a `1002` carrying `privileged mode required`. If your full configuration comes back instead, nothing is
 restricting this account and the credentials arex holds can read every secret on the box.
 
+**Then check that elevation is protected**, because the privilege level is only a boundary if the account cannot
+raise it. eAPI accepts `enable` as a command like any other, so this is reachable over the network, not just from a
+terminal:
+
+```bash
+curl -k -u prometheus:<password> https://<switch>/command-api \
+  -d '{"jsonrpc":"2.0","method":"runCmds","params":{"version":1,"cmds":["enable","show running-config"],"format":"json"},"id":1}'
+```
+
+This must also be refused. If it succeeds, the account can reach privilege 15 over the network and the default
+privilege level is protecting nothing — set an enable secret before relying on any of the above. The same applies
+over SSH: `enable` at the `>` prompt should ask for a password.
+
 Role rules are a separate question, and a configured role is not necessarily an enforced one — which is worse than
 no role, because it looks like a restriction. Command authorization generally has to be enabled for role rules to
 be consulted; check `show running-config section aaa`, `show aaa` and `show users accounts detail`.
