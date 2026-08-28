@@ -75,8 +75,12 @@ func render(t *testing.T, mutate func(*collector.SwitchData)) string {
 // gather renders a store through the registry, as a scrape would.
 func gather(t *testing.T, store *collector.Store, stalenessLimit time.Duration) string {
 	t.Helper()
+	// Mirrors an unfiltered scrape, minus the Go and process collectors: those
+	// are third-party and environment-dependent, so including them would make
+	// the golden file unstable without testing anything arex owns. They are
+	// covered by the handler tests and end to end.
 	reg := prometheus.NewRegistry()
-	reg.MustRegister(NewCollector(store, stalenessLimit))
+	reg.MustRegister(buildCollector{}, NewCollector(store, stalenessLimit))
 
 	mfs, err := reg.Gather()
 	if err != nil {

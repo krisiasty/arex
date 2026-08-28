@@ -497,7 +497,7 @@ go build -o arex .
 
 | Path | Purpose |
 | --- | --- |
-| `/metrics` | Prometheus exposition |
+| `/metrics` | Prometheus exposition; `?target=` narrows it to one switch or to `internal` |
 | `/livez` | 200 while the poll loop is cycling, 503 if it has stalled |
 | `/readyz` | 200 once every switch has been polled at least once |
 | `/status` | JSON detail per switch |
@@ -531,6 +531,63 @@ collects and any that failed, with the switch's own error text. It carries no cr
     }
   ]
 }
+```
+
+### Scraping one switch at a time
+
+By default `/metrics` returns everything: every switch plus arex's own metrics. That is the simplest setup and
+needs no relabeling.
+
+A `target` parameter narrows the response, which is optional:
+
+| Request | Returns |
+| --- | --- |
+| `/metrics` | every switch, plus arex's own metrics |
+| `/metrics?target=leaf-1` | that switch only |
+| `/metrics?target=internal` | arex's own metrics only: `arex_*`, `go_*`, `process_*` |
+
+A switch is addressable by its `name`, its configured `host`, or that host without the scheme — so relabeling can
+use whichever identifier a job already has:
+
+```bash
+curl 'http://arex:9100/metrics?target=leaf-1'
+curl 'http://arex:9100/metrics?target=https://10.36.48.15'
+curl 'http://arex:9100/metrics?target=10.36.48.15'
+```
+
+An unknown target returns **400**. An empty body would leave Prometheus reporting a successful scrape with no
+series, so a typo in relabeling fails visibly instead. A host shared by two switches is ambiguous and is not
+addressable; use the names, which are unique.
+
+`internal` is reserved, and a switch by that name is rejected at startup rather than becoming an ambiguous query.
+
+**Filtering changes only what a scrape renders.** Collection is unaffected: pollers run on their own schedule, so
+one poll of a switch serves any number of scrapers however they are configured. That matters with an HA Prometheus
+pair — collecting on demand per scrape would double the switch-side cost, which is 1.4 seconds of eAPI time per
+poll on a 32-port leaf.
+
+A per-target scrape config, if you want each switch to be its own Prometheus target:
+
+```yaml
+scrape_configs:
+  - job_name: arex-switches
+    metrics_path: /metrics
+    static_configs:
+      - targets: [leaf-1, leaf-2, leaf-3]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: switch_target
+      - target_label: __address__
+        replacement: arex:9100
+
+  - job_name: arex-internal
+    metrics_path: /metrics
+    params:
+      target: [internal]
+    static_configs:
+      - targets: [arex:9100]
 ```
 
 ### Logging

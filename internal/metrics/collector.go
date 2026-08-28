@@ -24,23 +24,38 @@ import (
 type Collector struct {
 	store          *collector.Store
 	stalenessLimit time.Duration
-	now            func() time.Time
+
+	// only restricts rendering to one switch label. Empty renders all of them.
+	only string
+
+	now func() time.Time
 }
 
-// NewCollector returns a collector over store.
+// NewCollector returns a collector over every switch in store.
 func NewCollector(store *collector.Store, stalenessLimit time.Duration) *Collector {
 	return &Collector{store: store, stalenessLimit: stalenessLimit, now: time.Now}
 }
 
+// NewSwitchCollector returns a collector over one switch, for a filtered
+// scrape. The switch must exist; callers resolve the target first.
+func NewSwitchCollector(store *collector.Store, stalenessLimit time.Duration, label string) *Collector {
+	return &Collector{store: store, stalenessLimit: stalenessLimit, only: label, now: time.Now}
+}
+
 func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
-	for _, d := range descs {
+	for _, d := range switchDescs {
 		ch <- d
 	}
 }
 
 func (c *Collector) Collect(ch chan<- prometheus.Metric) {
-	collectBuildInfo(ch)
 	now := c.now()
+	if c.only != "" {
+		if sw := c.store.Get(c.only); sw != nil {
+			c.collectSwitch(ch, sw, now)
+		}
+		return
+	}
 	for _, sw := range c.store.All() {
 		c.collectSwitch(ch, sw, now)
 	}
@@ -83,11 +98,6 @@ func setTime(ch chan<- prometheus.Metric, name string, epoch float64, labelValue
 		return
 	}
 	set(ch, name, epoch, labelValues...)
-}
-
-func collectBuildInfo(ch chan<- prometheus.Metric) {
-	b := buildInfo()
-	set(ch, "arex_build_info", 1, b.version, b.revision, b.goVersion, b.modified)
 }
 
 // collectSwitch renders one switch.

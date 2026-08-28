@@ -140,6 +140,10 @@ func (c *Config) validate() error {
 		if sw.Password == "" {
 			return fmt.Errorf("config: switch[%d] missing password", i)
 		}
+		if sw.Label() == ReservedTarget {
+			return fmt.Errorf("config: switch[%d] is named %q, which is reserved: "+
+				"/metrics?target=%s selects arex's own metrics", i, ReservedTarget, ReservedTarget)
+		}
 		if err := validateCollect(sw.Collect, fmt.Sprintf("switch[%d] (%s)", i, sw.Label())); err != nil {
 			return err
 		}
@@ -179,6 +183,14 @@ func (d *duration) UnmarshalJSON(b []byte) error {
 	d.Duration = v
 	return nil
 }
+
+// ReservedTarget is the switch name that cannot be used, because
+// /metrics?target=internal selects arex's own metrics.
+//
+// Declared here rather than imported from the metrics package: config must not
+// depend on it, and a name collision has to be rejected at load time rather
+// than becoming an ambiguous query later.
+const ReservedTarget = "internal"
 
 // CollectKeys names every optional command group. show version has no key:
 // it is always collected, being the identity metric everything else joins
