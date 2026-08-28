@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptrace"
 	"strings"
@@ -20,9 +21,10 @@ type Client struct {
 	username   string
 	password   string
 
-	debug bool
-	name  string
-	stats *Stats
+	// logger is nil unless WithDebug was given, which is what gates
+	// per-request logging.
+	logger *slog.Logger
+	stats  *Stats
 }
 
 // NewClient creates a new eAPI client for one switch.
@@ -41,7 +43,6 @@ func NewClient(host, username, password string, timeout time.Duration,
 		path:     commandAPIPath,
 		username: username,
 		password: password,
-		name:     host,
 		httpClient: &http.Client{
 			Timeout:   timeout,
 			Transport: &http.Transport{TLSClientConfig: tlsCfg},
@@ -164,15 +165,14 @@ func (c *Client) Run(cmds []string) ([]json.RawMessage, error) {
 
 	ctx := context.Background()
 	rl := &requestLog{
-		name:     c.name,
 		method:   http.MethodPost,
 		path:     c.path,
 		cmds:     cmds,
 		start:    time.Now(),
 		reqBytes: len(body),
 	}
-	if c.debug {
-		defer rl.emit()
+	if c.logger != nil {
+		defer rl.emit(c.logger)
 		ctx = httptrace.WithClientTrace(ctx, rl.trace())
 	}
 	if c.stats != nil {

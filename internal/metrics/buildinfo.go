@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"io"
 	"runtime"
 	"runtime/debug"
 	"sync"
@@ -20,6 +19,26 @@ type buildInfoLabels struct {
 	revision  string
 	goVersion string
 	modified  string
+}
+
+// Build is the exported view of the build labels, for the startup log.
+type Build struct {
+	Version   string
+	Revision  string
+	GoVersion string
+	Modified  string
+}
+
+// BuildLabels reports what is running, for logging at startup. The same values
+// back arex_build_info, so the log line and the metric cannot disagree.
+func BuildLabels() Build {
+	b := buildInfo()
+	return Build{
+		Version:   b.version,
+		Revision:  b.revision,
+		GoVersion: b.goVersion,
+		Modified:  b.modified,
+	}
 }
 
 var (
@@ -65,19 +84,4 @@ func buildInfo() buildInfoLabels {
 		cachedBuild = b
 	})
 	return cachedBuild
-}
-
-// writeBuildInfo emits arex's own identity.
-//
-// Prefixed arex_ rather than arista_ because it describes the exporter
-// process, not a switch: it is the only series here with no switch label,
-// and that structural difference is worth making visible in the name.
-func writeBuildInfo(w io.Writer) {
-	b := buildInfo()
-	gauge(w, "arex_build_info", labels(
-		"version", b.version,
-		"revision", b.revision,
-		"go_version", b.goVersion,
-		"modified", b.modified,
-	), 1)
 }

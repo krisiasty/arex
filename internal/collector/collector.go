@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"math/rand/v2"
 	"strings"
 	"sync"
@@ -31,6 +31,12 @@ type SwitchData struct {
 	Label       string
 	LastSuccess time.Time
 	ScrapeErr   error
+
+	// LastAttempt is when a poll last completed, successfully or not. It is
+	// what liveness is judged on: a switch being unreachable is not a
+	// liveness failure -- restarting would not fix it -- whereas a poll loop
+	// that has stopped cycling is.
+	LastAttempt time.Time
 
 	// CommandErrors records commands that failed or returned unparseable
 	// output in the most recent poll, keyed by CLI string. Data from a
@@ -330,6 +336,8 @@ func Collect(client Runner, data *SwitchData) {
 
 	// Nothing landed: the switch is unreachable or refusing everything.
 	// Leave LastSuccess alone so stale-but-recent data stays servable.
+	data.markAttempt()
+
 	if succeeded == 0 {
 		reason := err
 		if reason == nil {
@@ -348,10 +356,10 @@ func Collect(client Runner, data *SwitchData) {
 		summary := fmt.Sprintf("%d of %d commands failed: %s",
 			len(cmdErrs), len(specs), describeCmdErrors(specs, cmdErrs))
 		if line := data.tracker.observe(summary, time.Now()); line != "" {
-			log.Printf("[%s] %s", data.Label, line)
+			slog.Warn("commands failed", "switch", data.Label, "detail", line)
 		}
 	} else if line := data.tracker.recovered(time.Now()); line != "" {
-		log.Printf("[%s] %s", data.Label, line)
+		slog.Info("switch recovered", "switch", data.Label, "detail", line)
 	}
 	now := time.Now()
 	if data.CommandLastSuccess == nil {
@@ -481,8 +489,8 @@ func PollOffset(i, n int, interval time.Duration) time.Duration {
 // finish or time out.
 func PollLoop(ctx context.Context, client Runner, data *SwitchData, interval, offset time.Duration) {
 	if offset > 0 {
-		log.Printf("[%s] starting poller (interval: %s, first poll in %s)",
-			data.Label, interval, offset.Round(time.Millisecond))
+		slog.Info("starting poller", "switch", data.Label,
+			"interval", interval.String(), "first_poll_in", offset.Round(time.Millisecond).String())
 		timer := time.NewTimer(offset)
 		defer timer.Stop()
 		select {
@@ -491,7 +499,7 @@ func PollLoop(ctx context.Context, client Runner, data *SwitchData, interval, of
 			return
 		}
 	} else {
-		log.Printf("[%s] starting poller (interval: %s)", data.Label, interval)
+		slog.Info("starting poller", "switch", data.Label, "interval", interval.String())
 	}
 
 	Collect(client, data)
@@ -503,10 +511,17 @@ func PollLoop(ctx context.Context, client Runner, data *SwitchData, interval, of
 		case <-ticker.C:
 			Collect(client, data)
 		case <-ctx.Done():
-			log.Printf("[%s] poller stopped", data.Label)
+			slog.Info("poller stopped", "switch", data.Label)
 			return
 		}
 	}
+}
+
+// markAttempt records that a poll finished, whatever the outcome.
+func (d *SwitchData) markAttempt() {
+	d.mu.Lock()
+	d.LastAttempt = time.Now()
+	d.mu.Unlock()
 }
 
 // describeCmdErrors renders per-command failures in a stable order, so an
@@ -538,6 +553,6 @@ func setError(data *SwitchData, specs []cmdSpec, err error) {
 	}
 
 	if line := data.tracker.observe(err.Error(), time.Now()); line != "" {
-		log.Printf("[%s] %s", data.Label, line)
+		slog.Error("collection failed", "switch", data.Label, "detail", line)
 	}
 }
