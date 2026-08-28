@@ -10,10 +10,10 @@ is a fix.
 Please do not open a public issue, a pull request, or a discussion for anything
 you believe is a security problem.
 
-Include enough to reproduce it: the arex version (`arex -licenses` prints the
-build, and `arex_build_info` carries it), the relevant configuration with
-secrets removed, and what an attacker would gain. A concrete sequence beats a
-scanner finding.
+Include enough to reproduce it: the output of `arex -version`, which names the
+version, the commit and the build time, the relevant configuration with secrets
+removed, and what an attacker would gain. A concrete sequence beats a scanner
+finding.
 
 **Response is best effort.** arex is maintained by one person alongside other
 work. Reports are read and taken seriously, but no response time is promised —
