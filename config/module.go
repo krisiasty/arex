@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -39,6 +41,42 @@ var defaultModuleInterval = map[string]time.Duration{
 	"phy":         15 * time.Minute,
 }
 
+// CollectSet is a collect block: command group name to its settings.
+type CollectSet map[string]ModuleConfig
+
+// UnmarshalJSON decodes the entries itself so an error can name the key that
+// caused it. encoding/json does not add field context to errors returned by a
+// value's own UnmarshalJSON, and "collect entry true is wrong" is no help in a
+// block listing eight groups.
+func (c *CollectSet) UnmarshalJSON(b []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return fmt.Errorf("collect must be an object of command groups: %w", err)
+	}
+
+	out := make(CollectSet, len(raw))
+	for _, key := range sortedKeys(raw) {
+		var m ModuleConfig
+		if err := m.UnmarshalJSON(raw[key]); err != nil {
+			return fmt.Errorf("collect %q: %w", key, err)
+		}
+		out[key] = m
+	}
+	*c = out
+	return nil
+}
+
+// sortedKeys gives map iteration a fixed order, so a block with two mistakes
+// in it always reports the same one first.
+func sortedKeys(m map[string]json.RawMessage) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 // UnmarshalJSON decodes one collect entry. A group is always an object:
 //
 //	"interfaces":  {"enabled": true}
@@ -49,9 +87,6 @@ var defaultModuleInterval = map[string]time.Duration{
 // absent value would have to mean something, and either meaning is a guess
 // about intent.
 func (m *ModuleConfig) UnmarshalJSON(b []byte) error {
-	// The key is not available here -- encoding/json does not add field
-	// context to errors returned by UnmarshalJSON -- so the value is quoted
-	// back instead, which identifies the entry in a config this small.
 	var obj struct {
 		Enabled  *bool  `json:"enabled"`
 		Interval string `json:"interval"`
@@ -59,17 +94,19 @@ func (m *ModuleConfig) UnmarshalJSON(b []byte) error {
 	// Checked before decoding, so a non-object is told the expected shape
 	// rather than handed a dump of the decoder's struct type.
 	if len(bytes.TrimSpace(b)) == 0 || bytes.TrimSpace(b)[0] != '{' {
-		return fmt.Errorf("collect entry %s must be an object like "+
-			"{\"enabled\": true, \"interval\": \"5m\"}", b)
+		return fmt.Errorf("must be an object like "+
+			"{\"enabled\": true, \"interval\": \"5m\"}, not %s", b)
 	}
 	dec := json.NewDecoder(bytes.NewReader(b))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&obj); err != nil {
-		return fmt.Errorf("collect entry %s: %w", b, err)
+		// The decoder prefixes its messages with "json: ", which says nothing
+		// to someone reading their own config file back.
+		return fmt.Errorf("%s; a group takes \"enabled\" and \"interval\"",
+			strings.TrimPrefix(err.Error(), "json: "))
 	}
 	if obj.Enabled == nil {
-		return fmt.Errorf("collect entry %s is missing \"enabled\"; "+
-			"every group must state it explicitly", b)
+		return fmt.Errorf("missing \"enabled\"; every group must state it explicitly")
 	}
 	m.Enabled = *obj.Enabled
 

@@ -141,3 +141,16 @@ func TestPerSwitchOverrideCarriesIntervals(t *testing.T) {
 		t.Error("a per-switch block replaces the default wholesale")
 	}
 }
+
+// The error names the offending key. A config listing eight groups is not
+// helped by being told that "true" is wrong somewhere in it.
+func TestErrorNamesTheOffendingKey(t *testing.T) {
+	for _, entry := range []string{
+		`{"interfaces":{"enabled":true},"phy":true}`,
+		`{"interfaces":{"enabled":true},"phy":{"interval":"5m"}}`,
+		`{"interfaces":{"enabled":true},"phy":{"enabled":true,"intervall":"5m"}}`,
+		`{"interfaces":{"enabled":true},"phy":{"enabled":true,"interval":"soon"}}`,
+	} {
+		loadCollectErr(t, entry, "phy")
+	}
+}
