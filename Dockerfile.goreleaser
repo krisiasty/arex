@@ -1,0 +1,13 @@
+# Used by GoReleaser only. It builds the binary for each target architecture and
+# places it in the Docker build context before calling docker buildx build. For
+# local builds use the main Dockerfile instead.
+#
+# Pinned by digest, and deliberately the same digest as the runtime stage of the
+# main Dockerfile: a local build and a released image should not differ in what
+# they are built on.
+FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
+
+COPY arex /usr/local/bin/arex
+EXPOSE 9100
+ENTRYPOINT ["/usr/local/bin/arex"]
+CMD ["-config", "/etc/arex/config.json"]

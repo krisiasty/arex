@@ -16,6 +16,10 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+# A bad config edit stops the restart here rather than taking the exporter down:
+# -check validates the file and every switch's TLS material and credential
+# without connecting to anything.
+ExecStartPre=/usr/local/bin/arex -check -config /etc/arex/config.json
 ExecStart=/usr/local/bin/arex -config /etc/arex/config.json
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure

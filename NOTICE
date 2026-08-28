@@ -1,0 +1,12 @@
+arex - a Prometheus exporter for Arista EOS switches. It polls "show" commands
+over eAPI from off the switch, so a management interface in a non-default VRF
+does not have to host anything.
+
+Copyright 2026 Krzysztof Ciepłucha
+
+This product includes software developed by Krzysztof Ciepłucha.
+https://github.com/krisiasty/arex
+
+arex links third-party open-source modules. Their copyright notices, license
+texts, and upstream NOTICE contents are reproduced in THIRD_PARTY_NOTICES,
+which is embedded in every binary and printed by "arex -licenses".

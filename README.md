@@ -494,12 +494,23 @@ All nine at 1. Any at 0 and `-debug` reports the refusal verbatim in its `cause=
 # Build
 go build -o arex .
 
+# Validate a config without starting: exits non-zero and says what is wrong
+./arex -check -config config.json
+
 # Run
 ./arex -config config.json
 
 # Run with per-request eAPI logging
 ./arex -config config.json -debug
+
+# Print the licences of everything linked into this binary
+./arex -licenses
 ```
+
+`-check` loads the config and builds each switch's client without connecting, so it catches an unreadable CA bundle,
+a malformed certificate pin and a credential file that has stopped being readable — the failures that otherwise
+surface as a service that starts and immediately exits. [deploy/arex.service](deploy/arex.service) runs it as
+`ExecStartPre`, so a bad edit stops the restart instead of taking the exporter down.
 
 ### Endpoints
 
@@ -734,8 +745,13 @@ docker run -d \
   arex
 ```
 
-The image runs as UID 65532 and writes nothing, so it works under
-`readOnlyRootFilesystem` and `runAsNonRoot`. Mounted files must be readable by that UID.
+The image is `distroless/static`, pinned by digest: no shell, no package manager, nothing writable, and it runs
+as UID 65532. That satisfies `readOnlyRootFilesystem` and `runAsNonRoot`, and means mounted files must be readable
+by that UID. It also means `docker exec` gets you nothing — use `-debug`, `/status` and the metrics instead.
+
+`Dockerfile` builds from source for local use. Releases are built from `Dockerfile.goreleaser`, which copies an
+already-built binary; both pin the same base digest, so a local image and a released one are built on the same
+thing.
 
 ## Deployment
 
@@ -745,6 +761,48 @@ capabilities, and the password delivered through `LoadCredential=`.
 probes wired to `/livez` and `/readyz`, and a ServiceMonitor.
 
 Both are commented with the reasoning; see [Credentials](#credentials) for why one replica and why no `subPath`.
+
+## Install
+
+Released binaries and container images are published for `linux/amd64` and `linux/arm64` on every `v*` tag.
+
+```bash
+# Container
+docker pull ghcr.io/krisiasty/arex:latest
+
+# Binary
+curl -fsSL https://github.com/krisiasty/arex/releases/latest/download/arex_linux_amd64.tar.gz | tar xz
+```
+
+The tarball carries the binary, `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES`, the README, and the `deploy/`
+examples. Darwin builds exist too, for running it against a lab switch by hand.
+
+`arex_build_info` reports the released version, because the release sets it at link time; a plain `go build`
+reports `(devel)` and the VCS revision the toolchain embeds.
+
+## Licensing
+
+arex is Apache-2.0. `LICENSE` and `NOTICE` apply to arex itself.
+
+`internal/legal/THIRD_PARTY_NOTICES` reproduces the licence texts, copyright notices and upstream `NOTICE`
+contents of everything linked into the binary. It is embedded, so a container with no shell can still answer for
+itself:
+
+```bash
+arex -licenses
+```
+
+It is generated, not maintained by hand:
+
+```bash
+./hack/gen-notices.sh
+```
+
+The script checks and collects licences for each released target separately — build constraints mean a dependency
+can enter the graph on one platform and not another, so a single `GOOS` would under-report. It fails closed if a
+dependency's licence is forbidden, restricted or unknown, and also if one carries source-redistribution
+obligations, which a text notice cannot satisfy. CI regenerates and diffs the file, so a dependency added without
+regenerating fails the build rather than shipping an image whose notices are incomplete.
 
 ## Configuration
 
@@ -869,7 +927,8 @@ actually polls:
 
 ```json
 {"level":"INFO","msg":"switch schedule","switch":"leaf1",
- "modules":"show version=30s show interfaces=30s show ip bgp summary vrf all=30s show interfaces transceiver detail=5m0s show interfaces phy detail=15m0s"}
+ "modules":"show version=30s show interfaces=30s show ip bgp summary vrf all=30s
+             show interfaces transceiver detail=5m0s show interfaces phy detail=15m0s"}
 ```
 
 #### What actually detects a degrading link
