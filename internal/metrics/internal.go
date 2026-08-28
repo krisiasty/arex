@@ -1,6 +1,10 @@
 package metrics
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/krisiasty/arex/internal/buildinfo"
+)
 
 // buildCollector exposes arex's own identity.
 //
@@ -17,6 +21,6 @@ func (buildCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (buildCollector) Collect(ch chan<- prometheus.Metric) {
-	b := buildInfo()
-	set(ch, "arex_build_info", 1, b.version, b.revision, b.goVersion, b.modified)
+	b := buildinfo.Get()
+	set(ch, "arex_build_info", 1, b.Version, b.Revision, b.GoVersion, b.Modified)
 }

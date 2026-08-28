@@ -39,7 +39,8 @@ here: they are read at scrape time and are more accurate than anything this expo
 `arex_build_info` is the only arex metric with no `switch` label, and that is why it has its own prefix — it describes
 the process, not a device. The revision comes from the VCS information the Go toolchain embeds automatically, so a
 plain `go build` produces a usable answer; a release can override the version with
-`-ldflags "-X github.com/krisiasty/arex/internal/metrics.Version=v1.2.3"`.
+`-ldflags "-X github.com/krisiasty/arex/internal/buildinfo.Version=v1.2.3"`, which is what the release does.
+The same value answers `arex -version`, so the metric and the binary cannot disagree about what is deployed.
 
 `outcome` is `success`, `eapi_error` (the switch answered and rejected a command), `http_error` (a status such as
 401, which applies to every command) or `transport_error`. `attempt` is `batch` for the normal single request

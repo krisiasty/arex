@@ -25,7 +25,7 @@ builds:
       # Without this the released binary reports "(devel)" from the embedded VCS
       # data, so arex_build_info would not name the version anyone deployed.
       - -s -w
-      - -X github.com/krisiasty/arex/internal/metrics.Version={{ .Version }}
+      - -X github.com/krisiasty/arex/internal/buildinfo.Version=v{{ .Version }}
 
 archives:
   - id: arex
