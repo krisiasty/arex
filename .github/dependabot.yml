@@ -1,0 +1,63 @@
+version: 2
+
+# What this does not cover, so nobody assumes it does.
+#
+# Dependabot rewrites the SHA pins on actions, the requirements in go.mod, and
+# the digests in both Dockerfiles. It does not touch the tool versions those
+# workflows pass as inputs or run directly, which are pinned deliberately so a
+# CI run is the same tomorrow as it was today:
+#
+#   golangci-lint  v2.13.2   check.yaml
+#   goreleaser     v2.18.0   release.yaml
+#   helm           v4.2.4    check.yaml, release.yaml
+#   actionlint     1.7.12    check.yaml
+#   govulncheck    v1.7.0    check.yaml, run via go run
+#   go-licenses    v2.0.1    hack/gen-notices.sh
+#
+# Those are bumped by hand. That is the trade for a pinned toolchain: the
+# pinning has to be maintained, or it becomes staleness with extra steps.
+
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "go"
+    # Matching this repository's commit convention, so a bump reads like every
+    # other commit rather than starting with "Bump".
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  # Rewrites the SHA pins in .github/workflows, and the version comment beside
+  # each one. Without it, pinning to a commit would mean the pins quietly aged
+  # instead of the tags quietly moving.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  # Both Dockerfiles are pinned by digest, so nothing else would ever pick up a
+  # rebuilt base image -- including one rebuilt to carry a security fix. This is
+  # what turns the pin from a way of freezing into a way of reviewing.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
