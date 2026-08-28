@@ -28,6 +28,32 @@ credentials:
   # <mountPath>/<key> automatically, so it cannot be set inconsistently.
   mountPath: /etc/arex/secret
 
+# Serving /metrics over TLS, and requiring callers to authenticate.
+#
+# Both are off by default: arex then serves plain HTTP, which is what an
+# exporter on a trusted network usually does. Its metrics do carry your switch
+# inventory -- names, serials, BGP peers -- so on a shared cluster they are
+# worth turning on.
+listen:
+  tls:
+    # Name a Secret holding tls.crt and tls.key, as cert-manager produces.
+    # The chart mounts it and points listenTLS at the mounted paths.
+    existingSecret: ""
+    certKey: tls.crt
+    keyKey: tls.key
+    # Optional: a key in the same Secret holding a CA bundle. With it, clients
+    # must present a certificate signed by that CA -- Prometheus authenticates
+    # with a certificate and no shared secret is involved.
+    clientCAKey: ""
+    mountPath: /etc/arex/tls
+
+  basicAuth:
+    # Name a Secret holding the scrape password.
+    existingSecret: ""
+    key: password
+    username: prometheus
+    mountPath: /etc/arex/web
+
 # arex's own configuration, rendered into a ConfigMap verbatim. Everything the
 # config file accepts goes here; see docs/configuration.md.
 #
@@ -100,6 +126,19 @@ serviceMonitor:
   scrapeTimeout: 10s
   # Extra labels, for a Prometheus whose serviceMonitorSelector needs them.
   labels: {}
+  # scheme follows listen.tls on its own. These two say how Prometheus should
+  # trust arex's certificate and authenticate to it -- secret references the
+  # chart cannot infer. Passed through verbatim.
+  #
+  # tlsConfig:
+  #   ca:
+  #     secret: {name: arex-tls, key: ca.crt}
+  #   serverName: arex.monitoring.svc
+  # basicAuth:
+  #   username: {name: arex-web-password, key: username}
+  #   password: {name: arex-web-password, key: password}
+  tlsConfig: {}
+  basicAuth: {}
   relabelings: []
   metricRelabelings: []
 

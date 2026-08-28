@@ -9,7 +9,7 @@ type: application
 # Bumping appVersion is therefore a deliberate act: it moves the image every
 # install without image.tag gets. The release workflow warns when a tag is
 # published while this still names an older one.
-version: 0.2.0
+version: 0.3.0
 appVersion: "v0.3.0"
 home: https://github.com/krisiasty/arex
 sources:

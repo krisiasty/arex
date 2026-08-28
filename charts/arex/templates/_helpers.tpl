@@ -54,5 +54,27 @@ separately in values would only create a way for the two to disagree.
 {{- $path := printf "%s/%s" (trimSuffix "/" .Values.credentials.mountPath) .Values.credentials.key -}}
 {{- $_ := set $config "passwordFile" $path -}}
 {{- end -}}
+{{- with .Values.listen.tls -}}
+{{- if .existingSecret -}}
+{{- $dir := trimSuffix "/" .mountPath -}}
+{{- $tls := dict "certFile" (printf "%s/%s" $dir .certKey) "keyFile" (printf "%s/%s" $dir .keyKey) -}}
+{{- if .clientCAKey -}}
+{{- $_ := set $tls "clientCAFile" (printf "%s/%s" $dir .clientCAKey) -}}
+{{- end -}}
+{{- $_ := set $config "listenTLS" $tls -}}
+{{- end -}}
+{{- end -}}
+{{- with .Values.listen.basicAuth -}}
+{{- if .existingSecret -}}
+{{- $basic := dict "username" .username "passwordFile" (printf "%s/%s" (trimSuffix "/" .mountPath) .key) -}}
+{{- $_ := set $config "listenAuth" (dict "basic" $basic) -}}
+{{- end -}}
+{{- end -}}
 {{- toYaml $config -}}
+{{- end -}}
+
+{{/* Whether the endpoint is served over TLS, which probes and the
+ServiceMonitor both need to know. */}}
+{{- define "arex.scheme" -}}
+{{- if .Values.listen.tls.existingSecret -}}HTTPS{{- else -}}HTTP{{- end -}}
 {{- end -}}

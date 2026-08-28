@@ -246,6 +246,44 @@ jobs:
             exit 1
           fi
 
+      # A TLS listener whose probes still say HTTP fails every health check,
+      # and a ServiceMonitor still scraping http gets nothing. Both follow
+      # listen.tls, so both are asserted.
+      - name: TLS turns the whole endpoint over
+        run: |
+          set -euo pipefail
+          cat > "${RUNNER_TEMP}/tls-values.yaml" <<'YAML'
+          credentials:
+            existingSecret: arex-switch-password
+          listen:
+            tls:
+              existingSecret: arex-tls
+              clientCAKey: ca.crt
+            basicAuth:
+              existingSecret: arex-web-password
+          serviceMonitor:
+            enabled: true
+          config:
+            switches:
+              - host: https://10.10.0.11
+                username: prometheus
+                name: leaf1
+                pinnedCertSha256: "REPLACE"
+          YAML
+          rendered=$(helm template arex charts/arex -n monitoring -f "${RUNNER_TEMP}/tls-values.yaml")
+          for want in "scheme: HTTPS" "scheme: https" "listenTLS:" "listenAuth:" "clientCAFile:"; do
+            if ! grep -qF "${want}" <<<"${rendered}"; then
+              echo "::error::TLS values did not produce ${want}"
+              exit 1
+            fi
+          done
+          # And with TLS off, nothing of the sort appears.
+          plain=$(helm template arex charts/arex -n monitoring -f "${RUNNER_TEMP}/values.yaml")
+          if grep -qF "scheme: HTTPS" <<<"${plain}"; then
+            echo "::error::probes say HTTPS without listen.tls"
+            exit 1
+          fi
+
       # The rendered config is what arex actually has to load, so load it.
       - name: the rendered config is valid
         run: |

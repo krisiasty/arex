@@ -19,7 +19,9 @@ import (
 	"github.com/krisiasty/arex/internal/collector"
 	"github.com/krisiasty/arex/internal/health"
 	"github.com/krisiasty/arex/internal/legal"
+	"github.com/krisiasty/arex/internal/listen"
 	"github.com/krisiasty/arex/internal/metrics"
+	"github.com/krisiasty/arex/internal/secret"
 )
 
 // shutdownGrace bounds how long a scrape in progress may take to finish. It is
@@ -96,6 +98,26 @@ func checkConfig(path string) error {
 	fmt.Printf("%s: %d switch(es), poll interval %s\n",
 		path, len(cfg.Switches), cfg.PollInterval)
 	return nil
+}
+
+// protect wraps the mux with whatever authentication is configured.
+//
+// The probes are exempt: a Kubernetes liveness probe sends no credentials, so
+// requiring them on /livez would turn a health check into a restart loop, and
+// those endpoints report only whether arex is up. /status is not exempt --
+// it names the switches.
+func protect(mux http.Handler, cfg *config.Config, logger *slog.Logger) (http.Handler, error) {
+	b := cfg.ListenAuth.Basic
+	if b == nil {
+		return mux, nil
+	}
+	cred, err := secret.NewFileCredential(b.PasswordFile)
+	if err != nil {
+		return nil, fmt.Errorf("listenAuth.basic: %w", err)
+	}
+	logger.Info("requiring basic authentication",
+		"user", b.Username, "exempt", []string{"/livez", "/readyz"})
+	return listen.BasicAuth(mux, b.Username, cred, "/livez", "/readyz"), nil
 }
 
 // resolveDebug picks between the config's setting and the flag. The flag wins
@@ -222,20 +244,44 @@ func run(cfgPath string, debugFlag, debugSet bool) error {
 		metrics.TargetIndex(cfg.Switches)))
 	checker.Register(mux, logger, cfg.StalenessLimit.Duration)
 
+	handler, err := protect(mux, cfg, logger)
+	if err != nil {
+		return err
+	}
+
+	tlsCfg, err := listen.TLSConfig(listen.Options{
+		CertFile:     cfg.ListenTLS.CertFile,
+		KeyFile:      cfg.ListenTLS.KeyFile,
+		ClientCAFile: cfg.ListenTLS.ClientCAFile,
+	})
+	if err != nil {
+		return err
+	}
+
 	srv := &http.Server{
 		Addr:              cfg.ListenAddress,
-		Handler:           mux,
+		Handler:           handler,
+		TLSConfig:         tlsCfg,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,
 	}
 
 	logger.Info("listening", "address", cfg.ListenAddress,
-		"endpoints", []string{"/metrics", "/livez", "/readyz", "/status"})
+		"endpoints", []string{"/metrics", "/livez", "/readyz", "/status"},
+		"tls", cfg.ListenTLS.Enabled(),
+		"client_certificate", cfg.ListenTLS.RequiresClientCert(),
+		"auth", cfg.ListenAuth.Enabled())
 
 	serveErr := make(chan error, 1)
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		// Empty strings: the certificate comes from TLSConfig, which reloads
+		// it when it changes on disk.
+		serve := srv.ListenAndServe
+		if tlsCfg != nil {
+			serve = func() error { return srv.ListenAndServeTLS("", "") }
+		}
+		if err := serve(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serveErr <- err
 		}
 	}()

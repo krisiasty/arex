@@ -30,6 +30,14 @@ type Config struct {
 	Debug    bool           `json:"debug"` // default false
 	Switches []SwitchConfig `json:"switches"`
 
+	// ListenTLS serves /metrics over HTTPS, and optionally requires a client
+	// certificate. Absent means plain HTTP.
+	ListenTLS ListenTLS `json:"listenTLS"`
+
+	// ListenAuth requires callers to authenticate. Absent means no
+	// authentication; /livez and /readyz are never covered.
+	ListenAuth ListenAuth `json:"listenAuth"`
+
 	// PasswordFile is the credential file for every switch that does not name
 	// its own. A fleet normally shares one monitoring account, and repeating
 	// the path per switch is how configs drift.
@@ -233,6 +241,11 @@ func (c *Config) validate() error {
 	if err := validateCollect(c.Collect, "collect", c.PollInterval.Duration); err != nil {
 		return err
 	}
+	listenWarnings, err := c.validateListen()
+	if err != nil {
+		return err
+	}
+	c.Warnings = append(c.Warnings, listenWarnings...)
 	for i, sw := range c.Switches {
 		if sw.Host == "" {
 			return fmt.Errorf("config: switch[%d] missing host", i)

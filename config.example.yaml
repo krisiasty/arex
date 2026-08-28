@@ -3,6 +3,27 @@
 # Durations are Go duration strings: 30s, 5m, 1h.
 
 listenAddress: ":9100"
+
+# Serving /metrics over TLS, and requiring callers to authenticate. Both are
+# optional; without them arex serves plain HTTP, which is the default.
+#
+# Its metrics carry the switch inventory -- names, serials, BGP peers, optic
+# serials -- so on a shared network they are worth turning on.
+#
+# listenTLS:
+#   certFile: /etc/arex/tls/tls.crt
+#   keyFile: /etc/arex/tls/tls.key
+#   # With a client CA, callers must present a certificate signed by it and no
+#   # shared secret is involved at all.
+#   clientCAFile: /etc/arex/tls/ca.crt
+#
+# listenAuth:
+#   basic:
+#     username: prometheus
+#     # A file, like the switch credentials: deliverable by systemd or a
+#     # Kubernetes secret, and re-read after a rejection so a rotation needs
+#     # no restart. /livez and /readyz are never covered.
+#     passwordFile: /run/credentials/arex.service/web-password
 pollInterval: 30s
 scrapeTimeout: 10s
 stalenessLimit: 90s

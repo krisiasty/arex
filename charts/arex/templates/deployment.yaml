@@ -57,13 +57,20 @@ spec:
               protocol: TCP
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
+          {{- /* The scheme has to follow listen.tls, or every probe fails
+                 against a TLS listener. The kubelet does not verify the
+                 certificate, so a private CA is fine. */}}
           {{- with .Values.livenessProbe }}
           livenessProbe:
-            {{- toYaml . | nindent 12 }}
+            {{- $p := deepCopy . }}
+            {{- $_ := set $p.httpGet "scheme" (include "arex.scheme" $) }}
+            {{- toYaml $p | nindent 12 }}
           {{- end }}
           {{- with .Values.readinessProbe }}
           readinessProbe:
-            {{- toYaml . | nindent 12 }}
+            {{- $p := deepCopy . }}
+            {{- $_ := set $p.httpGet "scheme" (include "arex.scheme" $) }}
+            {{- toYaml $p | nindent 12 }}
           {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
@@ -78,6 +85,16 @@ spec:
               mountPath: {{ .Values.credentials.mountPath }}
               readOnly: true
             {{- end }}
+            {{- if .Values.listen.tls.existingSecret }}
+            - name: listen-tls
+              mountPath: {{ .Values.listen.tls.mountPath }}
+              readOnly: true
+            {{- end }}
+            {{- if .Values.listen.basicAuth.existingSecret }}
+            - name: listen-auth
+              mountPath: {{ .Values.listen.basicAuth.mountPath }}
+              readOnly: true
+            {{- end }}
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -89,6 +106,18 @@ spec:
         - name: credentials
           secret:
             secretName: {{ .Values.credentials.existingSecret }}
+            defaultMode: 0400
+        {{- end }}
+        {{- if .Values.listen.tls.existingSecret }}
+        - name: listen-tls
+          secret:
+            secretName: {{ .Values.listen.tls.existingSecret }}
+            defaultMode: 0400
+        {{- end }}
+        {{- if .Values.listen.basicAuth.existingSecret }}
+        - name: listen-auth
+          secret:
+            secretName: {{ .Values.listen.basicAuth.existingSecret }}
             defaultMode: 0400
         {{- end }}
         {{- with .Values.extraVolumes }}
