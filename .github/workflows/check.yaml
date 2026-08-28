@@ -246,6 +246,118 @@ jobs:
             exit 1
           fi
 
+      # A TLS listener whose probes still say HTTP fails every health check, and
+      # a ServiceMonitor still scraping http gets nothing. Both follow
+      # listen.tls, so both are asserted -- here without mutual TLS, where the
+      # probes share the metrics listener and must therefore use HTTPS too.
+      - name: TLS turns the whole endpoint over
+        run: |
+          set -euo pipefail
+          cat > "${RUNNER_TEMP}/tls-values.yaml" <<'YAML'
+          credentials:
+            existingSecret: arex-switch-password
+          listen:
+            tls:
+              existingSecret: arex-tls
+            basicAuth:
+              existingSecret: arex-web-password
+          serviceMonitor:
+            enabled: true
+          config:
+            switches:
+              - host: https://10.10.0.11
+                username: prometheus
+                name: leaf1
+                pinnedCertSha256: "REPLACE"
+          YAML
+          rendered=$(helm template arex charts/arex -n monitoring -f "${RUNNER_TEMP}/tls-values.yaml")
+          for want in "scheme: HTTPS" "scheme: https" "listenTLS:" "listenAuth:"; do
+            if ! grep -qF "${want}" <<<"${rendered}"; then
+              echo "::error::TLS values did not produce ${want}"
+              exit 1
+            fi
+          done
+          # And with TLS off, nothing of the sort appears.
+          plain=$(helm template arex charts/arex -n monitoring -f "${RUNNER_TEMP}/values.yaml")
+          if grep -qF "scheme: HTTPS" <<<"${plain}"; then
+            echo "::error::probes say HTTPS without listen.tls"
+            exit 1
+          fi
+
+      # Mutual TLS refuses the kubelet at the handshake. The chart must refuse
+      # that combination rather than render a pod that restart-loops, and must
+      # wire the probes to the plain probe port when one is given.
+      - name: mutual TLS requires a probe port
+        run: |
+          set -euo pipefail
+          cat > "${RUNNER_TEMP}/mtls-values.yaml" <<'YAML'
+          credentials:
+            existingSecret: arex-switch-password
+          listen:
+            tls:
+              existingSecret: arex-tls
+              clientCAKey: ca.crt
+          config:
+            switches:
+              - host: https://10.10.0.11
+                username: prometheus
+                name: leaf1
+                pinnedCertSha256: "REPLACE"
+          YAML
+          if helm template arex charts/arex -n monitoring -f "${RUNNER_TEMP}/mtls-values.yaml" >/dev/null 2>&1; then
+            echo "::error::mutual TLS rendered with httpGet probes and no probe port"
+            exit 1
+          fi
+
+          rendered=$(helm template arex charts/arex -n monitoring \
+            -f "${RUNNER_TEMP}/mtls-values.yaml" --set listen.probePort=9101)
+          for want in "probeAddress: :9101" "containerPort: 9101" "port: probes" "clientCAFile:"; do
+            if ! grep -qF "${want}" <<<"${rendered}"; then
+              echo "::error::a probe port did not produce ${want}"
+              exit 1
+            fi
+          done
+          # The probes must be plain HTTP even though the metrics endpoint is not.
+          if grep -A4 "Probe:" <<<"${rendered}" | grep -q "scheme: HTTPS"; then
+            echo "::error::probes point at HTTPS despite a plain probe listener"
+            exit 1
+          fi
+
+      # Mutual TLS refuses the kubelet at the handshake, so the probes have to
+      # become tcpSocket -- and Helm merges maps, so a probe can end up with
+      # two handlers, which Kubernetes rejects outright.
+      - name: a probe never carries two handlers
+        run: |
+          set -euo pipefail
+          cat > "${RUNNER_TEMP}/tcp-values.yaml" <<'YAML'
+          credentials:
+            existingSecret: arex-switch-password
+          livenessProbe:
+            httpGet: null
+            tcpSocket:
+              port: metrics
+          readinessProbe:
+            httpGet: null
+            tcpSocket:
+              port: metrics
+          config:
+            switches:
+              - host: https://10.10.0.11
+                username: prometheus
+                name: leaf1
+                pinnedCertSha256: "REPLACE"
+          YAML
+          rendered=$(helm template arex charts/arex -n monitoring -f "${RUNNER_TEMP}/tcp-values.yaml")
+          probes=$(sed -n '/Probe:/,/resources:/p' <<<"${rendered}")
+          if grep -q "httpGet:" <<<"${probes}"; then
+            echo "::error::httpGet survived being nulled out; the probe would carry two handlers"
+            exit 1
+          fi
+          if ! grep -q "tcpSocket:" <<<"${probes}"; then
+            echo "::error::the tcpSocket override did not render"
+            exit 1
+          fi
+
       # The rendered config is what arex actually has to load, so load it.
       - name: the rendered config is valid
         run: |

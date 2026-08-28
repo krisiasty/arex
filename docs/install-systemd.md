@@ -132,6 +132,180 @@ Two caveats. A host-key credential cannot be decrypted on a different machine, s
 re-encrypted — keep the source of truth elsewhere. And `systemd-creds encrypt --pretty` prints a ready-made
 `SetCredentialEncrypted=` line if you would rather embed the blob in the unit than keep a file.
 
+## 4b. Optional: serve over TLS, and require a password
+
+Skip this on a trusted management network. Worth doing where the scrape crosses
+a boundary you do not control — the metrics carry switch names, serials and BGP
+peers. See [securing the endpoint](operations.md#securing-the-endpoint) for what
+each half does.
+
+**The private key cannot simply be dropped in `/etc/arex`.** The unit runs with
+`DynamicUser=yes`, so arex has a transient UID that owns nothing: a key at
+`0400 root:root` is unreadable, and a key at `0444` is readable by every user on
+the box. Deliver it the same way as the switch password — through systemd's
+credential store, which places it on tmpfs owned by the service user:
+
+```ini
+LoadCredential=switch-password:/etc/arex/switch-password
+LoadCredential=tls-key:/etc/arex/tls/tls.key
+LoadCredential=web-password:/etc/arex/web-password
+```
+
+The certificate is public, so it can stay in `/etc/arex` as an ordinary
+world-readable file. Only the key and the scrape password need the credential
+store:
+
+```bash
+sudo install -d -o root -g root -m 0755 /etc/arex/tls
+sudo install -o root -g root -m 0444 tls.crt /etc/arex/tls/tls.crt
+sudo install -o root -g root -m 0400 tls.key /etc/arex/tls/tls.key
+printf '%s' 'a-long-random-string' | sudo tee /etc/arex/web-password >/dev/null
+sudo chmod 0400 /etc/arex/web-password
+```
+
+Then point the config at the certificate directly and at the credentials
+directory for the two secrets:
+
+```yaml
+listenTLS:
+  certFile: /etc/arex/tls/tls.crt
+  keyFile: /run/credentials/arex.service/tls-key
+  # Optional. With it, callers must present a certificate signed by this CA and
+  # no shared secret exists at all -- see below.
+  # clientCAFile: /etc/arex/tls/ca.crt
+
+listenAuth:
+  basic:
+    username: prometheus
+    passwordFile: /run/credentials/arex.service/web-password
+```
+
+Renewal is picked up without a restart: arex re-reads the pair when it changes
+on disk. That applies to the certificate under `/etc/arex`; a key delivered
+through `LoadCredential` is copied at start, so **rotating the key needs a
+restart** while rotating only the certificate does not. If your CA reissues both
+together, restart on renewal.
+
+Verify what arex ended up with:
+
+```bash
+journalctl -u arex -n 20 --output=cat | jq 'select(.msg=="listening")'
+```
+
+```json
+{"msg":"listening","address":":9100","tls":true,"client_certificate":false,"auth":true}
+```
+
+Then from outside:
+
+```bash
+curl -s --cacert /etc/arex/tls/ca.crt -u prometheus:... https://arex-host:9100/metrics | head -1
+curl -s -o /dev/null -w '%{http_code}\n' --cacert /etc/arex/tls/ca.crt https://arex-host:9100/livez
+```
+
+The second should be `200` without credentials: the probes are deliberately not
+authenticated.
+
+## 4c. Optional: Vault Agent, when secrets rotate on Vault's schedule
+
+`LoadCredential=` is a **copy made at start**. That is the right mechanism for a
+secret that changes when you change it, and the wrong one for a secret something
+else rotates: if Vault Agent rewrites the source file, the running service never
+sees it, and you are back to restarting to rotate.
+
+Vault Agent renders secrets into files itself, with no systemd credential
+involved:
+
+```hcl
+template {
+  contents    = "{{ with secret \"pki/issue/arex\" \"common_name=arex.example.net\" }}{{ .Data.private_key }}{{ end }}"
+  destination = "/run/arex/tls.key"
+  perms       = "0640"
+}
+```
+
+### Write to tmpfs, not to /etc
+
+This is the part that matters. The main protection `systemd-creds encrypt` gives
+is **at rest**: a stolen disk, a backup or a VM snapshot yields ciphertext that
+is useless without the host key, or without the TPM it was sealed to. A key
+Agent writes into `/etc/arex` has none of that.
+
+Writing it to tmpfs restores the property. With `RuntimeDirectory=arex` the unit
+gets `/run/arex`, cleaned up when the service stops, and the key exists only in
+memory — the same place `/run/credentials/arex.service` lives.
+
+| threat | `LoadCredentialEncrypted` | Agent writing to tmpfs |
+| --- | --- | --- |
+| stolen disk, snapshot, backup | protected, TPM-sealable | protected: nothing is at rest |
+| root on the live host | readable | readable |
+| another unprivileged service | protected: the credentials directory is per-unit and mount-namespaced | protected by mode and group |
+| a rotation reaching a running arex | **impossible** — it is a start-time copy | continuous |
+
+systemd keeps one real edge: its credentials directory is namespaced per unit,
+so even a process running as the same UID under a different unit cannot read it.
+Group permissions cannot match that.
+
+### Granting access without giving up DynamicUser
+
+`DynamicUser=yes` allocates a transient UID, so Agent cannot `chown` anything to
+arex — the UID does not exist until the service starts, and differs next time.
+Share a group instead:
+
+```ini
+[Service]
+SupplementaryGroups=arex-secrets
+RuntimeDirectory=arex
+```
+
+```bash
+sudo groupadd --system arex-secrets
+```
+
+Agent writes `0640 root:arex-secrets`, and arex reads it as a member of that
+group. `DynamicUser` keeps everything else it gives — no account in
+`/etc/passwd`, no home, no shell, a fresh UID each start — while the one file it
+needs becomes readable.
+
+Keep that group to arex alone. Its members are exactly who can read the key, and
+this is the property that the per-unit credentials directory would otherwise
+have given you.
+
+### Why this is not simply worse
+
+`systemd-creds` protects a **long-lived** secret at rest. Vault Agent avoids
+having a long-lived secret at all. A 24-hour certificate on tmpfs is a better
+position than a one-year key sealed to a TPM, because theft buys a day rather
+than a year — and the blast radius, rather than the storage encryption, is
+usually what decides how bad an incident is. Short TTLs are the benefit;
+automatic provisioning is what makes them practical.
+
+Nothing here applies to the certificate itself, which is public. Only the private
+key and the scrape password are worth the thought — and the scrape password is
+the weaker link either way, which is a good argument for
+[mutual TLS](operations.md#mutual-tls), where there is no shared secret to
+protect.
+
+### If you want both
+
+Encrypted at rest *and* rotated, at the cost of a restart per renewal:
+
+```hcl
+template {
+  destination = "/run/arex/tls.key"
+  command     = "systemd-creds encrypt --name=tls-key /run/arex/tls.key /etc/arex/tls.key.cred && systemctl restart arex"
+}
+```
+
+Defensible for a monthly renewal. Silly for a daily one, where the restart costs
+a gap in the series every day to protect a key that expires tomorrow anyway.
+
+### No reload hook is needed
+
+Agent's `command` does not have to restart anything for arex's sake. arex
+re-reads the certificate pair when it changes on disk, and re-reads the scrape
+password after a rejection, so a renewal reaches it on its own.
+
 ## 5. Install the unit
 
 [`deploy/arex.service`](../deploy/arex.service) is hardened: `DynamicUser`, `ProtectSystem=strict`, an empty

@@ -246,6 +246,124 @@ not to take effect, that attribute is the first thing to check.
 
 Credentials never appear at any verbosity: the Authorization header is not logged, and neither is the password.
 
+## Securing the endpoint
+
+arex serves plain HTTP by default, which is the usual arrangement for an exporter on a trusted network. Its
+metrics are not neutral, though: they carry switch names, serials, BGP peer addresses and optic serials. On a
+shared cluster, or anywhere the scrape crosses a boundary you do not control, both halves below are worth turning
+on.
+
+They are independent. TLS without authentication is a reasonable posture where the network already restricts who
+can connect; authentication without TLS sends the password in clear on every scrape, so arex warns about it at
+startup rather than refusing to start.
+
+### TLS
+
+```yaml
+listenTLS:
+  certFile: /etc/arex/tls/tls.crt
+  keyFile: /etc/arex/tls/tls.key
+```
+
+Both or neither — half a TLS configuration is rejected at load. The files are checked at startup, so a wrong path
+fails immediately instead of at the first scrape, and a private key readable beyond its owner produces a warning.
+
+**Certificates are re-read when they change on disk.** cert-manager renews well before expiry without restarting
+anything, and a certificate read only at startup would expire in memory while a valid one sat on disk. arex
+re-stats the pair at most every 30 seconds and reloads when it changes. A half-written pair during a renewal keeps
+the working certificate rather than taking the endpoint down.
+
+### Mutual TLS
+
+```yaml
+listenTLS:
+  certFile: /etc/arex/tls/tls.crt
+  keyFile: /etc/arex/tls/tls.key
+  clientCAFile: /etc/arex/tls/ca.crt
+```
+
+With `clientCAFile`, a caller must present a certificate signed by that bundle. This is the stronger control: no
+shared secret exists to leak, rotate or land in a values file, and a client without a certificate is refused
+during the handshake, before any request is served. Certificates are verified, not merely requested.
+
+### Basic authentication
+
+```yaml
+listenAuth:
+  basic:
+    username: prometheus
+    passwordFile: /run/credentials/arex.service/web-password
+```
+
+A file rather than an inline password, for the same reasons as the switch credentials: it can be delivered by
+systemd's credential store or a Kubernetes secret, given restrictive permissions, and **re-read after a rejection,
+so a rotated password needs no restart**. Credentials are compared in constant time, and both halves are compared
+even when the username is already wrong, so a response time cannot reveal that the username was right.
+
+**`/livez` and `/readyz` are never covered.** A Kubernetes liveness probe sends no credentials, so requiring them
+there would turn a health check into a restart loop. Those endpoints report only whether arex is up. `/status` is
+covered, because it names the switches.
+
+| endpoint | with `listenAuth` set |
+| --- | --- |
+| `/metrics` | requires credentials |
+| `/status` | requires credentials |
+| `/livez` | open |
+| `/readyz` | open |
+
+### A separate port for probes
+
+Exemption is enough for basic auth, but not for mutual TLS: `RequireAndVerifyClientCert` applies to the listener
+rather than to a path, so a caller with no client certificate — a kubelet, for instance — is refused during the
+handshake, before arex sees a path to exempt.
+
+`probeAddress` puts `/livez` and `/readyz` on a second listener with neither TLS nor authentication:
+
+```yaml
+listenAddress: ":9100"
+probeAddress: ":9101"
+```
+
+That listener serves **only** those two endpoints; `/metrics`, `/status` and `/health` return 404 there. Both
+answer `ok` or a fixed error string and carry no switch data, so an unauthenticated plain-HTTP port gives away
+only whether arex is up.
+
+Without it, mutual TLS forces probes down to checking that the port accepts a connection, which loses the readiness
+gate that waits for every switch to be polled once.
+
+### Telling Prometheus
+
+```yaml
+scrape_configs:
+  - job_name: arista
+    scheme: https
+    tls_config:
+      ca_file: /etc/prometheus/arex-ca.crt
+      # and, for mutual TLS:
+      cert_file: /etc/prometheus/prometheus.crt
+      key_file: /etc/prometheus/prometheus.key
+    basic_auth:
+      username: prometheus
+      password_file: /etc/prometheus/arex-password
+    static_configs:
+      - targets: ["arex-host:9100"]
+```
+
+Under the Helm chart, `listen.tls` and `listen.basicAuth` take existing Secret names and the ServiceMonitor's
+scheme follows automatically; what Prometheus needs in order to trust the certificate is set through
+`serviceMonitor.tlsConfig` and `serviceMonitor.basicAuth`. See
+[Install on Kubernetes with Helm](install-kubernetes.md).
+
+### What arex logs at startup
+
+```json
+{"level":"INFO","msg":"listening","address":":9100",
+ "endpoints":["/metrics","/livez","/readyz","/status"],
+ "tls":true,"client_certificate":true,"auth":true}
+```
+
+Three booleans, so the posture is visible without inferring it from the config.
+
 ---
 
 Back to the [README](../README.md). See also [metrics](metrics.md) and [configuration](configuration.md).

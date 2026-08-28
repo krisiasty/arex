@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,7 +20,9 @@ import (
 	"github.com/krisiasty/arex/internal/collector"
 	"github.com/krisiasty/arex/internal/health"
 	"github.com/krisiasty/arex/internal/legal"
+	"github.com/krisiasty/arex/internal/listen"
 	"github.com/krisiasty/arex/internal/metrics"
+	"github.com/krisiasty/arex/internal/secret"
 )
 
 // shutdownGrace bounds how long a scrape in progress may take to finish. It is
@@ -96,6 +99,67 @@ func checkConfig(path string) error {
 	fmt.Printf("%s: %d switch(es), poll interval %s\n",
 		path, len(cfg.Switches), cfg.PollInterval)
 	return nil
+}
+
+// startProbes serves /livez and /readyz on their own plain-HTTP listener.
+//
+// Returns nil when probeAddress is unset, which is the default: one listener
+// serves everything, and the probes are simply exempt from authentication.
+func startProbes(ctx context.Context, cfg *config.Config, checker *health.Checker,
+	logger *slog.Logger) (*http.Server, error) {
+	if cfg.ProbeAddress == "" {
+		return nil, nil //nolint:nilnil // no probe listener is a valid outcome
+	}
+
+	mux := http.NewServeMux()
+	// Only the two liveness endpoints. /status stays on the main listener: it
+	// names the switches, and this one has neither TLS nor authentication.
+	checker.RegisterProbes(mux)
+
+	srv := &http.Server{
+		Addr:              cfg.ProbeAddress,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+	}
+
+	// Bound here rather than inside the goroutine so an address already in use
+	// is an error from run, not a log line after arex claims to be serving.
+	var lc net.ListenConfig
+	ln, err := lc.Listen(ctx, "tcp", cfg.ProbeAddress)
+	if err != nil {
+		return nil, fmt.Errorf("probe listener: %w", err)
+	}
+
+	logger.Info("serving probes", "address", cfg.ProbeAddress,
+		"endpoints", []string{"/livez", "/readyz"}, "tls", false, "auth", false)
+	go func() {
+		if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error("probe listener stopped", "error", err)
+		}
+	}()
+	return srv, nil
+}
+
+// protect wraps the mux with whatever authentication is configured.
+//
+// The probes are exempt: a Kubernetes liveness probe sends no credentials, so
+// requiring them on /livez would turn a health check into a restart loop, and
+// those endpoints report only whether arex is up. /status is not exempt --
+// it names the switches.
+func protect(mux http.Handler, cfg *config.Config, logger *slog.Logger) (http.Handler, error) {
+	b := cfg.ListenAuth.Basic
+	if b == nil {
+		return mux, nil
+	}
+	cred, err := secret.NewFileCredential(b.PasswordFile)
+	if err != nil {
+		return nil, fmt.Errorf("listenAuth.basic: %w", err)
+	}
+	logger.Info("requiring basic authentication",
+		"user", b.Username, "exempt", []string{"/livez", "/readyz"})
+	return listen.BasicAuth(mux, b.Username, cred, "/livez", "/readyz"), nil
 }
 
 // resolveDebug picks between the config's setting and the flag. The flag wins
@@ -222,20 +286,59 @@ func run(cfgPath string, debugFlag, debugSet bool) error {
 		metrics.TargetIndex(cfg.Switches)))
 	checker.Register(mux, logger, cfg.StalenessLimit.Duration)
 
+	handler, err := protect(mux, cfg, logger)
+	if err != nil {
+		return err
+	}
+
+	tlsCfg, err := listen.TLSConfig(listen.Options{
+		CertFile:     cfg.ListenTLS.CertFile,
+		KeyFile:      cfg.ListenTLS.KeyFile,
+		ClientCAFile: cfg.ListenTLS.ClientCAFile,
+	})
+	if err != nil {
+		return err
+	}
+
 	srv := &http.Server{
 		Addr:              cfg.ListenAddress,
-		Handler:           mux,
+		Handler:           handler,
+		TLSConfig:         tlsCfg,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,
 	}
 
 	logger.Info("listening", "address", cfg.ListenAddress,
-		"endpoints", []string{"/metrics", "/livez", "/readyz", "/status"})
+		"endpoints", []string{"/metrics", "/livez", "/readyz", "/status"},
+		"tls", cfg.ListenTLS.Enabled(),
+		"client_certificate", cfg.ListenTLS.RequiresClientCert(),
+		"auth", cfg.ListenAuth.Enabled())
+
+	// The probe listener, when configured: plain HTTP, and only the two
+	// endpoints that report whether arex is up. Started before the main one so
+	// a failure to bind is reported before anything is serving.
+	probeSrv, err := startProbes(ctx, cfg, checker, logger)
+	if err != nil {
+		return err
+	}
+	if probeSrv != nil {
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownGrace)
+			defer cancel()
+			_ = probeSrv.Shutdown(shutdownCtx)
+		}()
+	}
 
 	serveErr := make(chan error, 1)
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		// Empty strings: the certificate comes from TLSConfig, which reloads
+		// it when it changes on disk.
+		serve := srv.ListenAndServe
+		if tlsCfg != nil {
+			serve = func() error { return srv.ListenAndServeTLS("", "") }
+		}
+		if err := serve(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serveErr <- err
 		}
 	}()

@@ -8,6 +8,11 @@
 {{- end }}
 {{- end }}
 {{- end }}
+{{- if and .Values.listen.tls.clientCAKey (not (gt (int .Values.listen.probePort) 0)) }}
+{{- if or (kindIs "map" (get .Values.livenessProbe "httpGet")) (kindIs "map" (get .Values.readinessProbe "httpGet")) }}
+{{- fail "listen.tls.clientCAKey requires listen.probePort: mutual TLS refuses the kubelet at the handshake, so an httpGet probe would fail and restart the pod. Set listen.probePort, or replace the probes with tcpSocket." }}
+{{- end }}
+{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

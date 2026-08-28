@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/krisiasty/arex/internal/secret"
 	"log/slog"
 
 	"github.com/krisiasty/arex/config"
@@ -38,12 +39,12 @@ func newClient(sw config.SwitchConfig, cfg *config.Config, opts ...eapiOption) (
 // A file is read here rather than at config load so the credential object that
 // can re-read it outlives startup; the config has already checked the path is
 // usable, and this names the switch if it stopped being usable since.
-func credentialFor(sw config.SwitchConfig, cfg *config.Config) (*eapi.Credential, error) {
+func credentialFor(sw config.SwitchConfig, cfg *config.Config) (*secret.Credential, error) {
 	file := sw.EffectivePasswordFile(cfg.PasswordFile)
 	if file == "" {
-		return eapi.NewStaticCredential(sw.Password), nil
+		return secret.NewStaticCredential(sw.Password), nil
 	}
-	cred, err := eapi.NewFileCredential(file)
+	cred, err := secret.NewFileCredential(file)
 	if err != nil {
 		return nil, fmt.Errorf("switch %s: %w", sw.Label(), err)
 	}

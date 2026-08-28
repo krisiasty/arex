@@ -13,6 +13,8 @@ import (
 	"net/http/httptrace"
 	"strings"
 	"time"
+
+	"github.com/krisiasty/arex/internal/secret"
 )
 
 // Client is an eAPI JSON-RPC client for a single switch.
@@ -21,7 +23,7 @@ type Client struct {
 	url        string
 	path       string
 	username   string
-	cred       *Credential
+	cred       *secret.Credential
 
 	// logger is nil unless WithDebug was given, which is what gates
 	// per-request logging.
@@ -44,7 +46,7 @@ func NewClient(host, username, password string, timeout time.Duration,
 		url:      host + commandAPIPath,
 		path:     commandAPIPath,
 		username: username,
-		cred:     NewStaticCredential(password),
+		cred:     secret.NewStaticCredential(password),
 		httpClient: &http.Client{
 			Timeout:   timeout,
 			Transport: &http.Transport{TLSClientConfig: tlsCfg},

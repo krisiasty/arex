@@ -14,6 +14,18 @@ spec:
       {{- include "arex.selectorLabels" . | nindent 6 }}
   endpoints:
     - port: metrics
+      # Follows listen.tls automatically. What Prometheus needs in order to
+      # trust that certificate, or to authenticate itself, cannot be guessed
+      # from here -- set serviceMonitor.tlsConfig and serviceMonitor.basicAuth.
+      scheme: {{ include "arex.scheme" . | lower }}
+      {{- with .Values.serviceMonitor.tlsConfig }}
+      tlsConfig:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.serviceMonitor.basicAuth }}
+      basicAuth:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       # arex serves cached data, so a scrape only reads memory. pollInterval,
       # not this, decides how often switches are contacted.
       interval: {{ .Values.serviceMonitor.interval }}
