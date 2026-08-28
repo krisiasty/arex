@@ -17,6 +17,7 @@ import (
 // Write renders metrics for every switch in the store.
 func Write(w io.Writer, store *collector.Store, stalenessLimit time.Duration) {
 	writeHelp(w)
+	writeBuildInfo(w)
 	now := time.Now()
 	for _, sw := range store.All() {
 		writeSwitch(w, sw, now, stalenessLimit)

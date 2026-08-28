@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -468,25 +469,43 @@ func PollOffset(i, n int, interval time.Duration) time.Duration {
 	return offset
 }
 
-// PollLoop runs Collect on every tick until the process exits.
+// PollLoop runs Collect on every tick until ctx is cancelled.
 //
 // The first poll is delayed by offset, which staggers pollers so a fleet is
-// not polled all at once. Use PollOffset to compute it.
-func PollLoop(client Runner, data *SwitchData, interval, offset time.Duration) {
+// not polled all at once. Use PollOffset to compute it. Cancellation is
+// honoured during that offset as well as between polls, so shutdown is not
+// delayed by a poller that has not started yet.
+//
+// A poll already in flight is not interrupted: the eAPI request has its own
+// timeout, and cancelling mid-request would gain nothing over letting it
+// finish or time out.
+func PollLoop(ctx context.Context, client Runner, data *SwitchData, interval, offset time.Duration) {
 	if offset > 0 {
 		log.Printf("[%s] starting poller (interval: %s, first poll in %s)",
 			data.Label, interval, offset.Round(time.Millisecond))
 		timer := time.NewTimer(offset)
-		<-timer.C
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			return
+		}
 	} else {
 		log.Printf("[%s] starting poller (interval: %s)", data.Label, interval)
 	}
+
 	Collect(client, data)
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
-	for range ticker.C {
-		Collect(client, data)
+	for {
+		select {
+		case <-ticker.C:
+			Collect(client, data)
+		case <-ctx.Done():
+			log.Printf("[%s] poller stopped", data.Label)
+			return
+		}
 	}
 }
 

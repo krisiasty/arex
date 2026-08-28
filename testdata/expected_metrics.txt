@@ -1,3 +1,5 @@
+# HELP arex_build_info Version, VCS revision and Go version of the running arex. Always 1
+# TYPE arex_build_info gauge
 # HELP arista_scrape_success 1 if the last poll of this switch succeeded
 # TYPE arista_scrape_success gauge
 # HELP arista_scrape_age_seconds Seconds since the last successful poll (-1 if never)
@@ -260,6 +262,7 @@
 # TYPE arista_phy_fec_corrected_symbols_changes_total counter
 # HELP arista_phy_fec_corrected_symbols_last_change_timestamp_seconds Unix timestamp arista_phy_fec_corrected_symbols last changed
 # TYPE arista_phy_fec_corrected_symbols_last_change_timestamp_seconds gauge
+arex_build_info{<build>} 1
 arista_scrape_success{switch="sw1"} 1
 arista_command_success{switch="sw1",command="show version"} 1
 arista_command_success{switch="sw1",command="show processes top once"} 1

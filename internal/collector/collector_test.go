@@ -1,10 +1,12 @@
 package collector
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/krisiasty/arex/config"
 	"github.com/krisiasty/arex/internal/eapi"
@@ -212,5 +214,60 @@ func TestFullCommandSetIsLargerThanOne(t *testing.T) {
 	if n := len(commandsFor(allEnabled(), "")); n < 2 {
 		t.Fatalf("full command set is %d; eAPI request statistics classify a "+
 			"single-command call as a retry", n)
+	}
+}
+
+// A poller must stop when its context is cancelled, so shutdown does not
+// depend on the process being killed out from under it.
+func TestPollLoopStopsOnContextCancel(t *testing.T) {
+	f := newFake()
+	data := &SwitchData{Label: "sw1"}
+	data.specs = commandsFor(allEnabled(), "")
+	data.Commands = commandNames(data.specs)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		PollLoop(ctx, f, data, time.Hour, 0)
+		close(done)
+	}()
+
+	// The first poll happens immediately; cancel while waiting for the tick.
+	select {
+	case <-done:
+		t.Fatal("PollLoop returned before cancellation")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("PollLoop did not return within 2s of cancellation")
+	}
+}
+
+// Cancelling before the staggered start must skip the first poll entirely,
+// rather than waiting out the offset.
+func TestPollLoopHonoursCancelDuringStartOffset(t *testing.T) {
+	f := newFake()
+	data := &SwitchData{Label: "sw1"}
+	data.specs = commandsFor(allEnabled(), "")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		PollLoop(ctx, f, data, time.Hour, time.Hour)
+		close(done)
+	}()
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("PollLoop waited out the start offset despite cancellation")
+	}
+	if len(f.calls) != 0 {
+		t.Errorf("polled %d commands after cancellation during the offset", len(f.calls))
 	}
 }

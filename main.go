@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/krisiasty/arex/config"
@@ -13,6 +18,11 @@ import (
 )
 
 func main() {
+	// Cancelled on SIGINT or SIGTERM, which is how a container runtime or
+	// systemd asks arex to stop.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	cfgPath := flag.String("config", "config.json", "path to config file")
 	debug := flag.Bool("debug", false, "log every eAPI request: status, timing, sizes and commands")
 	flag.Parse()
@@ -52,7 +62,7 @@ func main() {
 			log.Fatalf("switch %s: %v", sw.Label(), err)
 		}
 		offset := collector.PollOffset(i, len(cfg.Switches), cfg.PollInterval.Duration)
-		go collector.PollLoop(client, data, cfg.PollInterval.Duration, offset)
+		go collector.PollLoop(ctx, client, data, cfg.PollInterval.Duration, offset)
 	}
 
 	mux := http.NewServeMux()
@@ -65,7 +75,6 @@ func main() {
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	log.Printf("arex listening on %s", cfg.ListenAddress)
 	srv := &http.Server{
 		Addr:              cfg.ListenAddress,
 		Handler:           mux,
@@ -73,5 +82,30 @@ func main() {
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,
 	}
-	log.Fatal(srv.ListenAndServe())
+
+	log.Printf("arex listening on %s", cfg.ListenAddress)
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("listen: %v", err)
+		}
+	}()
+
+	<-ctx.Done()
+	stop() // restore default handling, so a second signal kills immediately
+
+	// Let a scrape already in progress finish. Without this a restart can cut
+	// a /metrics response mid-write, which Prometheus records as a failed
+	// scrape rather than a clean gap.
+	log.Printf("shutting down, waiting up to %s for in-flight scrapes", shutdownGrace)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownGrace)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("shutdown: %v", err)
+	}
+	log.Printf("arex stopped")
 }
+
+// shutdownGrace bounds how long a scrape in progress may take to finish. It
+// is shorter than a typical Prometheus scrape timeout, so a slow client
+// cannot hold up a restart.
+const shutdownGrace = 5 * time.Second

@@ -93,12 +93,20 @@ func sample(out, metric string, labelParts ...string) string {
 	return ""
 }
 
-// normalize pins the one inherently wall-clock-dependent value so the
-// golden and determinism checks compare everything else exactly.
-var ageLine = regexp.MustCompile(`(arista_scrape_age_seconds\{[^}]*\}) [^\n]+`)
+// normalize pins the values that cannot be stable across environments, so
+// the golden and determinism checks compare everything else exactly.
+//
+// The scrape age is wall-clock. Build info carries the VCS revision and Go
+// version, which would otherwise make the golden file fail on every commit
+// and every toolchain upgrade.
+var (
+	ageLine   = regexp.MustCompile(`(arista_scrape_age_seconds\{[^}]*\}) [^\n]+`)
+	buildLine = regexp.MustCompile(`arex_build_info\{[^}]*\} 1`)
+)
 
 func normalize(out string) string {
-	return ageLine.ReplaceAllString(out, "$1 <age>")
+	out = ageLine.ReplaceAllString(out, "$1 <age>")
+	return buildLine.ReplaceAllString(out, "arex_build_info{<build>} 1")
 }
 
 func countSamples(out string) int {
@@ -167,7 +175,8 @@ func TestNeverCollectedEmitsOnlyScrapeMetrics(t *testing.T) {
 		switch {
 		case strings.HasPrefix(line, "arista_scrape_"),
 			strings.HasPrefix(line, "arista_command_"),
-			strings.HasPrefix(line, "arista_eapi_"):
+			strings.HasPrefix(line, "arista_eapi_"),
+			strings.HasPrefix(line, "arex_"):
 		default:
 			t.Errorf("uncollected switch emitted switch data: %s", line)
 		}
