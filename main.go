@@ -31,8 +31,9 @@ func main() {
 		log.Printf("debug logging enabled: one line per eAPI request")
 	}
 
-	// One poller goroutine per switch.
-	for _, sw := range cfg.Switches {
+	// One poller goroutine per switch, started at staggered offsets so the
+	// fleet is not polled simultaneously.
+	for i, sw := range cfg.Switches {
 		data := store.Get(sw.Label())
 
 		opts := []eapi.Option{eapi.WithStats(&data.Stats)}
@@ -50,7 +51,8 @@ func main() {
 		if err != nil {
 			log.Fatalf("switch %s: %v", sw.Label(), err)
 		}
-		go collector.PollLoop(client, data, cfg.PollInterval.Duration)
+		offset := collector.PollOffset(i, len(cfg.Switches), cfg.PollInterval.Duration)
+		go collector.PollLoop(client, data, cfg.PollInterval.Duration, offset)
 	}
 
 	mux := http.NewServeMux()

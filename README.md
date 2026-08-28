@@ -482,6 +482,28 @@ go build -o arex .
 ./arex -config config.json -debug
 ```
 
+### Poll staggering
+
+Pollers are started at increasing offsets so a fleet is not polled all at once. The first switch polls
+immediately, and each subsequent one starts about three seconds later:
+
+```text
+[sw-a] starting poller (interval: 30s)
+[sw-b] starting poller (interval: 30s, first poll in 3.207s)
+[sw-c] starting poller (interval: 30s, first poll in 6.294s)
+[sw-d] starting poller (interval: 30s, first poll in 9.926s)
+```
+
+Three seconds is enough separation because a full nine-command poll of a 32-port leaf takes well under two
+seconds. If the fleet is large enough that three-second spacing would push the last poller past one interval, the
+spacing shrinks so every switch still reports within one interval of startup.
+
+Offsets are assigned by position rather than drawn at random. Random offsets only spread pollers on average: in one
+field run, three switches drew 22.9s, 20.4s and 21.2s from a 30-second interval and polled within 2.4 seconds of
+each other — the exact outcome the staggering exists to prevent. A small variation remains so that two arex
+instances polling the same switches do not align, bounded well inside the spacing so it cannot reorder pollers back
+into a cluster.
+
 ### Debug logging
 
 `-debug` logs one line per eAPI request:
