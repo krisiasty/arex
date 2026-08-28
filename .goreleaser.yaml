@@ -31,8 +31,10 @@ archives:
   - id: arex
     ids: [arex]
     formats: [tar.gz]
+    # v-prefixed like the image tags and the git tag, so a download URL can be
+    # built from one version string without stripping anything.
     name_template: >-
-      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+      {{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}
     files:
       - LICENSE
       - NOTICE
@@ -50,9 +52,12 @@ dockers_v2:
     ids: [arex]
     images:
       - ghcr.io/krisiasty/arex
+    # v-prefixed, matching the git tag. GoReleaser's .Version strips the v, so
+    # it is put back explicitly rather than using .Tag, which is empty in
+    # snapshot builds where there is no tag to read.
     tags:
-      - "{{ .Version }}"
-      - "{{ .Major }}.{{ .Minor }}"
+      - "v{{ .Version }}"
+      - "v{{ .Major }}.{{ .Minor }}"
       - latest
     dockerfile: Dockerfile.goreleaser
     platforms:
@@ -85,7 +90,7 @@ release:
     ## Container image
 
     ```
-    docker pull ghcr.io/krisiasty/arex:{{ .Version }}
+    docker pull ghcr.io/krisiasty/arex:v{{ .Version }}
     ```
 
     Third-party licenses are embedded in the binary: `arex -licenses`.

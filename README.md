@@ -767,15 +767,23 @@ Both are commented with the reasoning; see [Credentials](#credentials) for why o
 Released binaries and container images are published for `linux/amd64` and `linux/arm64` on every `v*` tag.
 
 ```bash
-# Container
-docker pull ghcr.io/krisiasty/arex:latest
+VERSION=v0.1.0
+
+# Container: v-prefixed like the tag. vX.Y follows the latest patch, and
+# latest follows the newest release.
+docker pull ghcr.io/krisiasty/arex:${VERSION}
 
 # Binary
-curl -fsSL https://github.com/krisiasty/arex/releases/latest/download/arex_linux_amd64.tar.gz | tar xz
+curl -fsSL "https://github.com/krisiasty/arex/releases/download/${VERSION}/arex_${VERSION}_linux_amd64.tar.gz" \
+  | tar xz
 ```
 
 The tarball carries the binary, `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES`, the README, and the `deploy/`
-examples. Darwin builds exist too, for running it against a lab switch by hand.
+examples, and `checksums.txt` on the release page covers all of them. Darwin builds exist too, for running it
+against a lab switch by hand.
+
+`dockers_v2` also publishes the per-architecture images it assembles each manifest from, so `vX.Y.Z-amd64` and
+`vX.Y.Z-arm64` appear alongside `vX.Y.Z`. Pull the unsuffixed tag; Docker picks the right architecture.
 
 `arex_build_info` reports the released version, because the release sets it at link time; a plain `go build`
 reports `(devel)` and the VCS revision the toolchain embeds.
