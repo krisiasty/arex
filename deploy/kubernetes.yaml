@@ -23,31 +23,39 @@ metadata:
   name: arex-config
   namespace: arex
 data:
-  config.json: |
-    {
-      "listenAddress": ":9100",
-      "pollInterval": "30s",
-      "stalenessLimit": "90s",
-      "passwordFile": "/etc/arex/secret/password",
-      "collect": {
-        "processes":   { "enabled": true },
-        "temperature": { "enabled": true },
-        "power":       { "enabled": true },
-        "cooling":     { "enabled": true },
-        "interfaces":  { "enabled": true },
-        "bgp":         { "enabled": true },
-        "transceiver": { "enabled": true, "interval": "5m" },
-        "phy":         { "enabled": true, "interval": "15m" }
-      },
-      "switches": [
-        {
-          "host": "https://10.10.0.11",
-          "username": "prometheus",
-          "name": "leaf1",
-          "pinnedCertSha256": "REPLACE_WITH_THE_SWITCH_FINGERPRINT"
-        }
-      ]
-    }
+  # Native YAML, not a JSON blob embedded in YAML: arex parses YAML, and
+  # accepts JSON too since JSON is valid YAML.
+  config.yaml: |
+    listenAddress: ":9100"
+    pollInterval: 30s
+    stalenessLimit: 90s
+    passwordFile: /etc/arex/secret/password
+
+    collect:
+      processes:
+        enabled: true
+      temperature:
+        enabled: true
+      power:
+        enabled: true
+      cooling:
+        enabled: true
+      interfaces:
+        enabled: true
+      bgp:
+        enabled: true
+      transceiver:
+        enabled: true
+        interval: 5m
+      phy:
+        enabled: true
+        interval: 15m
+
+    switches:
+      - host: https://10.10.0.11
+        username: prometheus
+        name: leaf1
+        pinnedCertSha256: "REPLACE_WITH_THE_SWITCH_FINGERPRINT"
 ---
 # Replace with an ExternalSecret when the credential comes from Vault. The
 # kubelet updates the mounted file in place, and arex re-reads it after a
@@ -88,7 +96,7 @@ spec:
       containers:
         - name: arex
           image: ghcr.io/krisiasty/arex:latest
-          args: ["-config", "/etc/arex/config.json"]
+          args: ["-config", "/etc/arex/config.yaml"]
           ports:
             - name: metrics
               containerPort: 9100

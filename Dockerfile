@@ -21,4 +21,4 @@ FROM gcr.io/distroless/static-debian13:nonroot@sha256:1c2c046bc09ed40fad370b599a
 COPY --from=builder /arex /usr/local/bin/arex
 EXPOSE 9100
 ENTRYPOINT ["/usr/local/bin/arex"]
-CMD ["-config", "/etc/arex/config.json"]
+CMD ["-config", "/etc/arex/config.yaml"]

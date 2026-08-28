@@ -28,7 +28,7 @@ import (
 const shutdownGrace = 5 * time.Second
 
 func main() {
-	cfgPath := flag.String("config", "config.json", "path to config file")
+	cfgPath := flag.String("config", "config.yaml", "path to config file")
 	debug := flag.Bool("debug", false,
 		"log every eAPI request: status, timing, sizes and commands; overrides the config")
 	licenses := flag.Bool("licenses", false, "print third-party licenses and notices, then exit")

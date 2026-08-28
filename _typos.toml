@@ -4,8 +4,9 @@
 # detail" returns. It appears in a struct tag, in the captured fixtures, and in
 # the notes describing them; correcting any of those breaks parsing.
 #
-# intervall and transciever are deliberate: tests assert that a config error
-# names the misspelled field or key rather than failing anonymously.
+# intervall, pollIntervall and transciever are deliberate: tests assert that a
+# config error names the misspelled field or key rather than failing
+# anonymously.
 
 [default]
 extend-ignore-identifiers-re = [
@@ -18,6 +19,7 @@ unparseable = "unparseable"
 
 [default.extend-identifiers]
 intervall = "intervall"
+pollIntervall = "pollIntervall"
 transciever = "transciever"
 Unparseable = "Unparseable"
 unparseable = "unparseable"

@@ -495,13 +495,13 @@ All nine at 1. Any at 0 and `-debug` reports the refusal verbatim in its `cause=
 go build -o arex .
 
 # Validate a config without starting: exits non-zero and says what is wrong
-./arex -check -config config.json
+./arex -check -config config.yaml
 
 # Run
-./arex -config config.json
+./arex -config config.yaml
 
 # Run with per-request eAPI logging
-./arex -config config.json -debug
+./arex -config config.yaml -debug
 
 # Print the licences of everything linked into this binary
 ./arex -licenses
@@ -740,7 +740,7 @@ Credentials never appear at any verbosity: the Authorization header is not logge
 docker build -t arex .
 docker run -d \
   -p 9100:9100 \
-  -v /etc/arex/config.json:/etc/arex/config.json:ro \
+  -v /etc/arex/config.yaml:/etc/arex/config.yaml:ro \
   -v /etc/arex/switch-password:/etc/arex/secret/password:ro \
   arex
 ```
@@ -814,7 +814,19 @@ regenerating fails the build rather than shipping an image whose notices are inc
 
 ## Configuration
 
-See `config.example.json`. All durations are Go duration strings (`30s`, `1m`, etc.).
+See `config.example.yaml`. All durations are Go duration strings (`30s`, `1m`, etc.).
+
+The file is YAML. JSON is accepted too, since JSON is valid YAML — the same parser reads both, so there is no
+extension rule and an older JSON config keeps working. YAML is the default because a Kubernetes ConfigMap can hold
+it natively, instead of a JSON blob embedded in YAML, and because a config people have to reason about is worth
+being able to comment.
+
+A misspelled top-level key is an error rather than a setting that silently does nothing, which is the same rule the
+`collect` block already followed.
+
+Values that look like they need quoting mostly do not: `:9100`, `https://10.10.0.11:8443`, `30s` and an
+`A1:B2:...` fingerprint all parse as strings unquoted, and a switch named `yes` stays a string. A switch `name`
+that reads as a *number* is rejected, since it could not become a metric label.
 
 The example points `passwordFile` at a systemd credential path, so trying it locally means either creating that
 file or replacing it with an inline `password`.
@@ -1115,7 +1127,7 @@ to child processes. The runtime path is stable, so it can be named directly in t
 ```ini
 [Service]
 LoadCredential=switch-password:/etc/arex/switch-password
-ExecStart=/usr/local/bin/arex -config /etc/arex/config.json
+ExecStart=/usr/local/bin/arex -config /etc/arex/config.yaml
 ```
 
 The credential then appears at `/run/credentials/arex.service/switch-password`. See

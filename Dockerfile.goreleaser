@@ -15,4 +15,4 @@ ARG TARGETARCH
 COPY ${TARGETOS}/${TARGETARCH}/arex /usr/local/bin/arex
 EXPOSE 9100
 ENTRYPOINT ["/usr/local/bin/arex"]
-CMD ["-config", "/etc/arex/config.json"]
+CMD ["-config", "/etc/arex/config.yaml"]
