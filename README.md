@@ -35,9 +35,15 @@ request counts matter most.
 
 | Metric | Type | Description |
 | --- | --- | --- |
+| `arex_build_info` | gauge | Version, VCS revision and Go version of the running binary. Always 1 |
 | `arista_eapi_requests_total` | counter | eAPI requests made, by `outcome` and `attempt` |
 | `arista_eapi_response_bytes_total` | counter | Total response bytes received from this switch |
 | `arista_eapi_request_duration_seconds_total` | counter | Total time spent on eAPI requests to this switch |
+
+`arex_build_info` is the only metric with no `switch` label, which is why it carries its own prefix — it describes
+the process, not a device. The revision comes from the VCS information the Go toolchain embeds automatically, so a
+plain `go build` produces a usable answer; a release can override the version with
+`-ldflags "-X github.com/krisiasty/arex/internal/metrics.Version=v1.2.3"`.
 
 `outcome` is `success`, `eapi_error` (the switch answered and rejected a command), `http_error` (a status such as
 401, which applies to every command) or `transport_error`. `attempt` is `batch` for the normal single request
@@ -481,6 +487,16 @@ go build -o arex .
 # Run with per-request eAPI logging
 ./arex -config config.json -debug
 ```
+
+### Shutdown
+
+arex stops cleanly on `SIGINT` or `SIGTERM`: pollers stop, and the HTTP server is given up to five seconds to
+finish a scrape already in progress. Without that grace period a restart can cut a `/metrics` response mid-write,
+which Prometheus records as a *failed scrape* rather than a clean gap — a distinction that matters if you alert on
+scrape failures.
+
+A second signal exits immediately. A poll already in flight is not interrupted; the eAPI request has its own
+`scrapeTimeout`, and the process exits once the server has drained.
 
 ### Poll staggering
 

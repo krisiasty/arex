@@ -57,6 +57,7 @@ func flatten(groups ...[]metricDef) []metricDef {
 
 var defs = flatten(
 	[]metricDef{
+		{"arex_build_info", "gauge", "Version, VCS revision and Go version of the running arex. Always 1"},
 		{"arista_scrape_success", "gauge", "1 if the last poll of this switch succeeded"},
 		{"arista_scrape_age_seconds", "gauge", "Seconds since the last successful poll (-1 if never)"},
 		{"arista_command_success", "gauge", "1 if this eAPI command succeeded in the last poll"},
