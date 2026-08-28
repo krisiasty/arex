@@ -68,3 +68,16 @@ func TestInterfaceScopeRejectsControlCharacters(t *testing.T) {
 		t.Fatal("a scope containing a newline must be rejected")
 	}
 }
+
+// "internal" is reserved: /metrics?target=internal selects arex's own
+// metrics, so a switch by that name would make the query ambiguous.
+func TestReservedSwitchNameIsRejected(t *testing.T) {
+	_, err := Load(write(t, `{"tlsSkipVerify":true,
+		"switches":[{"host":"https://192.0.2.1","username":"u","password":"p","name":"internal"}]}`))
+	if err == nil {
+		t.Fatal("a switch named \"internal\" must be rejected")
+	}
+	if !strings.Contains(err.Error(), "reserved") {
+		t.Errorf("error should say the name is reserved: %v", err)
+	}
+}

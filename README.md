@@ -497,7 +497,7 @@ go build -o arex .
 
 | Path | Purpose |
 | --- | --- |
-| `/metrics` | Prometheus exposition |
+| `/metrics` | Prometheus exposition; `?target=`, `?module=` and `?interface=` narrow it |
 | `/livez` | 200 while the poll loop is cycling, 503 if it has stalled |
 | `/readyz` | 200 once every switch has been polled at least once |
 | `/status` | JSON detail per switch |
@@ -531,6 +531,111 @@ collects and any that failed, with the switch's own error text. It carries no cr
     }
   ]
 }
+```
+
+### Scraping one switch at a time
+
+By default `/metrics` returns everything: every switch plus arex's own metrics. That is the simplest setup and
+needs no relabeling.
+
+A `target` parameter narrows the response, which is optional:
+
+| Request | Returns |
+| --- | --- |
+| `/metrics` | every switch, plus arex's own metrics |
+| `/metrics?target=leaf-1` | that switch only |
+| `/metrics?target=internal` | arex's own metrics only: `arex_*`, `go_*`, `process_*` |
+
+A switch is addressable by its `name`, its configured `host`, or that host without the scheme — so relabeling can
+use whichever identifier a job already has:
+
+```bash
+curl 'http://arex:9100/metrics?target=leaf-1'
+curl 'http://arex:9100/metrics?target=https://10.36.48.15'
+curl 'http://arex:9100/metrics?target=10.36.48.15'
+```
+
+An unknown target returns **400**. An empty body would leave Prometheus reporting a successful scrape with no
+series, so a typo in relabeling fails visibly instead. A host shared by two switches is ambiguous and is not
+addressable; use the names, which are unique.
+
+`internal` is reserved, and a switch by that name is rejected at startup rather than becoming an ambiguous query.
+
+**Filtering changes only what a scrape renders.** Collection is unaffected: pollers run on their own schedule, so
+one poll of a switch serves any number of scrapers however they are configured. That matters with an HA Prometheus
+pair — collecting on demand per scrape would double the switch-side cost, which is 1.4 seconds of eAPI time per
+poll on a 32-port leaf.
+
+A per-target scrape config, if you want each switch to be its own Prometheus target:
+
+```yaml
+scrape_configs:
+  - job_name: arex-switches
+    metrics_path: /metrics
+    static_configs:
+      - targets: [leaf-1, leaf-2, leaf-3]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: switch_target
+      - target_label: __address__
+        replacement: arex:9100
+
+  - job_name: arex-internal
+    metrics_path: /metrics
+    params:
+      target: [internal]
+    static_configs:
+      - targets: [arex:9100]
+```
+
+### Ad-hoc filtering
+
+`module` and `interface` narrow a response further. These are for investigating a switch by hand, not for scrape
+configuration — they filter what is rendered, and collection is untouched. What arex asks the switch for is decided
+by `collect` and `interfaceScope`, which are deployment settings; these are questions.
+
+| Request | Returns |
+| --- | --- |
+| `?target=leaf-1&module=power` | PSU metrics for that switch |
+| `?target=leaf-1&interface=Ethernet4/1` | interface, transceiver and PHY metrics for that port |
+| `?target=leaf-1&interface=Ethernet4/1&module=phy` | just the PHY view of that port |
+| `?module=power` | PSU metrics across every switch |
+
+`module` is one of the `collect` keys, plus `version`.
+
+`interface` narrows to the families that *carry* an interface label — interface counters, transceiver and PHY.
+Asking about a port and being handed power supply readings would not be an answer, so the narrowing is implied
+rather than layered on top of everything.
+
+Scrape health survives every filter. `arista_scrape_success` and `arista_scrape_age_seconds` describe the poll
+rather than the data, and suppressing them would make a filtered view of a healthy switch indistinguishable from a
+dead one.
+
+Both reject mistakes rather than returning an empty body:
+
+```console
+$ curl 'localhost:9100/metrics?target=leaf-1&module=nope'
+unknown module "nope": expected one of bgp, cooling, interfaces, phy, power,
+processes, temperature, transceiver, version
+
+$ curl 'localhost:9100/metrics?target=leaf-1&interface=Ethernet99/9'
+no interface "Ethernet99/9" in the last poll of switch "leaf-1"
+```
+
+Interface names are checked against the last poll rather than against configuration, because interfaces are
+discovered rather than declared. `target=internal` accepts neither filter, since neither means anything for
+process metrics.
+
+The narrowing is substantial, which is the point when reading output by hand:
+
+```text
+no filter                                       2003 samples
+target=leaf-1                                    490
+target=leaf-1&module=phy                         106
+target=leaf-1&interface=Ethernet4/1               45
+target=leaf-1&module=power                        32
 ```
 
 ### Logging

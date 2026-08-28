@@ -1,6 +1,10 @@
 package metrics
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"strings"
+
+	"github.com/prometheus/client_golang/prometheus"
+)
 
 // Label sets, named so the catalogue below stays readable and so a family's
 // labels are declared once rather than at every emission point.
@@ -193,6 +197,23 @@ var descs = func() map[string]*prometheus.Desc {
 		out[d.name] = prometheus.NewDesc(d.name, d.help, d.labels, nil)
 	}
 	return out
+}()
+
+// switchDescs and internalDescs partition the catalogue by prefix.
+//
+// arista_ metrics describe a switch and carry a switch label; arex_ metrics
+// describe this process and carry none. That naming rule is what lets a
+// filtered scrape select one or the other, and it is why the two collectors
+// can be registered together without advertising the same descriptor twice.
+var switchDescs, internalDescs = func() (sw, in []*prometheus.Desc) {
+	for _, d := range metricDefs {
+		if strings.HasPrefix(d.name, "arex_") {
+			in = append(in, descs[d.name])
+			continue
+		}
+		sw = append(sw, descs[d.name])
+	}
+	return sw, in
 }()
 
 // types mirrors descs, so an emission uses the declared value type.

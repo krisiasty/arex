@@ -105,10 +105,10 @@ func run(logger *slog.Logger, cfgPath string, debug bool) error {
 	}
 
 	checker := health.New(store, cfg.PollInterval.Duration)
-	reg := metrics.NewRegistry(store, cfg.StalenessLimit.Duration)
 
 	mux := http.NewServeMux()
-	mux.Handle("/metrics", metrics.Handler(reg))
+	mux.Handle("/metrics", metrics.NewHandler(store, cfg.StalenessLimit.Duration,
+		metrics.TargetIndex(cfg.Switches)))
 	checker.Register(mux, logger, cfg.StalenessLimit.Duration)
 
 	srv := &http.Server{
