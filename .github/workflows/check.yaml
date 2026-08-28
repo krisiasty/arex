@@ -88,33 +88,33 @@ jobs:
         with:
           version: 1.7.12
 
-      # The manifests are hand-maintained YAML holding a JSON config, which is
-      # exactly the shape that rots silently. Loading it through arex proves the
-      # example still validates.
+      # The manifest's config is the example people copy, so it has to still
+      # load. Extracted by dedenting the block scalar -- no YAML library
+      # needed, which keeps the check working on any runner.
       - name: deployment manifests are valid
         run: |
           set -euo pipefail
           printf 'hunter2\n' > "${RUNNER_TEMP}/manifest-password"
           chmod 600 "${RUNNER_TEMP}/manifest-password"
           python3 - "${RUNNER_TEMP}" <<'PY'
-          import json, sys, textwrap
+          import sys, textwrap
           tmp = sys.argv[1]
           lines = open('deploy/kubernetes.yaml').read().split('\n')
-          i = next(n for n, l in enumerate(lines) if l.strip() == 'config.json: |')
+          i = next(n for n, l in enumerate(lines) if l.strip() == 'config.yaml: |')
           block = []
           for line in lines[i + 1:]:
               if line.strip() and not line.startswith('    '):
                   break
               block.append(line)
-          cfg = json.loads(textwrap.dedent('\n'.join(block)))
+          config = textwrap.dedent('\n'.join(block))
           # Placeholders a real deployment replaces, substituted so the config
           # can actually be validated here.
-          cfg['switches'][0]['pinnedCertSha256'] = 'A1:' * 31 + 'B2'
-          cfg['passwordFile'] = f'{tmp}/manifest-password'
-          with open(f'{tmp}/manifest-config.json', 'w') as f:
-              json.dump(cfg, f)
+          config = config.replace('REPLACE_WITH_THE_SWITCH_FINGERPRINT', 'A1:' * 31 + 'B2')
+          config = config.replace('/etc/arex/secret/password', f'{tmp}/manifest-password')
+          with open(f'{tmp}/manifest-config.yaml', 'w') as f:
+              f.write(config)
           PY
-          go run . -check -config "${RUNNER_TEMP}/manifest-config.json"
+          go run . -check -config "${RUNNER_TEMP}/manifest-config.yaml"
 
       - name: go vet
         run: go vet ./...

@@ -6,7 +6,7 @@
 # inherited by child processes or visible in /proc/<pid>/environ.
 #
 # Point passwordFile at /run/credentials/arex.service/switch-password in
-# /etc/arex/config.json. That path is stable, so no expansion is needed.
+# /etc/arex/config.yaml. That path is stable, so no expansion is needed.
 
 [Unit]
 Description=arex - Prometheus exporter for Arista EOS switches
@@ -19,8 +19,8 @@ Type=simple
 # A bad config edit stops the restart here rather than taking the exporter down:
 # -check validates the file and every switch's TLS material and credential
 # without connecting to anything.
-ExecStartPre=/usr/local/bin/arex -check -config /etc/arex/config.json
-ExecStart=/usr/local/bin/arex -config /etc/arex/config.json
+ExecStartPre=/usr/local/bin/arex -check -config /etc/arex/config.yaml
+ExecStart=/usr/local/bin/arex -config /etc/arex/config.yaml
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5s

@@ -1,13 +1,16 @@
-// Package config loads and validates arex's JSON configuration file.
+// Package config loads and validates arex's configuration file.
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/krisiasty/arex/internal/eapi"
 )
@@ -162,16 +165,35 @@ func TrimSecret(b []byte) string {
 	return strings.TrimRight(string(b), "\r\n")
 }
 
-// Load reads and parses a JSON config file from path.
+// Load reads and parses a config file from path.
+//
+// The file is YAML, which also accepts JSON: JSON is valid YAML, so both forms
+// load through one path with no extension rule and no second parser. The YAML
+// is converted to JSON rather than decoded directly, which keeps every json
+// tag and every custom UnmarshalJSON in this package doing the work -- the
+// durations, the collect set and the module objects all validate the same way
+// whichever form the file was written in.
 func Load(path string) (*Config, error) {
-	f, err := os.Open(path) //nolint:gosec // the path is an operator-supplied flag, not user input
+	body, err := os.ReadFile(path) //nolint:gosec // the path is an operator-supplied flag, not user input
 	if err != nil {
 		return nil, fmt.Errorf("open config: %w", err)
 	}
-	defer func() { _ = f.Close() }()
+
+	var tree any
+	if err := yaml.Unmarshal(body, &tree); err != nil {
+		return nil, fmt.Errorf("parse config: %w", err)
+	}
+	asJSON, err := json.Marshal(tree)
+	if err != nil {
+		return nil, fmt.Errorf("parse config: %w", err)
+	}
 
 	var cfg Config
-	if err := json.NewDecoder(f).Decode(&cfg); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(asJSON))
+	// A misspelled key would otherwise be ignored, leaving a setting that
+	// silently does nothing -- the same failure the collect block rejects.
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&cfg); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 

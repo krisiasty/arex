@@ -13,6 +13,7 @@ arex
 # env and config file
 .env
 config.json
+config.yaml
 
 # Editor/IDE
 # .idea/
