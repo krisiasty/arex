@@ -78,3 +78,21 @@ ServiceMonitor both need to know. */}}
 {{- define "arex.scheme" -}}
 {{- if .Values.listen.tls.existingSecret -}}HTTPS{{- else -}}HTTP{{- end -}}
 {{- end -}}
+
+{{/*
+A probe, with the scheme filled in when it is an httpGet.
+
+Kubernetes rejects a probe carrying two handlers, and Helm merges maps rather
+than replacing them -- so overriding the default httpGet with a tcpSocket
+requires "httpGet: null" in values, which arrives here as a nil rather than an
+absent key. Both cases are handled: only a real httpGet map gets a scheme.
+*/}}
+{{- define "arex.probe" -}}
+{{- $p := deepCopy .probe -}}
+{{- if kindIs "map" (get $p "httpGet") -}}
+{{- $_ := set (get $p "httpGet") "scheme" (include "arex.scheme" .root) -}}
+{{- else -}}
+{{- $_ := unset $p "httpGet" -}}
+{{- end -}}
+{{- toYaml $p -}}
+{{- end -}}

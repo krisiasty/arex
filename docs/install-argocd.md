@@ -10,8 +10,10 @@ changes when ArgoCD applies them.
 
 | object | owned by | why |
 | --- | --- | --- |
-| `Secret` | ESO, from Vault | the chart never templates it |
+| the switch password `Secret` | ESO, from Vault | the chart never templates it |
 | `ExternalSecret` | ArgoCD | it is configuration, not a secret |
+| the TLS `Secret` | cert-manager | its contents are issued, not declared |
+| `Certificate` | ArgoCD | it is configuration too: it says what to issue, not what was issued |
 | everything else | ArgoCD, via the chart | |
 
 That split is the whole design. If the chart also rendered the `Secret`, ArgoCD would apply the placeholder from git
@@ -98,10 +100,37 @@ spec:
       name: arex-switch-password
       jsonPointers:
         - /data
+    # cert-manager rewrites this on every renewal, for the same reason.
+    - group: ""
+      kind: Secret
+      name: arex-tls
+      jsonPointers:
+        - /data
 ```
 
 Without this, `selfHeal: true` and a rotation can end up arguing, and the Application flaps between `Synced` and
 `OutOfSync` on every refresh.
+
+## 3b. Certificates, if you serve over TLS
+
+The split is the same as for the password, with cert-manager in place of ESO. The `Certificate` is configuration
+and lives in git next to the `ExternalSecret`; the `Secret` it produces is issued material that ArgoCD must not
+manage. See [the Helm guide](install-kubernetes.md#optional-serve-over-tls-and-require-a-password) for the
+`Certificate` itself and the values that consume it.
+
+Two things specific to GitOps here:
+
+**Renewal is invisible to ArgoCD, and should be.** cert-manager rewrites the Secret, the kubelet updates the
+mounted file, and arex re-reads the pair — no sync, no restart, no drift. That only holds because the Secret is
+ignored above and mounted as a volume without `subPath`.
+
+**A renewal does not roll the pod, and does not need to.** `checksum/config` covers the rendered config, not the
+certificate, so a renewal changes nothing ArgoCD can see. That is the desired behaviour: certificates are picked up
+in place, and a rolling restart on every renewal would be churn for nothing.
+
+If you use mutual TLS, note the probe consequence described in
+[the Helm guide](install-kubernetes.md#mutual-tls-instead-of-a-password) — the values change is part of your
+`arex-values.yaml`, so it syncs like everything else.
 
 ## 4. What a config change looks like
 

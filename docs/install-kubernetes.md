@@ -132,6 +132,166 @@ Then confirm Prometheus has the series — one target, all switches, each series
 count by (switch) (arista_info)
 ```
 
+## Optional: serve over TLS, and require a password
+
+Skip this if the cluster network already restricts who can reach the pod. Worth
+doing on a shared cluster — the metrics carry switch names, serials and BGP
+peers. See [securing the endpoint](operations.md#securing-the-endpoint).
+
+### The certificate
+
+With cert-manager, a `Certificate` produces the Secret the chart mounts. This
+resource is configuration, not a secret, so it belongs in git:
+
+```yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: arex-tls
+  namespace: monitoring
+spec:
+  secretName: arex-tls
+  duration: 2160h      # 90 days
+  renewBefore: 360h    # 15 days
+  commonName: arex.monitoring.svc
+  dnsNames:
+    - arex.monitoring.svc
+    - arex.monitoring.svc.cluster.local
+  issuerRef:
+    name: internal-ca
+    kind: ClusterIssuer
+```
+
+cert-manager writes `tls.crt`, `tls.key` and `ca.crt` into that Secret, which is
+exactly what the chart's defaults expect:
+
+```yaml
+listen:
+  tls:
+    existingSecret: arex-tls
+```
+
+**Renewal needs no restart.** cert-manager rewrites the Secret, the kubelet
+updates the mounted files, and arex re-reads the pair when it changes. As with
+the switch password, this works because the chart mounts the Secret as a volume
+**without `subPath`** — a `subPath` mount is populated once at pod start and
+never updated, so renewal would silently stop reaching arex until the pod
+happened to restart, and then only until the next renewal.
+
+Without cert-manager, create the Secret by hand with the same three keys, or
+point `certKey`/`keyKey` at whatever names you used.
+
+### The scrape password
+
+```bash
+kubectl -n monitoring create secret generic arex-web-password \
+  --from-literal=password="$(openssl rand -base64 32)" \
+  --from-literal=username=prometheus
+```
+
+```yaml
+listen:
+  basicAuth:
+    existingSecret: arex-web-password
+    username: prometheus
+```
+
+`username` is in values because it is not a secret; the `username` key in the
+Secret above exists only because prometheus-operator's `basicAuth` wants both
+halves as secret references.
+
+### Telling Prometheus
+
+The chart sets the ServiceMonitor's `scheme` from `listen.tls` automatically.
+What it cannot infer is how Prometheus should trust that certificate, so pass
+that through:
+
+```yaml
+serviceMonitor:
+  enabled: true
+  tlsConfig:
+    ca:
+      secret:
+        name: arex-tls
+        key: ca.crt
+    serverName: arex.monitoring.svc
+  basicAuth:
+    username:
+      name: arex-web-password
+      key: username
+    password:
+      name: arex-web-password
+      key: password
+```
+
+`serverName` matters: the Service DNS name has to be in the certificate's SANs,
+which is why the `Certificate` above lists it.
+
+**A caveat worth checking against your operator version.** prometheus-operator
+resolves these Secret references subject to its own namespace rules, and where
+the Prometheus instance runs in a different namespace from the ServiceMonitor it
+may not be able to read them. The usual answer is
+[trust-manager](https://cert-manager.io/docs/trust/trust-manager/), which
+distributes a CA bundle into every namespace that needs it. Confirm the target
+is actually being scraped rather than assuming:
+
+```promql
+up{job=~".*arex.*"}
+```
+
+### Mutual TLS instead of a password
+
+The stronger option: no shared secret exists at all. Issue Prometheus a client
+certificate from the same CA, point arex at that CA, and drop basic auth
+entirely.
+
+```yaml
+listen:
+  tls:
+    existingSecret: arex-tls
+    clientCAKey: ca.crt        # require a client certificate signed by this CA
+  basicAuth:
+    existingSecret: ""         # not needed
+
+serviceMonitor:
+  enabled: true
+  tlsConfig:
+    ca:
+      secret: {name: arex-tls, key: ca.crt}
+    cert:
+      secret: {name: prometheus-client-tls, key: tls.crt}
+    keySecret:
+      name: prometheus-client-tls
+      key: tls.key
+    serverName: arex.monitoring.svc
+```
+
+A caller without a certificate is refused during the handshake, before any request is served.
+
+**That includes the kubelet.** `RequireAndVerifyClientCert` applies to the listener, not per path, and a kubelet
+probe presents no client certificate — so with mTLS on, an `httpGet` probe fails at the handshake and the pod
+restart-loops. The probes must become `tcpSocket`, which checks only that the port accepts a connection:
+
+```yaml
+livenessProbe:
+  httpGet: null          # Helm merges maps; the default handler must be removed
+  tcpSocket:
+    port: metrics
+  periodSeconds: 30
+readinessProbe:
+  httpGet: null
+  tcpSocket:
+    port: metrics
+  periodSeconds: 10
+```
+
+`httpGet: null` is not optional. Kubernetes rejects a probe carrying two handlers, and Helm merges values maps
+rather than replacing them, so without it the rendered probe has both.
+
+This is a real cost: `tcpSocket` readiness only proves the port is open, losing the gate that waits until every
+switch has been polled once. Weigh that against mTLS being the stronger control. If you want both the readiness
+gate and mutual TLS, run basic auth for Prometheus and leave mTLS off — or accept the weaker probe.
+
 ## Why one replica
 
 `replicaCount` defaults to 1. arex has no leader election, so two instances running indefinitely would poll every

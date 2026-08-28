@@ -284,6 +284,41 @@ jobs:
             exit 1
           fi
 
+      # Mutual TLS refuses the kubelet at the handshake, so the probes have to
+      # become tcpSocket -- and Helm merges maps, so a probe can end up with
+      # two handlers, which Kubernetes rejects outright.
+      - name: a probe never carries two handlers
+        run: |
+          set -euo pipefail
+          cat > "${RUNNER_TEMP}/tcp-values.yaml" <<'YAML'
+          credentials:
+            existingSecret: arex-switch-password
+          livenessProbe:
+            httpGet: null
+            tcpSocket:
+              port: metrics
+          readinessProbe:
+            httpGet: null
+            tcpSocket:
+              port: metrics
+          config:
+            switches:
+              - host: https://10.10.0.11
+                username: prometheus
+                name: leaf1
+                pinnedCertSha256: "REPLACE"
+          YAML
+          rendered=$(helm template arex charts/arex -n monitoring -f "${RUNNER_TEMP}/tcp-values.yaml")
+          probes=$(sed -n '/Probe:/,/resources:/p' <<<"${rendered}")
+          if grep -q "httpGet:" <<<"${probes}"; then
+            echo "::error::httpGet survived being nulled out; the probe would carry two handlers"
+            exit 1
+          fi
+          if ! grep -q "tcpSocket:" <<<"${probes}"; then
+            echo "::error::the tcpSocket override did not render"
+            exit 1
+          fi
+
       # The rendered config is what arex actually has to load, so load it.
       - name: the rendered config is valid
         run: |

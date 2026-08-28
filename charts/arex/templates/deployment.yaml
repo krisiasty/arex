@@ -57,20 +57,18 @@ spec:
               protocol: TCP
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          {{- /* The scheme has to follow listen.tls, or every probe fails
-                 against a TLS listener. The kubelet does not verify the
-                 certificate, so a private CA is fine. */}}
+          {{- /* The scheme has to follow listen.tls, or an httpGet probe fails
+                 against a TLS listener. Only an httpGet probe has a scheme: a
+                 tcpSocket or exec probe is left exactly as given, which is what
+                 mutual TLS requires, since the kubelet presents no client
+                 certificate and would be refused at the handshake. */}}
           {{- with .Values.livenessProbe }}
           livenessProbe:
-            {{- $p := deepCopy . }}
-            {{- $_ := set $p.httpGet "scheme" (include "arex.scheme" $) }}
-            {{- toYaml $p | nindent 12 }}
+            {{- include "arex.probe" (dict "probe" . "root" $) | nindent 12 }}
           {{- end }}
           {{- with .Values.readinessProbe }}
           readinessProbe:
-            {{- $p := deepCopy . }}
-            {{- $_ := set $p.httpGet "scheme" (include "arex.scheme" $) }}
-            {{- toYaml $p | nindent 12 }}
+            {{- include "arex.probe" (dict "probe" . "root" $) | nindent 12 }}
           {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

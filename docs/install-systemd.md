@@ -132,6 +132,80 @@ Two caveats. A host-key credential cannot be decrypted on a different machine, s
 re-encrypted — keep the source of truth elsewhere. And `systemd-creds encrypt --pretty` prints a ready-made
 `SetCredentialEncrypted=` line if you would rather embed the blob in the unit than keep a file.
 
+## 4b. Optional: serve over TLS, and require a password
+
+Skip this on a trusted management network. Worth doing where the scrape crosses
+a boundary you do not control — the metrics carry switch names, serials and BGP
+peers. See [securing the endpoint](operations.md#securing-the-endpoint) for what
+each half does.
+
+**The private key cannot simply be dropped in `/etc/arex`.** The unit runs with
+`DynamicUser=yes`, so arex has a transient UID that owns nothing: a key at
+`0400 root:root` is unreadable, and a key at `0444` is readable by every user on
+the box. Deliver it the same way as the switch password — through systemd's
+credential store, which places it on tmpfs owned by the service user:
+
+```ini
+LoadCredential=switch-password:/etc/arex/switch-password
+LoadCredential=tls-key:/etc/arex/tls/tls.key
+LoadCredential=web-password:/etc/arex/web-password
+```
+
+The certificate is public, so it can stay in `/etc/arex` as an ordinary
+world-readable file. Only the key and the scrape password need the credential
+store:
+
+```bash
+sudo install -d -o root -g root -m 0755 /etc/arex/tls
+sudo install -o root -g root -m 0444 tls.crt /etc/arex/tls/tls.crt
+sudo install -o root -g root -m 0400 tls.key /etc/arex/tls/tls.key
+printf '%s' 'a-long-random-string' | sudo tee /etc/arex/web-password >/dev/null
+sudo chmod 0400 /etc/arex/web-password
+```
+
+Then point the config at the certificate directly and at the credentials
+directory for the two secrets:
+
+```yaml
+listenTLS:
+  certFile: /etc/arex/tls/tls.crt
+  keyFile: /run/credentials/arex.service/tls-key
+  # Optional. With it, callers must present a certificate signed by this CA and
+  # no shared secret exists at all -- see below.
+  # clientCAFile: /etc/arex/tls/ca.crt
+
+listenAuth:
+  basic:
+    username: prometheus
+    passwordFile: /run/credentials/arex.service/web-password
+```
+
+Renewal is picked up without a restart: arex re-reads the pair when it changes
+on disk. That applies to the certificate under `/etc/arex`; a key delivered
+through `LoadCredential` is copied at start, so **rotating the key needs a
+restart** while rotating only the certificate does not. If your CA reissues both
+together, restart on renewal.
+
+Verify what arex ended up with:
+
+```bash
+journalctl -u arex -n 20 --output=cat | jq 'select(.msg=="listening")'
+```
+
+```json
+{"msg":"listening","address":":9100","tls":true,"client_certificate":false,"auth":true}
+```
+
+Then from outside:
+
+```bash
+curl -s --cacert /etc/arex/tls/ca.crt -u prometheus:... https://arex-host:9100/metrics | head -1
+curl -s -o /dev/null -w '%{http_code}\n' --cacert /etc/arex/tls/ca.crt https://arex-host:9100/livez
+```
+
+The second should be `200` without credentials: the probes are deliberately not
+authenticated.
+
 ## 5. Install the unit
 
 [`deploy/arex.service`](../deploy/arex.service) is hardened: `DynamicUser`, `ProtectSystem=strict`, an empty
