@@ -22,8 +22,8 @@ type ShowProcessesTop struct {
 		UpTime      float64   `json:"upTime"`
 		LoadAvg     []float64 `json:"loadAvg"` // [1min, 5min, 15min]
 	} `json:"timeInfo"`
-	CpuInfo struct {
-		Cpu struct {
+	CPUInfo struct {
+		CPU struct {
 			User   float64 `json:"user"`
 			System float64 `json:"system"`
 			Nice   float64 `json:"nice"`

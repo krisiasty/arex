@@ -22,7 +22,7 @@ func TestHTTPStatusErrorsAreActionable(t *testing.T) {
 	} {
 		t.Run(http.StatusText(tc.status), func(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(
-				func(w http.ResponseWriter, r *http.Request) {
+				func(w http.ResponseWriter, _ *http.Request) {
 					w.WriteHeader(tc.status)
 				}))
 			defer srv.Close()
@@ -50,7 +50,7 @@ func TestHTTPStatusErrorsAreActionable(t *testing.T) {
 // commands, which is how account lockouts happen.
 func TestHTTPStatusErrorIsNotACommandError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
+		func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 		}))
 	defer srv.Close()
@@ -73,7 +73,7 @@ func TestCommandErrorCarriesEAPIErrorData(t *testing.T) {
 		`"message":"CLI command 1 of 1 'show running-config' failed: invalid command",` +
 		`"data":[{"errors":["Invalid input (privileged mode required)"]}]}}`
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(body))
 	}))
 	defer srv.Close()
@@ -105,7 +105,7 @@ func TestCommandErrorCollectsDetailPerCommand(t *testing.T) {
 		`"data":[{},{"errors":["Invalid input (privileged mode required)"]},` +
 		`{"errors":["% Invalid input"]}]}}`
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(body))
 	}))
 	defer srv.Close()
@@ -125,7 +125,7 @@ func TestCommandErrorCollectsDetailPerCommand(t *testing.T) {
 // An error with no data must still produce a usable message.
 func TestCommandErrorWithoutData(t *testing.T) {
 	body := `{"jsonrpc":"2.0","id":1,"error":{"code":1000,"message":"something broke"}}`
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(body))
 	}))
 	defer srv.Close()

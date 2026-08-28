@@ -1,3 +1,5 @@
+// Package eapi is a client for the Arista EOS eAPI, the JSON-RPC interface
+// exposed by "management api http-commands".
 package eapi
 
 import (
@@ -70,6 +72,7 @@ type params struct {
 	Format  string   `json:"format"`
 }
 
+// Response is one eAPI JSON-RPC reply.
 type Response struct {
 	Result []json.RawMessage `json:"result"`
 	Error  *rpcError         `json:"error"`

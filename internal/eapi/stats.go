@@ -13,6 +13,7 @@ import (
 // a timeout applies to everything and is not.
 type Outcome string
 
+// The outcomes an eAPI request can have.
 const (
 	OutcomeSuccess        Outcome = "success"
 	OutcomeEAPIError      Outcome = "eapi_error"
@@ -30,6 +31,7 @@ const (
 // how account lockouts happen.
 type Attempt string
 
+// The kinds of attempt a request can be part of.
 const (
 	AttemptBatch Attempt = "batch"
 	AttemptRetry Attempt = "retry"

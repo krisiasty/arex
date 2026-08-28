@@ -20,9 +20,9 @@ func mods(spec map[string]time.Duration) map[string]config.ModuleConfig {
 // series rather than leaving the slow modules blank for their first interval.
 func TestFirstTickRunsEverything(t *testing.T) {
 	f := newFake()
-	data := newSwitchData("sw1", mods(map[string]time.Duration{
+	data := newSwitchData(mods(map[string]time.Duration{
 		"interfaces": 30 * time.Second, "phy": 15 * time.Minute,
-	}), "")
+	}))
 
 	CollectDue(f, data, testEpoch)
 	joined := strings.Join(f.calls, "\n")
@@ -37,9 +37,9 @@ func TestFirstTickRunsEverything(t *testing.T) {
 // module simply appears in fewer batches.
 func TestSlowModuleSkippedUntilDue(t *testing.T) {
 	f := newFake()
-	data := newSwitchData("sw1", mods(map[string]time.Duration{
+	data := newSwitchData(mods(map[string]time.Duration{
 		"interfaces": 30 * time.Second, "phy": 15 * time.Minute,
-	}), "")
+	}))
 
 	CollectDue(f, data, testEpoch)
 	f.calls = nil
@@ -66,9 +66,9 @@ func TestSlowModuleSkippedUntilDue(t *testing.T) {
 // request each, so a slow module costs fewer batches rather than more.
 func TestDueModulesShareOneBatch(t *testing.T) {
 	f := newFake()
-	data := newSwitchData("sw1", mods(map[string]time.Duration{
+	data := newSwitchData(mods(map[string]time.Duration{
 		"interfaces": 30 * time.Second, "power": 30 * time.Second, "phy": 15 * time.Minute,
-	}), "")
+	}))
 
 	CollectDue(f, data, testEpoch)
 	if f.batches != 1 {
@@ -79,7 +79,7 @@ func TestDueModulesShareOneBatch(t *testing.T) {
 // Nothing due means no request at all, rather than an empty one.
 func TestNoRequestWhenNothingIsDue(t *testing.T) {
 	f := newFake()
-	data := newSwitchData("sw1", mods(map[string]time.Duration{"phy": 15 * time.Minute}), "")
+	data := newSwitchData(mods(map[string]time.Duration{"phy": 15 * time.Minute}))
 
 	CollectDue(f, data, testEpoch)
 	before := f.batches
@@ -94,9 +94,9 @@ func TestNoRequestWhenNothingIsDue(t *testing.T) {
 func TestSkippedModuleKeepsItsLastSuccess(t *testing.T) {
 	f := newFake()
 	f.results["show interfaces phy detail"] = `{"interfacePhyStatuses":{}}`
-	data := newSwitchData("sw1", mods(map[string]time.Duration{
+	data := newSwitchData(mods(map[string]time.Duration{
 		"interfaces": 30 * time.Second, "phy": 15 * time.Minute,
-	}), "")
+	}))
 
 	CollectDue(f, data, testEpoch)
 	data.RLock()
@@ -121,9 +121,9 @@ func TestSkippedModuleKeepsItsLastSuccess(t *testing.T) {
 // The interval is exposed so the renderer can bound staleness per module: a
 // 15m module must not be judged stale against a 90s limit.
 func TestIntervalsAreExposedPerCommand(t *testing.T) {
-	data := newSwitchData("sw1", mods(map[string]time.Duration{
+	data := newSwitchData(mods(map[string]time.Duration{
 		"interfaces": 30 * time.Second, "phy": 15 * time.Minute,
-	}), "")
+	}))
 
 	for cmd, want := range map[string]time.Duration{
 		CmdVersion:    30 * time.Second,

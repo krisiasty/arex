@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -106,7 +107,7 @@ func (m *ModuleConfig) UnmarshalJSON(b []byte) error {
 			strings.TrimPrefix(err.Error(), "json: "))
 	}
 	if obj.Enabled == nil {
-		return fmt.Errorf("missing \"enabled\"; every group must state it explicitly")
+		return errors.New("missing \"enabled\"; every group must state it explicitly")
 	}
 	m.Enabled = *obj.Enabled
 

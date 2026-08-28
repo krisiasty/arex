@@ -79,7 +79,7 @@ func TestLargeFleetSpreadsAcrossTheInterval(t *testing.T) {
 // Ordering is preserved, so the variation cannot reshuffle pollers into a
 // cluster -- which is exactly what random offsets did in the field.
 func TestOffsetsIncreaseMonotonically(t *testing.T) {
-	for trial := 0; trial < 50; trial++ {
+	for range 50 {
 		prev := time.Duration(-1)
 		for i := range 8 {
 			d := PollOffset(i, 8, interval)

@@ -14,7 +14,7 @@ func TestRepeatedIdenticalErrorsAreCollapsed(t *testing.T) {
 	msg := "unexpected HTTP status: 401 Unauthorized"
 
 	logged := 0
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		if r.observe(msg, base.Add(time.Duration(i)*30*time.Second)) != "" {
 			logged++
 		}
@@ -42,7 +42,7 @@ func TestSummaryReportsCountAndDuration(t *testing.T) {
 	var r repeatTracker
 	base := time.Unix(1787900000, 0)
 	var summary string
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		if got := r.observe("boom", base.Add(time.Duration(i)*30*time.Second)); got != "" && i > 0 {
 			summary = got
 			break
@@ -79,7 +79,7 @@ func TestDifferentErrorLogsImmediately(t *testing.T) {
 func TestRecoveryIsReportedOnce(t *testing.T) {
 	var r repeatTracker
 	base := time.Unix(1787900000, 0)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		r.observe("boom", base.Add(time.Duration(i)*30*time.Second))
 	}
 	got := r.recovered(base.Add(5 * 30 * time.Second))

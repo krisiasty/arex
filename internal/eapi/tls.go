@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -45,7 +46,7 @@ func buildTLSConfig(opts TLSOptions) (*tls.Config, error) {
 	cfg := &tls.Config{MinVersion: tls.VersionTLS12}
 
 	if opts.CAFile != "" && opts.PinnedCertSHA256 != "" {
-		return nil, fmt.Errorf("caFile and pinnedCertSha256 are mutually exclusive")
+		return nil, errors.New("caFile and pinnedCertSha256 are mutually exclusive")
 	}
 
 	switch {
@@ -65,7 +66,7 @@ func buildTLSConfig(opts TLSOptions) (*tls.Config, error) {
 		// enforced either way.
 		cfg.VerifyConnection = func(cs tls.ConnectionState) error {
 			if len(cs.PeerCertificates) == 0 {
-				return fmt.Errorf("certificate pin: connection presented no certificate")
+				return errors.New("certificate pin: connection presented no certificate")
 			}
 			return checkPin(cs.PeerCertificates[0].Raw, want)
 		}
@@ -105,7 +106,7 @@ func parsePin(s string) ([]byte, error) {
 func pinVerifier(want []byte) func([][]byte, [][]*x509.Certificate) error {
 	return func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
 		if len(rawCerts) == 0 {
-			return fmt.Errorf("certificate pin: server presented no certificate")
+			return errors.New("certificate pin: server presented no certificate")
 		}
 		return checkPin(rawCerts[0], want)
 	}

@@ -2,10 +2,84 @@ version: "2"
 
 linters:
   enable:
-    - gosec
+    # Correctness
     - errcheck
-    - unused
-    - staticcheck
     - govet
-    - noctx
+    - staticcheck
     - ineffassign
+    - unused
+    - bodyclose      # HTTP response bodies closed, should an HTTP client ever return
+    - nilerr         # returning nil after a non-nil error
+    - errorlint      # %w vs %v, errors.Is/As over comparison
+    - durationcheck  # suspicious duration arithmetic; the poll scheduler does plenty
+    - contextcheck   # context propagated rather than dropped
+    - noctx          # no HTTP requests without a context
+    - makezero       # append to a make()'d slice with a non-zero length
+    - errchkjson     # unchecked json.Marshal errors
+    - asasalint      # []any passed to a variadic ...any
+    - forcetypeassert
+
+    # Security
+    - gosec
+
+    # Correctness of intent
+    - unparam        # unused or always-identical function parameters
+    - predeclared    # shadowing builtins such as min/max/new
+    - recvcheck      # mixed pointer and value receivers
+    - nilnil         # returning (nil, nil)
+    - fatcontext     # context repeatedly wrapped inside a loop
+
+    # Style and consistency
+    - sloglint       # slog is the only logger here; keep its use uniform
+    - nolintlint     # nolint directives must be specific and explained
+    - perfsprint     # fmt.Errorf/Sprintf where a cheaper form exists
+    - godot          # comments end in a period
+    - gocritic
+    - revive
+
+    # Tests
+    - usetesting     # prefer t.Setenv/t.TempDir/t.Context
+    - thelper        # helpers call t.Helper()
+    - tparallel      # consistent t.Parallel usage
+
+    # Modernisation
+    - copyloopvar
+    - intrange
+
+  settings:
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+
+    sloglint:
+      no-mixed-args: true
+
+issues:
+  # Show every occurrence: a linter adopted wholesale is only useful if the
+  # whole backlog is visible at once.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+# Deliberately not enabled, having been measured against this codebase:
+#   wsl (662)         — whitespace opinions
+#   nlreturn (120)    — a blank line before every return
+#   exhaustruct (115) — tls.Config, http.Server and prometheus.Desc are mostly
+#                       optional fields; naming them all would obscure which
+#                       ones were set on purpose
+#   varnamelen (110)  — short receiver and loop names are idiomatic
+#   lll (50)          — the long lines are catalogue.go metric definitions,
+#                       where one metric per line is what makes the table
+#                       readable; prose is already wrapped at 200
+#   gochecknoglobals (42) — the metric catalogue, descs and command specs are
+#                       package-level tables built once and never written
+#   err113 (40)       — fmt.Errorf with a formatted message is the intended
+#                       style; config errors quote the offending value
+#   cyclop (8)        — collectSwitch and the handler are wide switches over
+#                       metric groups, not deep logic
+#   wrapcheck (7)     — errors crossing a package boundary are already wrapped
+#                       where that adds context; the rest is noise
+#   funlen (3)        — run, eapi.Run and collect are long because each is a
+#                       sequence, not because it is complex
+#   ireturn (0)       — clean today, but the Runner interface exists so tests
+#                       can substitute a fake; a constructor returning it later
+#                       would be correct, not a finding

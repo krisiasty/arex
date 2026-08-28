@@ -87,12 +87,14 @@ func (c *Collector) matchIface(name string) bool {
 	return c.iface == "" || c.iface == name
 }
 
+// Describe implements prometheus.Collector.
 func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 	for _, d := range switchDescs {
 		ch <- d
 	}
 }
 
+// Collect implements prometheus.Collector.
 func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 	now := c.now()
 	if c.only != "" {
@@ -275,7 +277,7 @@ func collectVersion(ch chan<- prometheus.Metric, label string, v eapi.ShowVersio
 }
 
 func collectCPUMemory(ch chan<- prometheus.Metric, label string, p eapi.ShowProcessesTop) {
-	cpu := p.CpuInfo.Cpu
+	cpu := p.CPUInfo.CPU
 	set(ch, "arista_cpu_user_percent", cpu.User, label)
 	set(ch, "arista_cpu_system_percent", cpu.System, label)
 	set(ch, "arista_cpu_nice_percent", cpu.Nice, label)

@@ -48,10 +48,10 @@ func aristaLikeCert(t *testing.T) (tls.Certificate, []byte) {
 func serverWithCert(t *testing.T, cert tls.Certificate) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewUnstartedServer(http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
+		func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":[{}]}`))
 		}))
-	srv.TLS = &tls.Config{Certificates: []tls.Certificate{cert}} //nolint:gosec // test server
+	srv.TLS = &tls.Config{Certificates: []tls.Certificate{cert}}
 	srv.StartTLS()
 	t.Cleanup(srv.Close)
 	return srv
@@ -77,8 +77,9 @@ func TestNoSANCertFailsEvenWhenTrusted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = client.Do(req)
+	resp, err := client.Do(req)
 	if err == nil {
+		_ = resp.Body.Close()
 		t.Fatal("expected verification to fail: the cert carries no SANs")
 	}
 	if !strings.Contains(err.Error(), "SAN") && !strings.Contains(err.Error(), "not contain") {

@@ -1,3 +1,5 @@
+// Package collector polls switches over eAPI and holds the latest result for
+// each one.
 package collector
 
 import (
@@ -84,8 +86,10 @@ type SwitchData struct {
 	Phy        eapi.ShowPhyDetail
 }
 
-// RLock / RUnlock expose the read lock for callers rendering metrics.
-func (d *SwitchData) RLock()   { d.mu.RLock() }
+// RLock takes the read lock, for callers rendering metrics.
+func (d *SwitchData) RLock() { d.mu.RLock() }
+
+// RUnlock releases the read lock taken by RLock.
 func (d *SwitchData) RUnlock() { d.mu.RUnlock() }
 
 // Store holds SwitchData for all configured switches.
@@ -448,7 +452,7 @@ func collect(client Runner, data *SwitchData, specs []cmdSpec, now time.Time) {
 			continue
 		}
 		if len(raws[i]) == 0 {
-			cmdErrs[c.name] = fmt.Errorf("empty result")
+			cmdErrs[c.name] = errors.New("empty result")
 			continue
 		}
 		if perr := json.Unmarshal(raws[i], c.into(&snap)); perr != nil {
@@ -472,7 +476,7 @@ func collect(client Runner, data *SwitchData, specs []cmdSpec, now time.Time) {
 	if succeeded == 0 {
 		reason := err
 		if reason == nil {
-			reason = fmt.Errorf("no command returned usable output")
+			reason = errors.New("no command returned usable output")
 		}
 		setError(data, specs, fmt.Errorf("collection failed: %w", reason))
 		return

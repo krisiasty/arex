@@ -12,6 +12,7 @@ import (
 // those become two distinct label values for one physical part.
 type TrimmedString string
 
+// UnmarshalJSON decodes a JSON string and trims surrounding whitespace.
 func (s *TrimmedString) UnmarshalJSON(b []byte) error {
 	var raw string
 	if err := json.Unmarshal(b, &raw); err != nil {

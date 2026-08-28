@@ -55,8 +55,8 @@ func newFake() *fakeRunner {
 var testEpoch = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
 // newSwitchData builds a SwitchData from a module set.
-func newSwitchData(label string, collect map[string]config.ModuleConfig, scope string) *SwitchData {
-	return newSwitchDataFromSpecs(label, commandsFor(collect, scope, pollFloor(collect)))
+func newSwitchData(collect map[string]config.ModuleConfig) *SwitchData {
+	return newSwitchDataFromSpecs("sw1", commandsFor(collect, "", pollFloor(collect)))
 }
 
 // pollFloor is the shortest configured interval, standing in for the poll
