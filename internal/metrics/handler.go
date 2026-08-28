@@ -130,10 +130,26 @@ func internalCollectors() []prometheus.Collector {
 
 // newRegistry builds a private registry. Private rather than the default one,
 // so nothing arrives by package side effect.
+//
+// Must, because this runs at startup: a collector that cannot be registered is
+// a programming error, and failing immediately is better than serving a
+// partial exposition for the life of the process.
 func newRegistry(cs ...prometheus.Collector) *prometheus.Registry {
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(cs...)
 	return reg
+}
+
+// registryFor builds a per-request registry, reporting a failure instead of
+// panicking. The same registration succeeds at startup, so this cannot fail in
+// practice -- but a Must on a request path is a panic waiting for a future
+// edit, and the caller is already holding a ResponseWriter it can answer with.
+func registryFor(c prometheus.Collector) (*prometheus.Registry, error) {
+	reg := prometheus.NewRegistry()
+	if err := reg.Register(c); err != nil {
+		return nil, err
+	}
+	return reg, nil
 }
 
 // NewHandler serves /metrics, optionally filtered by a target parameter.
@@ -204,7 +220,13 @@ func NewHandler(store *collector.Store, stalenessLimit time.Duration, index map[
 		case target == "" && filter == Filter{}:
 			serve(w, r, full)
 		default:
-			serve(w, r, newRegistry(NewSwitchCollector(store, stalenessLimit, label, filter)))
+			reg, err := registryFor(NewSwitchCollector(store, stalenessLimit, label, filter))
+			if err != nil {
+				http.Error(w, "building the filtered registry: "+err.Error(),
+					http.StatusInternalServerError)
+				return
+			}
+			serve(w, r, reg)
 		}
 	})
 }

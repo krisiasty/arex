@@ -183,6 +183,19 @@ scrape_configs:
 One arex serves every switch it polls, and each series carries its own `switch` label, so this is one target
 regardless of fleet size. Metrics come from cache, so the scrape interval is independent of `pollInterval`.
 
+## Applying a configuration change
+
+arex reads its config once, at startup, so an edit needs a restart:
+
+```bash
+sudo arex -check -config /etc/arex/config.yaml   # catch the mistake first
+sudo systemctl restart arex
+```
+
+There is deliberately no `systemctl reload`. arex ignores `SIGHUP` rather than
+dying — it logs that the signal was ignored and what to do instead — but a unit
+advertising a reload that reloads nothing would be worse than not having one.
+
 ## Upgrading
 
 ```bash

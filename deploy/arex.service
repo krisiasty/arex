@@ -21,7 +21,10 @@ Type=simple
 # without connecting to anything.
 ExecStartPre=/usr/local/bin/arex -check -config /etc/arex/config.yaml
 ExecStart=/usr/local/bin/arex -config /etc/arex/config.yaml
-ExecReload=/bin/kill -HUP $MAINPID
+# No ExecReload: arex reads its config only at startup, so a configuration
+# change needs "systemctl restart". It ignores SIGHUP rather than dying, but
+# ignoring is all it does -- advertising a reload that reloads nothing would be
+# worse than not having one.
 Restart=on-failure
 RestartSec=5s
 
