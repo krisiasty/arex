@@ -36,11 +36,16 @@ request counts matter most.
 | Metric | Type | Description |
 | --- | --- | --- |
 | `arex_build_info` | gauge | Version, VCS revision and Go version of the running binary. Always 1 |
+| `go_*`, `process_*` | — | Go runtime and process metrics: goroutines, heap, GC, memory, open files |
 | `arista_eapi_requests_total` | counter | eAPI requests made, by `outcome` and `attempt` |
 | `arista_eapi_response_bytes_total` | counter | Total response bytes received from this switch |
 | `arista_eapi_request_duration_seconds_total` | counter | Total time spent on eAPI requests to this switch |
 
-`arex_build_info` is the only metric with no `switch` label, which is why it carries its own prefix — it describes
+The `go_*` and `process_*` families come from the standard Go and process collectors rather than being computed
+here: they are read at scrape time and are more accurate than anything this exporter could assemble.
+`process_resident_memory_bytes` is the one to watch when scaling out.
+
+`arex_build_info` is the only arex metric with no `switch` label, and that is why it has its own prefix — it describes
 the process, not a device. The revision comes from the VCS information the Go toolchain embeds automatically, so a
 plain `go build` produces a usable answer; a release can override the version with
 `-ldflags "-X github.com/krisiasty/arex/internal/metrics.Version=v1.2.3"`.
@@ -488,6 +493,59 @@ go build -o arex .
 ./arex -config config.json -debug
 ```
 
+### Endpoints
+
+| Path | Purpose |
+| --- | --- |
+| `/metrics` | Prometheus exposition |
+| `/livez` | 200 while the poll loop is cycling, 503 if it has stalled |
+| `/readyz` | 200 once every switch has been polled at least once |
+| `/status` | JSON detail per switch |
+| `/health` | alias for `/livez` |
+
+**Liveness** fails only if a poller has completed no attempt for ten poll intervals. A switch that is unreachable
+or refusing credentials is not a liveness failure: restarting arex would not fix it, and killing a working process
+over one bad device trades a visible per-switch failure for a restart loop. A process younger than that window is
+live even before its first poll, since pollers start at staggered offsets.
+
+**Readiness** means `/metrics` covers the whole configured set, not that the switches are healthy. A switch with
+bad credentials fails every poll indefinitely, and tying readiness to switch health would take a working exporter
+out of service while hiding the metrics that identify the broken device. Per-switch health is
+`arista_scrape_success`.
+
+**`/status`** reports each switch's last success and attempt, data age, whether it is stale, the commands it
+collects and any that failed, with the switch's own error text. It carries no credentials.
+
+```json
+{
+  "live": true,
+  "ready": true,
+  "uptime": "4m12s",
+  "switches": [
+    {
+      "switch": "leaf-1",
+      "scrapeOk": true,
+      "lastSuccessAt": "2026-08-28T11:19:18Z",
+      "ageSeconds": 5.871,
+      "commands": ["show version", "show interfaces", "..."]
+    }
+  ]
+}
+```
+
+### Logging
+
+Logs are JSON Lines on stdout, one object per event, with UTC millisecond timestamps so records from different
+hosts sort together. `-debug` raises the level rather than changing the format: a format that varied with
+verbosity could not be parsed by anything downstream, and the per-request output is only worth having if it can be
+queried.
+
+```json
+{"time":"2026-08-28T09:19:18.537Z","level":"INFO","msg":"arex starting",
+ "version":"v0.0.0-20260828085310-7a01577d0334+dirty","revision":"7a01577d0334",
+ "go_version":"go1.27.0","switches":3,"poll_interval":"30s","staleness_limit":"90s","debug":false}
+```
+
 ### Shutdown
 
 arex stops cleanly on `SIGINT` or `SIGTERM`: pollers stop, and the HTTP server is given up to five seconds to
@@ -522,34 +580,34 @@ into a cluster.
 
 ### Debug logging
 
-`-debug` logs one line per eAPI request:
+`-debug` adds one record per eAPI request:
 
-```text
-[leaf-1] eapi POST /command-api -> 200 duration=412ms cmds=9 req=350B resp=486.2kB
-    proto=HTTP/1.1 conn=reused tls=1.2
-[leaf-1] eapi POST /command-api -> 200 duration=38ms cmds=1[show interfaces phy detail]
-    req=94B resp=1.1kB conn=reused eapi_error=1002 msg="invalid command"
-[leaf-2] eapi POST /command-api -> 401 duration=6ms cmds=9 req=350B conn=new tls=1.2
+```json
+{"time":"2026-08-28T09:19:18.545Z","level":"DEBUG","msg":"eapi request","switch":"leaf-1",
+ "method":"POST","path":"/command-api","duration_ms":1435,"cmds":9,"req_bytes":350,
+ "status":200,"resp_bytes":655360,"proto":"HTTP/1.1","conn":"reused","tls":"1.3"}
 ```
 
-| Field | Meaning |
+| Attribute | Meaning |
 | --- | --- |
-| `duration` | Round trip including reading the response body |
-| `cmds` | Number of commands. The list is shown only for small batches, i.e. when a retry is isolating a failure |
-| `req` / `resp` | Payload sizes. `show interfaces phy detail` alone runs to hundreds of kilobytes per poll |
+| `duration_ms` | Round trip including reading the response body |
+| `cmds` | Number of commands; a `commands` array is added for batches of three or fewer |
+| `req_bytes` / `resp_bytes` | Payload sizes; `show interfaces phy detail` alone runs to hundreds of kilobytes |
 | `proto` | Negotiated HTTP version |
-| `conn` | `new` or `reused` — see the note below on reused connections |
+| `conn` | `new` or `reused` — see the note below |
 | `tls` | Negotiated TLS version, on new connections |
-| `eapi_error` | JSON-RPC error code. A 200 can still carry an eAPI rejection, so it is separate from the status |
+| `eapi_error` / `eapi_message` / `eapi_cause` | JSON-RPC code, summary, and the cause from `error.data` |
 | `error` | Transport failure, when the request never completed |
 
+The `commands` array appears only for small batches because that is when a per-command retry is isolating a
+failure; on a full batch it would be the same list on every record, thousands of times a day.
+
+A 200 can still carry an eAPI rejection, so `eapi_error` is separate from `status`.
+
 A **reused** connection can outlive a switch-side configuration change, so if a credential or role change appears
-not to take effect, that field is the first thing to check.
+not to take effect, that attribute is the first thing to check.
 
 Credentials never appear at any verbosity: the Authorization header is not logged, and neither is the password.
-
-Response sizes are worth watching before scaling out — nine commands against one switch is a few hundred kilobytes
-every poll interval, and interface-heavy commands dominate it.
 
 ## Docker
 

@@ -16,6 +16,9 @@ import (
 	"github.com/krisiasty/arex/config"
 	"github.com/krisiasty/arex/internal/collector"
 	"github.com/krisiasty/arex/internal/eapi"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/expfmt"
 )
 
 // fixtureRunner serves the repo-root testdata fixtures as eAPI results.
@@ -50,6 +53,9 @@ func (f fixtureRunner) Run(cmds []string) ([]json.RawMessage, error) {
 }
 
 // render collects the fixtures into a store and returns the exposition text.
+//
+// The text comes from the registry rather than being written directly, so the
+// tests exercise the same path a scrape does.
 func render(t *testing.T, mutate func(*collector.SwitchData)) string {
 	t.Helper()
 	store, err := collector.NewStore([]config.SwitchConfig{
@@ -63,8 +69,25 @@ func render(t *testing.T, mutate func(*collector.SwitchData)) string {
 	if mutate != nil {
 		mutate(sd)
 	}
+	return gather(t, store, 90*time.Second)
+}
+
+// gather renders a store through the registry, as a scrape would.
+func gather(t *testing.T, store *collector.Store, stalenessLimit time.Duration) string {
+	t.Helper()
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(NewCollector(store, stalenessLimit))
+
+	mfs, err := reg.Gather()
+	if err != nil {
+		t.Fatalf("gather: %v", err)
+	}
 	var b bytes.Buffer
-	Write(&b, store, 90*time.Second)
+	for _, mf := range mfs {
+		if _, err := expfmt.MetricFamilyToText(&b, mf); err != nil {
+			t.Fatalf("encode %s: %v", mf.GetName(), err)
+		}
+	}
 	return b.String()
 }
 
@@ -159,9 +182,7 @@ func TestNeverCollectedEmitsOnlyScrapeMetrics(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var b bytes.Buffer
-	Write(&b, store, 90*time.Second)
-	out := b.String()
+	out := gather(t, store, 90*time.Second)
 
 	if v := sample(out, "arista_scrape_age_seconds", ""); v != "-1" {
 		t.Errorf("age = %q, want -1", v)
@@ -183,7 +204,7 @@ func TestNeverCollectedEmitsOnlyScrapeMetrics(t *testing.T) {
 	}
 	// A switch that has never answered has not had a successful scrape,
 	// even though no error has been recorded yet either.
-	if v := sample(b.String(), "arista_scrape_success", ""); v != "0" {
+	if v := sample(out, "arista_scrape_success", ""); v != "0" {
 		t.Errorf("arista_scrape_success = %q for a never-contacted switch, want 0", v)
 	}
 }
@@ -606,9 +627,7 @@ func TestCommandSuccessEmittedForNeverCollectedSwitch(t *testing.T) {
 	// Simulate a poll that failed outright, as a 401 does.
 	collector.Collect(failingRunner{}, sd)
 
-	var b bytes.Buffer
-	Write(&b, store, 90*time.Second)
-	out := b.String()
+	out := gather(t, store, 90*time.Second)
 
 	if v := sample(out, "arista_scrape_success", ""); v != "0" {
 		t.Errorf("scrape_success = %q, want 0", v)
@@ -667,9 +686,7 @@ func TestPerCommandStalenessSuppressesOneCommand(t *testing.T) {
 	collector.Collect(fixtureRunner{t}, sd)
 	collector.Collect(staleRunner{t, "show ip bgp summary vrf all"}, sd)
 
-	var b bytes.Buffer
-	Write(&b, store, 90*time.Second)
-	fresh := b.String()
+	fresh := gather(t, store, 90*time.Second)
 
 	// Immediately after, BGP data is still inside stalenessLimit.
 	if sample(fresh, "arista_bgp_peer_up", `peer="198.51.100.10"`) == "" {
@@ -679,9 +696,7 @@ func TestPerCommandStalenessSuppressesOneCommand(t *testing.T) {
 	// Age that command's last success past the limit.
 	sd.CommandLastSuccess[collector.CmdBGPSummary] = time.Now().Add(-200 * time.Second)
 
-	b.Reset()
-	Write(&b, store, 90*time.Second)
-	out := b.String()
+	out := gather(t, store, 90*time.Second)
 
 	if sample(out, "arista_bgp_peer_up", "") != "" {
 		t.Error("BGP data older than stalenessLimit must be suppressed")
@@ -719,9 +734,7 @@ func TestEAPIRequestMetricsExposed(t *testing.T) {
 	sd.Stats.Record(eapi.RequestKey{Outcome: eapi.OutcomeSuccess, Attempt: eapi.AttemptBatch}, 486000, time.Second)
 	sd.Stats.Record(eapi.RequestKey{Outcome: eapi.OutcomeHTTPError, Attempt: eapi.AttemptBatch}, 0, time.Millisecond)
 
-	var b bytes.Buffer
-	Write(&b, store, 90*time.Second)
-	out := b.String()
+	out := gather(t, store, 90*time.Second)
 
 	if got := sample(out, "arista_eapi_requests_total",
 		`outcome="success"`, `attempt="batch"`); got != "1" {
@@ -749,9 +762,7 @@ func TestEAPIRequestMetricsSurviveTotalFailure(t *testing.T) {
 	collector.Collect(failingRunner{}, sd)
 	sd.Stats.Record(eapi.RequestKey{Outcome: eapi.OutcomeHTTPError, Attempt: eapi.AttemptBatch}, 0, time.Millisecond)
 
-	var b bytes.Buffer
-	Write(&b, store, 90*time.Second)
-	out := b.String()
+	out := gather(t, store, 90*time.Second)
 
 	if sample(out, "arista_eapi_requests_total", `outcome="http_error"`) == "" {
 		t.Error("request counters must be emitted for an unreachable switch")

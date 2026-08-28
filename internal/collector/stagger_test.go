@@ -19,14 +19,33 @@ func TestFirstPollerStartsImmediately(t *testing.T) {
 // avoid overlapping -- not to be spread across the whole interval, which
 // would delay the last switch's first data for no benefit.
 func TestSmallFleetIsSpacedByAFewSeconds(t *testing.T) {
-	var prev time.Duration
-	for i := 1; i < 5; i++ {
-		d := PollOffset(i, 5, interval)
-		gap := d - prev
-		if gap < 1500*time.Millisecond || gap > 4500*time.Millisecond {
-			t.Errorf("offset[%d]-offset[%d] = %v, want roughly 3s", i, i-1, gap)
+	// Offsets are i*pollSpacing plus a variation of up to a third of the
+	// spacing either way, so consecutive gaps lie in
+	// [spacing - 2*jitter, spacing + 2*jitter]. Asserting a tighter band than
+	// the design permits makes the test flaky rather than strict -- the
+	// original bound of 1.5s-4.5s failed 40% of runs.
+	jitter := pollSpacing / 3
+	minGap, maxGap := pollSpacing-2*jitter, pollSpacing+2*jitter
+
+	var mean time.Duration
+	const trials = 200
+	for range trials {
+		var prev time.Duration
+		for i := 1; i < 5; i++ {
+			d := PollOffset(i, 5, interval)
+			gap := d - prev
+			if gap < minGap || gap > maxGap {
+				t.Fatalf("offset[%d]-offset[%d] = %v, want within [%v, %v]", i, i-1, gap, minGap, maxGap)
+			}
+			prev = d
 		}
-		prev = d
+		mean += prev / 4
+	}
+	// Over many draws the average spacing is the configured spacing; the
+	// variation is symmetric and must not bias the schedule.
+	mean /= trials
+	if mean < pollSpacing-jitter/2 || mean > pollSpacing+jitter/2 {
+		t.Errorf("mean spacing = %v, want about %v", mean, pollSpacing)
 	}
 	if last := PollOffset(4, 5, interval); last > 15*time.Second {
 		t.Errorf("last offset = %v; a five-switch fleet should not wait this long", last)

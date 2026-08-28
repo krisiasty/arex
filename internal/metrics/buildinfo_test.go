@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"bytes"
 	"strings"
 	"testing"
 	"time"
@@ -20,9 +19,7 @@ func TestBuildInfoIsExposed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var b bytes.Buffer
-	Write(&b, store, 90*time.Second)
-	out := b.String()
+	out := gather(t, store, 90*time.Second)
 
 	line := ""
 	for _, l := range strings.Split(out, "\n") {
@@ -60,9 +57,8 @@ func TestBuildInfoEmittedOncePerScrape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var b bytes.Buffer
-	Write(&b, store, 90*time.Second)
-	if n := strings.Count(b.String(), "arex_build_info{"); n != 1 {
+	out := gather(t, store, 90*time.Second)
+	if n := strings.Count(out, "arex_build_info{"); n != 1 {
 		t.Errorf("%d build info series, want 1", n)
 	}
 }
