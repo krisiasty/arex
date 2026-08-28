@@ -19,13 +19,19 @@ Identifiers were replaced consistently across every file. Shapes were not change
 | local/underlay ASN | `4200000000`, `4200000001` |
 | peer descriptions | `transit-rtr-01`, `transit-rtr-02` |
 | interface description | `host-a01 (planned) bond10` |
-| optic serials | `XXX000ab0002`, `XXX000a`0003`, … |
+| non-default VRF names | `TENANT_PRIV`, `TENANT_PUBLIC` |
+| optic serials | `XXX000AB0001A`, `XXX000ab0002`, `XXX000a` + backtick + `0003`, … |
 
 Deliberately preserved because tests depend on them:
 
 - `inOctets: 40456835181534` exceeds uint32, so uint64 handling stays exercised.
 - ASNs stay above int32 max — they are JSON **strings** in EOS, and that is what broke the exporter.
-- Optic serials keep a backtick, as the real EEPROM values do.
+- Optic serials keep a backtick, as the real EEPROM values do, and keep their original length and
+  letter/digit positions — the `XXX` prefix marks them as placeholders rather than plausible vendor
+  codes, and the trailing sequence number distinguishes the optics.
+- `INTERNET` is a generic name and was left as it was. The two tenant VRFs have no peers, which is
+  what the fixture exists to cover: a VRF present in `show ip bgp summary vrf all` with an empty
+  `peers` object.
 - `show_interfaces_phy_detail.json` keeps the trailing whitespace EOS pads `vendorSn` with; the
   same optic reports it unpadded in `show_interfaces_transceiver_detail.json`.
 - `lowFrequncyPeakingFilter` keeps EOS's spelling of "Frequncy".
