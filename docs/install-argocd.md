@@ -109,8 +109,13 @@ Editing `arex-values.yaml` — adding a switch, changing an interval — changes
 the `checksum/config` annotation on the Deployment, which rolls the pod. So the sync genuinely takes effect rather
 than reporting `Synced` while arex keeps running the config it read at startup.
 
-Expect a brief gap in the series across the roll: `Recreate` stops the old pod before starting the new one,
-deliberately, because two arex instances would poll every switch twice.
+No metrics are lost across the roll. `maxUnavailable: 0` keeps the old pod serving until the new one is Ready,
+which for arex means every switch has been polled once — so a sync that changes the config costs an overlap where
+both instances poll, not a gap. Aggregations double for that window; use `max by (switch)` if a dashboard spans
+syncs.
+
+A sync that breaks the config therefore does not take monitoring down: the new pod never becomes Ready, ArgoCD
+reports the Application as `Progressing`, and the old pod keeps polling until someone fixes it.
 
 ## 5. Verify the whole chain
 

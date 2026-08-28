@@ -332,9 +332,13 @@ arex's reload-on-401 completes the loop.
 rotation silently stops working. The same applies to a `ConfigMap` holding the config file. See
 [deploy/kubernetes.yaml](../deploy/kubernetes.yaml).
 
-Run **one replica**. arex has no leader election, so two replicas poll every switch twice — doubling eAPI load — and
-Prometheus then holds two series per switch differing only by `pod`, which quietly double-counts any aggregation.
-Use `strategy: Recreate` for the same reason: a rolling update briefly runs both.
+Run **one replica**. arex has no leader election, so two running indefinitely poll every switch twice — doubling
+eAPI load — and Prometheus then holds two series per switch differing only by `pod`, which quietly double-counts any
+aggregation.
+
+A deploy is the deliberate exception: the rolling update sets `maxUnavailable: 0`, so the old pod serves until the
+new one is Ready and no metrics are lost, at the cost of a brief overlap where both poll. See
+[why one replica](install-kubernetes.md#why-one-replica).
 
 ---
 

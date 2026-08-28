@@ -134,13 +134,32 @@ count by (switch) (arista_info)
 
 ## Why one replica
 
-`replicaCount` defaults to 1 and the strategy is `Recreate`, both deliberately. arex has no leader election, so two
-instances poll every switch twice — doubling eAPI load — and Prometheus then holds two series per switch that
-differ only by `pod`, quietly double-counting any aggregation. A rolling update briefly runs both, which is why the
-strategy is `Recreate`: a short gap is the cheaper failure, and arex drains scrapes in flight before exiting.
+`replicaCount` defaults to 1. arex has no leader election, so two instances running indefinitely would poll every
+switch twice — doubling eAPI load — and Prometheus would hold two series per switch differing only by `pod`,
+quietly double-counting any aggregation.
 
-Raising `replicaCount` is not a supported way to get availability. If a node failing is a concern, let the
-Deployment reschedule — a poll interval of downtime costs one gap in the series.
+Raising `replicaCount` is therefore not a way to get availability. If a node failing is a concern, let the
+Deployment reschedule.
+
+**A deploy is the exception, and it is deliberate.** The strategy is `RollingUpdate` with `maxUnavailable: 0`, so
+the old pod keeps serving until the new one is Ready — and Ready, for arex, means every switch has been polled
+once. No metrics are lost across an upgrade. The cost is an overlap of roughly one poll interval where both
+instances poll and both are scraped.
+
+During that window, aggregations double. Use `max by (switch)` rather than `sum` if a dashboard or alert spans
+deploys:
+
+```promql
+max by (switch) (arista_interface_link_up)
+```
+
+Two useful consequences of the readiness gate. A rollout **stalls** rather than completing if the new pod cannot
+reach a switch, leaving the working pod in place — a broken config or an unreachable switch does not take
+monitoring down. And a stalled rollout is visible: `kubectl rollout status` blocks, and the new pod sits
+`0/1 Running`.
+
+If something on the switch side objects to concurrent eAPI sessions, set `strategy.type: Recreate` instead. That
+removes the overlap and accepts a gap of one startup instead.
 
 ## Upgrading
 

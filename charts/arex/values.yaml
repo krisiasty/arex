@@ -67,9 +67,27 @@ config:
   #   name: leaf1
   #   pinnedCertSha256: "A1:B2:..."
 
-# One replica, deliberately. arex has no leader election, so two would poll
-# every switch twice and give Prometheus two series per switch to double-count.
+# One replica in steady state. arex has no leader election, so two running
+# indefinitely would poll every switch twice and give Prometheus two series per
+# switch to double-count.
 replicaCount: 1
+
+# How a new version replaces the old one.
+#
+# RollingUpdate with maxUnavailable 0 means the old pod keeps serving until the
+# new one is Ready -- which for arex means every switch polled once -- so there
+# is no gap in the series. The cost is a brief overlap, typically one poll
+# interval, where both instances poll and Prometheus holds two series per
+# switch.
+#
+# Set type: Recreate instead to avoid the overlap entirely, at the price of a
+# gap: the old pod stops before the new one starts. Worth it only if something
+# on the switch side objects to concurrent eAPI sessions.
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 0
+    maxSurge: 1
 
 service:
   type: ClusterIP
