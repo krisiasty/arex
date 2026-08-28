@@ -24,7 +24,7 @@ type Config struct {
 	// collected. A nil map means the block was absent, which is an error --
 	// defaulting it either way would silently change what a deployment
 	// gathers.
-	Collect map[string]ModuleConfig `json:"collect"`
+	Collect CollectSet `json:"collect"`
 }
 
 // SwitchConfig holds connection details for a single switch.
@@ -49,7 +49,7 @@ type SwitchConfig struct {
 	PinnedCertSHA256 string `json:"pinnedCertSha256"`
 
 	// Collect overrides the top-level set for this switch, wholesale.
-	Collect map[string]ModuleConfig `json:"collect"`
+	Collect CollectSet `json:"collect"`
 
 	// InterfaceScope is passed to the switch verbatim as the interface
 	// argument of the interface-related commands, e.g.
@@ -226,14 +226,14 @@ func (s SwitchConfig) EffectiveCollect(defaults map[string]ModuleConfig,
 
 // validateCollect rejects unknown keys, so a typo cannot silently disable
 // collection.
-func validateCollect(set map[string]ModuleConfig, where string, pollInterval time.Duration) error {
+func validateCollect(set CollectSet, where string, pollInterval time.Duration) error {
 	known := make(map[string]bool, len(CollectKeys))
 	for _, k := range CollectKeys {
 		known[k] = true
 	}
 	for k, m := range set {
 		if !known[k] {
-			return fmt.Errorf("config: %s: unknown collect key %q; valid keys are %s",
+			return fmt.Errorf("config: %s: unknown key %q; valid keys are %s",
 				where, k, strings.Join(CollectKeys, ", "))
 		}
 		// Rejected rather than clamped: the loop cannot tick faster than

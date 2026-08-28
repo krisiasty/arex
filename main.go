@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -32,7 +33,11 @@ func main() {
 	slog.SetDefault(logger)
 
 	if err := run(logger, *cfgPath, *debug); err != nil {
-		logger.Error("startup failed", "error", err)
+		// Plain text rather than a JSON log line. Nothing reaches this that is
+		// not a startup failure, so the only reader is the person who just ran
+		// arex -- and a JSON string escapes every quote in a message whose
+		// purpose is to show them the shape a config field wants.
+		fmt.Fprintf(os.Stderr, "arex: %v\n", err)
 		os.Exit(1)
 	}
 }
