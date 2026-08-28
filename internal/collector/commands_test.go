@@ -7,10 +7,10 @@ import (
 	"github.com/krisiasty/arex/config"
 )
 
-func allEnabled() map[string]bool {
-	m := make(map[string]bool, len(config.CollectKeys))
+func allEnabled() map[string]config.ModuleConfig {
+	m := make(map[string]config.ModuleConfig, len(config.CollectKeys))
 	for _, k := range config.CollectKeys {
-		m[k] = true
+		m[k] = config.ModuleConfig{Enabled: true, Interval: directInterval}
 	}
 	return m
 }
@@ -37,25 +37,25 @@ func TestEveryCollectKeyMapsToACommand(t *testing.T) {
 }
 
 func TestVersionIsAlwaysCollected(t *testing.T) {
-	specs := commandsFor(map[string]bool{}, "")
+	specs := commandsFor(map[string]config.ModuleConfig{}, "", directInterval)
 	if len(specs) != 1 || specs[0].name != CmdVersion {
 		t.Fatalf("with nothing enabled, want only show version, got %d", len(specs))
 	}
 }
 
 func TestAllEnabledGivesEveryCommand(t *testing.T) {
-	if n := len(commandsFor(allEnabled(), "")); n != len(config.CollectKeys)+1 {
+	if n := len(commandsFor(allEnabled(), "", directInterval)); n != len(config.CollectKeys)+1 {
 		t.Errorf("commands = %d, want %d", n, len(config.CollectKeys)+1)
 	}
 }
 
 func TestDisabledCommandsAreNotIssued(t *testing.T) {
 	set := allEnabled()
-	set["phy"] = false
-	set["bgp"] = false
+	delete(set, "phy")
+	delete(set, "bgp")
 
 	var cli []string
-	for _, s := range commandsFor(set, "") {
+	for _, s := range commandsFor(set, "", directInterval) {
 		cli = append(cli, s.cli)
 	}
 	joined := strings.Join(cli, "\n")
@@ -71,7 +71,7 @@ func TestDisabledCommandsAreNotIssued(t *testing.T) {
 
 func TestScopeIsSplicedIntoInterfaceCommandsOnly(t *testing.T) {
 	const scope = "Ethernet1/1-4,Ethernet29/1-4"
-	specs := commandsFor(allEnabled(), scope)
+	specs := commandsFor(allEnabled(), scope, directInterval)
 
 	want := map[string]string{
 		CmdInterfaces:   "show interfaces " + scope,
@@ -98,7 +98,7 @@ func TestScopeIsSplicedIntoInterfaceCommandsOnly(t *testing.T) {
 // The metric label must stay stable, or switches with different scopes would
 // each get their own arista_command_success series for the same command.
 func TestMetricNameIsIndependentOfScope(t *testing.T) {
-	for _, s := range commandsFor(allEnabled(), "Ethernet1/1") {
+	for _, s := range commandsFor(allEnabled(), "Ethernet1/1", directInterval) {
 		if strings.Contains(s.name, "Ethernet") {
 			t.Errorf("scope leaked into the metric label: %q", s.name)
 		}
@@ -107,12 +107,12 @@ func TestMetricNameIsIndependentOfScope(t *testing.T) {
 
 func TestStoreUsesPerSwitchCommands(t *testing.T) {
 	full := allEnabled()
-	lean := map[string]bool{"interfaces": true}
+	lean := map[string]config.ModuleConfig{"interfaces": {Enabled: true}}
 
 	store, err := NewStore([]config.SwitchConfig{
 		{Host: "https://192.0.2.1", Username: "u", Password: "p", Name: "full", Collect: full},
 		{Host: "https://192.0.2.2", Username: "u", Password: "p", Name: "lean", Collect: lean},
-	}, full)
+	}, full, directInterval)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -49,6 +49,14 @@ type SwitchData struct {
 	// looking fresh while the rest went arbitrarily stale.
 	CommandLastSuccess map[string]time.Time
 
+	// CommandInterval is how often each command is issued, exposed so the
+	// renderer can bound staleness per module: a command polled every 15
+	// minutes must not be judged stale against a 90-second limit.
+	CommandInterval map[string]time.Duration
+
+	// nextDue is when each command may next be issued.
+	nextDue map[string]time.Time
+
 	// Stats counts eAPI requests for this switch. It describes arex rather
 	// than the switch, so it is reported even when the switch is
 	// unreachable -- which is precisely when request counts matter.
@@ -92,7 +100,8 @@ type Store struct {
 //
 // Labels must be unique: two switches sharing one would write into the same
 // SwitchData, producing a single series alternating between two devices.
-func NewStore(switches []config.SwitchConfig, defaults map[string]bool) (*Store, error) {
+func NewStore(switches []config.SwitchConfig, defaults map[string]config.ModuleConfig,
+	pollInterval time.Duration) (*Store, error) {
 	s := &Store{
 		switches: make(map[string]*SwitchData, len(switches)),
 		order:    make([]string, 0, len(switches)),
@@ -102,16 +111,97 @@ func NewStore(switches []config.SwitchConfig, defaults map[string]bool) (*Store,
 		if _, dup := s.switches[label]; dup {
 			return nil, fmt.Errorf("config: duplicate switch label %q — names must be unique", label)
 		}
-		specs := commandsFor(sw.EffectiveCollect(defaults), sw.InterfaceScope)
-		s.switches[label] = &SwitchData{
-			Label:              label,
-			CommandLastSuccess: make(map[string]time.Time),
-			Commands:           commandNames(specs),
-			specs:              specs,
-		}
+		specs := commandsFor(sw.EffectiveCollect(defaults, pollInterval), sw.InterfaceScope, pollInterval)
+		s.switches[label] = newSwitchDataFromSpecs(label, specs)
 		s.order = append(s.order, label)
 	}
 	return s, nil
+}
+
+// newSwitchDataFromSpecs builds a switch's state from its command list.
+func newSwitchDataFromSpecs(label string, specs []cmdSpec) *SwitchData {
+	d := &SwitchData{
+		Label:              label,
+		CommandLastSuccess: make(map[string]time.Time, len(specs)),
+		CommandInterval:    make(map[string]time.Duration, len(specs)),
+		nextDue:            make(map[string]time.Time, len(specs)),
+		Commands:           commandNames(specs),
+		specs:              specs,
+	}
+	for _, c := range specs {
+		d.CommandInterval[c.name] = c.interval
+	}
+	return d
+}
+
+// due returns the commands whose interval has elapsed.
+//
+// Every command is due on the first call, so a fresh process populates each
+// series rather than leaving the slow modules blank for their first interval.
+func (d *SwitchData) due(now time.Time) []cmdSpec {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	out := make([]cmdSpec, 0, len(d.specs))
+	for _, c := range d.specs {
+		if at, seen := d.nextDue[c.name]; seen && now.Before(at) {
+			continue
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+// markDue records that these commands have just been issued.
+func (d *SwitchData) markDue(specs []cmdSpec, now time.Time) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for _, c := range specs {
+		d.nextDue[c.name] = now.Add(c.interval)
+	}
+}
+
+// ensureScheduled fills in scheduling state for a SwitchData built directly
+// rather than through NewStore, as in tests: every command at one interval.
+func (d *SwitchData) ensureScheduled() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.nextDue == nil {
+		d.nextDue = make(map[string]time.Time, len(commandOrder)+1)
+	}
+	if d.specs == nil {
+		d.specs = commandsFor(allCollectKeys(directInterval), "", directInterval)
+		d.Commands = commandNames(d.specs)
+	}
+	if d.CommandInterval == nil {
+		d.CommandInterval = make(map[string]time.Duration, len(d.specs))
+		for _, c := range d.specs {
+			d.CommandInterval[c.name] = c.interval
+		}
+	}
+}
+
+// directInterval is the interval assumed for a directly constructed
+// SwitchData, which has no configuration to read one from.
+const directInterval = 30 * time.Second
+
+// Schedule describes how often each of a switch's commands is issued, in
+// issue order, for logging at startup.
+func (d *SwitchData) Schedule() []ModuleSchedule {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	out := make([]ModuleSchedule, 0, len(d.specs))
+	for _, c := range d.specs {
+		out = append(out, ModuleSchedule{Command: c.name, Interval: c.interval})
+	}
+	return out
+}
+
+// ModuleSchedule is one command and how often it runs.
+type ModuleSchedule struct {
+	Command  string
+	Interval time.Duration
 }
 
 // All returns every SwitchData in configuration order. Callers must hold
@@ -149,8 +239,15 @@ type snapshot struct {
 // stops switches with different scopes from each producing their own
 // arista_command_success series for the same logical command.
 type cmdSpec struct {
-	name  string
-	cli   string
+	name string
+	cli  string
+
+	// interval is how often this command is issued. Modules differ by orders
+	// of magnitude in how fast their data changes, so a single poll interval
+	// would either waste switch CPU on the slow ones or under-sample the fast
+	// ones.
+	interval time.Duration
+
 	into  func(*snapshot) interface{}
 	apply func(*snapshot, *SwitchData)
 }
@@ -254,15 +351,28 @@ func scoped(name, scope string) string {
 }
 
 // commandsFor builds the command list for one switch.
-func commandsFor(collect map[string]bool, scope string) []cmdSpec {
+//
+// show version inherits the fastest configured interval: it is always
+// collected, and its identity metric is what every other series joins
+// against, so it must not be the stalest thing in a scrape.
+func commandsFor(collect map[string]config.ModuleConfig, scope string, pollInterval time.Duration) []cmdSpec {
 	out := make([]cmdSpec, 0, len(commandOrder)+1)
-	out = append(out, versionCommand)
+
+	version := versionCommand
+	version.interval = pollInterval
+	out = append(out, version)
+
 	for _, key := range commandOrder {
-		if !collect[key] {
+		mod, ok := collect[key]
+		if !ok || !mod.Enabled {
 			continue
 		}
 		spec := optionalCommands[key]
 		spec.cli = scoped(spec.name, scope)
+		spec.interval = mod.Interval
+		if spec.interval <= 0 {
+			spec.interval = pollInterval
+		}
 		out = append(out, spec)
 	}
 	return out
@@ -277,18 +387,39 @@ func commandNames(specs []cmdSpec) []string {
 	return out
 }
 
-// Collect performs a single poll and updates the store.
+// Collect polls every command now, ignoring intervals, and updates the store.
+// The poll loop calls CollectDue instead; this is for a forced poll.
 //
-// All commands are sent as one runCmds batch. eAPI fails a whole batch if it
-// rejects any single command, so on batch failure each command is retried
-// individually: one command unsupported on a platform then costs only its
-// own metrics instead of every metric for the switch.
+// The due commands go out as one runCmds batch. eAPI fails a whole batch if
+// it rejects any single command, so on batch failure each command is retried
+// individually: one command unsupported on a platform then costs only its own
+// metrics instead of every metric for the switch.
 func Collect(client Runner, data *SwitchData) {
-	specs := data.specs
-	if specs == nil {
-		// Direct construction, as in tests: collect everything.
-		specs = commandsFor(allCollectKeys(), "")
+	data.ensureScheduled()
+	now := time.Now()
+	collect(client, data, data.specs, now)
+}
+
+// CollectDue polls only the commands whose interval has elapsed by now, and
+// is what the poll loop calls. A tick where nothing is due issues no request
+// at all: that is the point of per-module intervals, not a missed poll.
+//
+// now is a parameter rather than read from the clock so scheduling can be
+// tested without waiting for real intervals to elapse.
+func CollectDue(client Runner, data *SwitchData, now time.Time) {
+	data.ensureScheduled()
+	specs := data.due(now)
+	if len(specs) == 0 {
+		return
 	}
+	collect(client, data, specs, now)
+}
+
+func collect(client Runner, data *SwitchData, specs []cmdSpec, now time.Time) {
+	// Marked on issue rather than on success: a command that fails must wait
+	// its interval like any other, or a broken module would be retried on
+	// every tick.
+	data.markDue(specs, now)
 
 	var snap snapshot
 	cmdErrs := make(map[string]error)
@@ -361,19 +492,31 @@ func Collect(client Runner, data *SwitchData) {
 	} else if line := data.tracker.recovered(time.Now()); line != "" {
 		slog.Info("switch recovered", "switch", data.Label, "detail", line)
 	}
-	now := time.Now()
+	done := now
 	if data.CommandLastSuccess == nil {
 		data.CommandLastSuccess = make(map[string]time.Time, len(specs))
 	}
 	for i, c := range specs {
 		if ok[i] {
 			c.apply(&snap, data)
-			data.CommandLastSuccess[c.name] = now
+			data.CommandLastSuccess[c.name] = done
+		}
+	}
+	// Errors are merged rather than replaced: a command that was not due this
+	// tick has neither succeeded nor failed, so dropping its recorded failure
+	// would report it as healthy while its data sat unrefreshed.
+	polled := make(map[string]bool, len(specs))
+	for _, c := range specs {
+		polled[c.name] = true
+	}
+	for name, err := range data.CommandErrors {
+		if !polled[name] {
+			cmdErrs[name] = err
 		}
 	}
 	data.CommandErrors = cmdErrs
 	data.ScrapeErr = nil
-	data.LastSuccess = now
+	data.LastSuccess = done
 }
 
 // worthRetryingIndividually reports whether a failed batch could partly
@@ -404,11 +547,11 @@ func runBatch(client Runner, specs []cmdSpec) ([]json.RawMessage, error) {
 	return raws, nil
 }
 
-// allCollectKeys enables every optional command group.
-func allCollectKeys() map[string]bool {
-	out := make(map[string]bool, len(commandOrder))
+// allCollectKeys enables every optional command group at one interval.
+func allCollectKeys(interval time.Duration) map[string]config.ModuleConfig {
+	out := make(map[string]config.ModuleConfig, len(commandOrder))
 	for _, k := range commandOrder {
-		out[k] = true
+		out[k] = config.ModuleConfig{Enabled: true, Interval: interval}
 	}
 	return out
 }
@@ -502,14 +645,14 @@ func PollLoop(ctx context.Context, client Runner, data *SwitchData, interval, of
 		slog.Info("starting poller", "switch", data.Label, "interval", interval.String())
 	}
 
-	Collect(client, data)
+	CollectDue(client, data, time.Now())
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
 		select {
-		case <-ticker.C:
-			Collect(client, data)
+		case now := <-ticker.C:
+			CollectDue(client, data, now)
 		case <-ctx.Done():
 			slog.Info("poller stopped", "switch", data.Label)
 			return

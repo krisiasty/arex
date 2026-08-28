@@ -17,7 +17,7 @@ func twoSwitchStore(t *testing.T) (*collector.Store, map[string]string) {
 		{Host: "https://192.0.2.11", Username: "u", Password: "p", Name: "leaf-1"},
 		{Host: "https://192.0.2.12", Username: "u", Password: "p", Name: "leaf-2"},
 	}
-	store, err := collector.NewStore(switches, collectAll())
+	store, err := collector.NewStore(switches, collectAll(), 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}

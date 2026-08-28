@@ -24,7 +24,7 @@ type Config struct {
 	// collected. A nil map means the block was absent, which is an error --
 	// defaulting it either way would silently change what a deployment
 	// gathers.
-	Collect map[string]bool `json:"collect"`
+	Collect map[string]ModuleConfig `json:"collect"`
 }
 
 // SwitchConfig holds connection details for a single switch.
@@ -49,7 +49,7 @@ type SwitchConfig struct {
 	PinnedCertSHA256 string `json:"pinnedCertSha256"`
 
 	// Collect overrides the top-level set for this switch, wholesale.
-	Collect map[string]bool `json:"collect"`
+	Collect map[string]ModuleConfig `json:"collect"`
 
 	// InterfaceScope is passed to the switch verbatim as the interface
 	// argument of the interface-related commands, e.g.
@@ -127,7 +127,7 @@ func (c *Config) validate() error {
 			"block would gather only \"show version\". List the groups to enable: %s",
 			strings.Join(CollectKeys, ", "))
 	}
-	if err := validateCollect(c.Collect, "collect"); err != nil {
+	if err := validateCollect(c.Collect, "collect", c.PollInterval.Duration); err != nil {
 		return err
 	}
 	for i, sw := range c.Switches {
@@ -144,7 +144,7 @@ func (c *Config) validate() error {
 			return fmt.Errorf("config: switch[%d] is named %q, which is reserved: "+
 				"/metrics?target=%s selects arex's own metrics", i, ReservedTarget, ReservedTarget)
 		}
-		if err := validateCollect(sw.Collect, fmt.Sprintf("switch[%d] (%s)", i, sw.Label())); err != nil {
+		if err := validateCollect(sw.Collect, fmt.Sprintf("switch[%d] (%s)", i, sw.Label()), c.PollInterval.Duration); err != nil {
 			return err
 		}
 		if err := validateScope(sw.InterfaceScope, fmt.Sprintf("switch[%d] (%s)", i, sw.Label())); err != nil {
@@ -205,15 +205,20 @@ var CollectKeys = []string{
 // A per-switch block replaces the default wholesale rather than merging, so
 // there is no partial inheritance to reason about: what you see in a
 // switch's block is exactly what it collects.
-func (s SwitchConfig) EffectiveCollect(defaults map[string]bool) map[string]bool {
+func (s SwitchConfig) EffectiveCollect(defaults map[string]ModuleConfig,
+	pollInterval time.Duration) map[string]ModuleConfig {
 	src := defaults
 	if s.Collect != nil {
 		src = s.Collect
 	}
-	out := make(map[string]bool, len(src))
+	out := make(map[string]ModuleConfig, len(src))
 	for k, v := range src {
-		if v {
-			out[k] = true
+		if !v.Enabled {
+			continue
+		}
+		out[k] = ModuleConfig{
+			Enabled:  true,
+			Interval: resolveInterval(k, v.Interval, pollInterval),
 		}
 	}
 	return out
@@ -221,15 +226,21 @@ func (s SwitchConfig) EffectiveCollect(defaults map[string]bool) map[string]bool
 
 // validateCollect rejects unknown keys, so a typo cannot silently disable
 // collection.
-func validateCollect(set map[string]bool, where string) error {
+func validateCollect(set map[string]ModuleConfig, where string, pollInterval time.Duration) error {
 	known := make(map[string]bool, len(CollectKeys))
 	for _, k := range CollectKeys {
 		known[k] = true
 	}
-	for k := range set {
+	for k, m := range set {
 		if !known[k] {
 			return fmt.Errorf("config: %s: unknown collect key %q; valid keys are %s",
 				where, k, strings.Join(CollectKeys, ", "))
+		}
+		// Rejected rather than clamped: the loop cannot tick faster than
+		// pollInterval, so an interval below it is a mistake worth reporting.
+		if m.Interval > 0 && m.Interval < pollInterval {
+			return fmt.Errorf("config: %s: %q interval %s is shorter than pollInterval %s",
+				where, k, m.Interval, pollInterval)
 		}
 	}
 	return nil

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -69,7 +70,7 @@ func run(logger *slog.Logger, cfgPath string, debug bool) error {
 		return err
 	}
 
-	store, err := collector.NewStore(cfg.Switches, cfg.Collect)
+	store, err := collector.NewStore(cfg.Switches, cfg.Collect, cfg.PollInterval.Duration)
 	if err != nil {
 		return err
 	}
@@ -90,6 +91,14 @@ func run(logger *slog.Logger, cfgPath string, debug bool) error {
 	// fleet is not polled simultaneously.
 	for i, sw := range cfg.Switches {
 		data := store.Get(sw.Label())
+
+		// Logged per switch: collection is configured individually, so the
+		// only way to confirm what a deployment actually polls -- and how
+		// often -- is to see the resolved schedule.
+		logger.Info("switch schedule",
+			"switch", sw.Label(),
+			"modules", describeSchedule(data.Schedule()),
+		)
 
 		opts := []eapiOption{withStats(&data.Stats)}
 		if debug {
@@ -147,4 +156,14 @@ func run(logger *slog.Logger, cfgPath string, debug bool) error {
 	}
 	logger.Info("arex stopped")
 	return nil
+}
+
+// describeSchedule renders a switch's command schedule as "command=interval"
+// pairs, so one log line shows the whole resolved plan.
+func describeSchedule(sched []collector.ModuleSchedule) string {
+	parts := make([]string, 0, len(sched))
+	for _, m := range sched {
+		parts = append(parts, m.Command+"="+m.Interval.String())
+	}
+	return strings.Join(parts, " ")
 }

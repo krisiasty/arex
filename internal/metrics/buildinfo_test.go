@@ -14,7 +14,7 @@ import (
 func TestBuildInfoIsExposed(t *testing.T) {
 	store, err := collector.NewStore([]config.SwitchConfig{
 		{Host: "h", Username: "u", Password: "p", Name: "sw1"},
-	}, collectAll())
+	}, collectAll(), 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func TestBuildInfoEmittedOncePerScrape(t *testing.T) {
 		{Host: "h1", Username: "u", Password: "p", Name: "sw1"},
 		{Host: "h2", Username: "u", Password: "p", Name: "sw2"},
 		{Host: "h3", Username: "u", Password: "p", Name: "sw3"},
-	}, collectAll())
+	}, collectAll(), 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}

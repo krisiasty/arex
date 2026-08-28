@@ -1,0 +1,104 @@
+package config
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"time"
+)
+
+// ModuleConfig controls one command group: whether it is collected, and how
+// often.
+//
+// A module's interval is separate from pollInterval because what the groups
+// measure moves at very different rates. Interface counters and error
+// detail change continuously and are the signals worth alerting on. Optical
+// power and laser bias drift over weeks, so polling them every 30 seconds
+// costs switch CPU for resolution nobody can use. PHY registers are worse
+// still: on a switch observed for 123 days, its FEC counters had not moved
+// for 107 of them.
+type ModuleConfig struct {
+	Enabled bool
+
+	// Interval is zero when unset, meaning the module's default applies.
+	Interval time.Duration
+}
+
+// defaultModuleInterval is the polling interval for modules whose data does
+// not repay frequent collection. Anything absent here defaults to
+// pollInterval.
+//
+// transceiver carries the genuinely predictive signals -- receive power and
+// laser bias trend downward and upward respectively over weeks before a link
+// fails -- so it is worth collecting, but not often. phy is a troubleshooting
+// instrument rather than a predictor: its per-layer fault and flap counters
+// localise a problem once you know there is one, while its error counters sit
+// unchanged for months.
+var defaultModuleInterval = map[string]time.Duration{
+	"transceiver": 5 * time.Minute,
+	"phy":         15 * time.Minute,
+}
+
+// UnmarshalJSON decodes one collect entry. A group is always an object:
+//
+//	"interfaces":  {"enabled": true}
+//	"phy":         {"enabled": false}
+//	"transceiver": {"enabled": true, "interval": "5m"}
+//
+// "enabled" is required for the same reason the collect block itself is: an
+// absent value would have to mean something, and either meaning is a guess
+// about intent.
+func (m *ModuleConfig) UnmarshalJSON(b []byte) error {
+	// The key is not available here -- encoding/json does not add field
+	// context to errors returned by UnmarshalJSON -- so the value is quoted
+	// back instead, which identifies the entry in a config this small.
+	var obj struct {
+		Enabled  *bool  `json:"enabled"`
+		Interval string `json:"interval"`
+	}
+	// Checked before decoding, so a non-object is told the expected shape
+	// rather than handed a dump of the decoder's struct type.
+	if len(bytes.TrimSpace(b)) == 0 || bytes.TrimSpace(b)[0] != '{' {
+		return fmt.Errorf("collect entry %s must be an object like "+
+			"{\"enabled\": true, \"interval\": \"5m\"}", b)
+	}
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&obj); err != nil {
+		return fmt.Errorf("collect entry %s: %w", b, err)
+	}
+	if obj.Enabled == nil {
+		return fmt.Errorf("collect entry %s is missing \"enabled\"; "+
+			"every group must state it explicitly", b)
+	}
+	m.Enabled = *obj.Enabled
+
+	if obj.Interval != "" {
+		d, err := time.ParseDuration(obj.Interval)
+		if err != nil {
+			return fmt.Errorf("invalid interval %q: %w", obj.Interval, err)
+		}
+		if d <= 0 {
+			return fmt.Errorf("interval %q must be positive", obj.Interval)
+		}
+		m.Interval = d
+	}
+	return nil
+}
+
+// resolveInterval returns the interval a module should be polled at.
+//
+// pollInterval is a floor: the loop cannot tick faster than its own interval,
+// so a module cannot be polled more often than that however it is configured.
+// A default slower than pollInterval is honoured; a default faster than it is
+// raised, which is what happens when someone sets a very long pollInterval.
+func resolveInterval(module string, explicit, pollInterval time.Duration) time.Duration {
+	d := explicit
+	if d == 0 {
+		d = defaultModuleInterval[module]
+	}
+	if d < pollInterval {
+		return pollInterval
+	}
+	return d
+}
