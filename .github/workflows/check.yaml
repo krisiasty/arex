@@ -205,6 +205,22 @@ jobs:
             exit 1
           fi
 
+      # maxUnavailable 0 is what makes an upgrade lossless: the old pod serves
+      # until the new one is Ready. A default that quietly became 1, or a
+      # Recreate strategy, would introduce a gap in the series on every deploy.
+      - name: an upgrade does not drop metrics
+        run: |
+          set -euo pipefail
+          rendered=$(helm template arex charts/arex -n monitoring -f "${RUNNER_TEMP}/values.yaml")
+          if ! grep -q "type: RollingUpdate" <<<"${rendered}"; then
+            echo "::error::the default strategy is not RollingUpdate"
+            exit 1
+          fi
+          if ! grep -q "maxUnavailable: 0" <<<"${rendered}"; then
+            echo "::error::maxUnavailable is not 0, so an upgrade would leave a gap"
+            exit 1
+          fi
+
       # arex reads its config once, at startup, so a ConfigMap change that does
       # not roll the pod would report Synced while changing nothing.
       - name: a config change rolls the pod

@@ -7,10 +7,12 @@
 #      start and never updated, so a rotated secret would silently stop
 #      reaching arex -- which is the whole point of passwordFile.
 #
-#   2. replicas is 1 and the strategy is Recreate. arex has no leader
-#      election, so two replicas poll every switch twice and Prometheus ends
-#      up holding two series per switch differing only by pod, which
-#      double-counts any aggregation. A rolling update briefly runs both.
+#   2. replicas is 1: arex has no leader election, so two running
+#      indefinitely would poll every switch twice and Prometheus would hold
+#      two series per switch differing only by pod. The rolling update sets
+#      maxUnavailable 0, so during a deploy the old pod serves until the new
+#      one is Ready -- no gap in the series, at the price of a brief overlap
+#      where both poll.
 ---
 apiVersion: v1
 kind: Namespace
@@ -77,7 +79,12 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      # The old pod keeps serving until the new one is Ready, which for arex
+      # means every switch polled once. No gap; a brief double-poll instead.
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: arex
