@@ -5,8 +5,12 @@ type: application
 # Chart version, bumped when the chart changes. appVersion tracks arex itself
 # and is the default image tag, so a chart-only fix does not imply a new
 # exporter and vice versa.
-version: 0.1.0
-appVersion: "v0.2.0"
+#
+# Bumping appVersion is therefore a deliberate act: it moves the image every
+# install without image.tag gets. The release workflow warns when a tag is
+# published while this still names an older one.
+version: 0.1.1
+appVersion: "v0.3.0"
 home: https://github.com/krisiasty/arex
 sources:
   - https://github.com/krisiasty/arex

@@ -1,7 +1,7 @@
 # Install with ArgoCD and External Secrets
 
-The GitOps shape: the switch inventory lives in git, the password lives in Vault, and neither ArgoCD nor the
-External Secrets Operator owns the other's object.
+The switch inventory lives in git and the password lives in Vault. ArgoCD applies the chart, the External Secrets
+Operator syncs the password into a Secret, and neither one manages an object the other also manages.
 
 Read [Install on Kubernetes with Helm](install-kubernetes.md) first — the values are the same. This covers what
 changes when ArgoCD applies them.

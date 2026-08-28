@@ -21,7 +21,7 @@ are actually polled.
 | --- | --- |
 | [Install on bare metal or a VM](docs/install-systemd.md) | systemd, with the password in systemd's credential store |
 | [Install on Kubernetes with Helm](docs/install-kubernetes.md) | the chart, values, rotation, and why one replica |
-| [Install with ArgoCD and External Secrets](docs/install-argocd.md) | GitOps, and who owns which object |
+| [Install with ArgoCD and External Secrets](docs/install-argocd.md) | GitOps: the inventory in git, the password synced from Vault |
 | [Configuration](docs/configuration.md) | what to collect, how often, which interfaces, credentials |
 | [Switch configuration](docs/switch-configuration.md) | enabling eAPI in a VRF, and a read-only role that actually restricts |
 | [TLS](docs/tls.md) | why a stock EOS certificate cannot be verified, and what to do instead |
