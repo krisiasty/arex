@@ -78,9 +78,15 @@ arista_cpu_idle_percent{switch="sw1"} 82.7
 # HELP arista_cpu_iowait_percent CPU time waiting on I/O
 # TYPE arista_cpu_iowait_percent gauge
 arista_cpu_iowait_percent{switch="sw1"} 0
+# HELP arista_cpu_irq_percent CPU time servicing hardware interrupts
+# TYPE arista_cpu_irq_percent gauge
+arista_cpu_irq_percent{switch="sw1"} 0
 # HELP arista_cpu_nice_percent CPU time on niced processes
 # TYPE arista_cpu_nice_percent gauge
 arista_cpu_nice_percent{switch="sw1"} 0
+# HELP arista_cpu_softirq_percent CPU time servicing software interrupts
+# TYPE arista_cpu_softirq_percent gauge
+arista_cpu_softirq_percent{switch="sw1"} 0
 # HELP arista_cpu_steal_percent CPU time stolen by the hypervisor (vEOS)
 # TYPE arista_cpu_steal_percent gauge
 arista_cpu_steal_percent{switch="sw1"} 0
