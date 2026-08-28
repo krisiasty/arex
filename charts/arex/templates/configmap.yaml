@@ -1,0 +1,19 @@
+{{- if not .Values.config.switches }}
+{{- fail "config.switches is empty: arex has nothing to poll" }}
+{{- end }}
+{{- if not .Values.credentials.existingSecret }}
+{{- range $i, $sw := .Values.config.switches }}
+{{- if and (not $sw.password) (not $sw.passwordFile) }}
+{{- fail (printf "switch %d (%s) has no credential: set credentials.existingSecret, or a password on the switch" $i (default $sw.host $sw.name)) }}
+{{- end }}
+{{- end }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "arex.fullname" . }}
+  labels:
+    {{- include "arex.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    {{- include "arex.config" . | nindent 4 }}

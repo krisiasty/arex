@@ -1,0 +1,21 @@
+apiVersion: v2
+name: arex
+description: Prometheus exporter for Arista EOS switches, polling show commands over eAPI
+type: application
+# Chart version, bumped when the chart changes. appVersion tracks arex itself
+# and is the default image tag, so a chart-only fix does not imply a new
+# exporter and vice versa.
+version: 0.1.0
+appVersion: "v0.2.0"
+home: https://github.com/krisiasty/arex
+sources:
+  - https://github.com/krisiasty/arex
+keywords:
+  - prometheus
+  - exporter
+  - arista
+  - eos
+  - network
+maintainers:
+  - name: krisiasty
+    url: https://github.com/krisiasty

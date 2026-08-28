@@ -1,0 +1,24 @@
+arex {{ .Values.image.tag | default .Chart.AppVersion }} is installed as {{ include "arex.fullname" . }}.
+
+Polling {{ len .Values.config.switches }} switch(es) every {{ .Values.config.pollInterval }}.
+
+Check it started and reached them:
+
+  kubectl -n {{ .Release.Namespace }} logs deploy/{{ include "arex.fullname" . }}
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+Readiness waits until every switch has been polled once, so a pod that stays
+NotReady means arex cannot reach a switch. Its own view of that:
+
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "arex.fullname" . }} {{ .Values.service.port }}
+  curl -s localhost:{{ .Values.service.port }}/status | jq
+
+{{ if not .Values.serviceMonitor.enabled }}
+No ServiceMonitor was created. Either set serviceMonitor.enabled=true, if
+prometheus-operator is installed, or point Prometheus at the Service directly.
+{{- end }}
+{{- if not .Values.credentials.existingSecret }}
+
+WARNING: credentials.existingSecret is unset, so passwords are coming from the
+config in values. Put them in a Secret instead -- see docs/install-kubernetes.md.
+{{- end }}

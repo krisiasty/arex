@@ -1,0 +1,143 @@
+# arex Helm values.
+#
+# The two things that must be set: config.switches, and a credential for them.
+
+image:
+  repository: ghcr.io/krisiasty/arex
+  # Defaults to the chart's appVersion. Pin it here to hold a version
+  # independently of chart upgrades.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Where the switch password comes from.
+#
+# The chart never creates this Secret. If it did, and the External Secrets
+# Operator also managed it, ArgoCD would fight ESO over the same object:
+# perpetual OutOfSync, and the placeholder from git overwriting the synced
+# value. Create it with an ExternalSecret, or by hand, and name it here.
+credentials:
+  # Name of an existing Secret holding the password.
+  existingSecret: ""
+  # Key within that Secret.
+  key: password
+  # Where it is mounted. The chart points config.passwordFile at
+  # <mountPath>/<key> automatically, so it cannot be set inconsistently.
+  mountPath: /etc/arex/secret
+
+# arex's own configuration, rendered into a ConfigMap verbatim. Everything the
+# config file accepts goes here; see docs/configuration.md.
+#
+# passwordFile is managed by the chart when credentials.existingSecret is set.
+config:
+  listenAddress: ":9100"
+  pollInterval: 30s
+  scrapeTimeout: 10s
+  stalenessLimit: 90s
+  debug: false
+
+  collect:
+    processes:
+      enabled: true
+    temperature:
+      enabled: true
+    power:
+      enabled: true
+    cooling:
+      enabled: true
+    interfaces:
+      enabled: true
+    bgp:
+      enabled: true
+    transceiver:
+      enabled: true
+      interval: 5m
+    phy:
+      enabled: true
+      interval: 15m
+
+  # One entry per switch. A stock EOS switch can only be verified by pinning
+  # its certificate; see docs/tls.md.
+  switches: []
+  # - host: https://10.10.0.11
+  #   username: prometheus
+  #   name: leaf1
+  #   pinnedCertSha256: "A1:B2:..."
+
+# One replica, deliberately. arex has no leader election, so two would poll
+# every switch twice and give Prometheus two series per switch to double-count.
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 9100
+
+serviceMonitor:
+  # Requires prometheus-operator. Without it, scrape the Service directly.
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+  # Extra labels, for a Prometheus whose serviceMonitorSelector needs them.
+  labels: {}
+  relabelings: []
+  metricRelabelings: []
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+
+# arex writes nothing and needs no privileges. The image already runs as
+# 65532, and these make that explicit and enforced.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+# livez stays up while a switch is unreachable, since restarting arex would not
+# fix a switch; it fails only if the poll loop stops. readyz waits until every
+# switch has been polled once, so a fresh pod is not scraped before it has
+# anything to serve.
+livenessProbe:
+  httpGet:
+    path: /livez
+    port: metrics
+  periodSeconds: 30
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: metrics
+  periodSeconds: 10
+  failureThreshold: 6
+
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+priorityClassName: ""
+extraArgs: []
+extraVolumes: []
+extraVolumeMounts: []

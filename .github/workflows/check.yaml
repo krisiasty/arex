@@ -118,3 +118,127 @@ jobs:
 
       - name: go vet
         run: go vet ./...
+
+  # The chart is checked separately: it needs helm rather than Go, and a
+  # template that renders locally but was never committed would otherwise only
+  # be discovered by whoever installed it next.
+  chart:
+    name: chart
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: setup go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: setup helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.2.4
+
+      - name: write minimal values
+        run: |
+          cat > "${RUNNER_TEMP}/values.yaml" <<'YAML'
+          credentials:
+            existingSecret: arex-switch-password
+          config:
+            switches:
+              - host: https://10.10.0.11
+                username: prometheus
+                name: leaf1
+                pinnedCertSha256: "REPLACE"
+          YAML
+
+      - name: helm lint
+        run: helm lint charts/arex -f "${RUNNER_TEMP}/values.yaml"
+
+      # A chart that renders nothing to poll, or renders a switch with no
+      # credential, is a mistake worth catching at template time rather than at
+      # the first scrape.
+      - name: the chart refuses an unusable config
+        run: |
+          set -euo pipefail
+          if helm template arex charts/arex >/dev/null 2>&1; then
+            echo "::error::rendering succeeded with no switches"
+            exit 1
+          fi
+          if helm template arex charts/arex \
+               --set 'config.switches[0].host=h' \
+               --set 'config.switches[0].username=u' >/dev/null 2>&1; then
+            echo "::error::rendering succeeded for a switch with no credential"
+            exit 1
+          fi
+
+      - name: the chart ships every object it claims to
+        run: |
+          set -euo pipefail
+          rendered=$(helm template arex charts/arex -n monitoring -f "${RUNNER_TEMP}/values.yaml")
+          for kind in ConfigMap Deployment Service ServiceAccount; do
+            if ! grep -qx "kind: ${kind}" <<<"${rendered}"; then
+              echo "::error::the chart rendered no ${kind}"
+              exit 1
+            fi
+          done
+          # Off by default, so the step above cannot see it: a template that was
+          # never committed would render fine locally and vanish here.
+          if grep -qx "kind: ServiceMonitor" <<<"${rendered}"; then
+            echo "::error::a ServiceMonitor was rendered without serviceMonitor.enabled"
+            exit 1
+          fi
+          with_sm=$(helm template arex charts/arex -n monitoring -f "${RUNNER_TEMP}/values.yaml" \
+            --set serviceMonitor.enabled=true)
+          if ! grep -qx "kind: ServiceMonitor" <<<"${with_sm}"; then
+            echo "::error::serviceMonitor.enabled=true rendered no ServiceMonitor"
+            exit 1
+          fi
+          # The chart must never own the Secret: ESO or an operator does, and
+          # two managers of one object fight over it.
+          if grep -qx "kind: Secret" <<<"${with_sm}"; then
+            echo "::error::the chart rendered a Secret"
+            exit 1
+          fi
+
+      # arex reads its config once, at startup, so a ConfigMap change that does
+      # not roll the pod would report Synced while changing nothing.
+      - name: a config change rolls the pod
+        run: |
+          set -euo pipefail
+          before=$(helm template arex charts/arex -n monitoring -f "${RUNNER_TEMP}/values.yaml" \
+            | grep -o 'checksum/config: .*')
+          after=$(helm template arex charts/arex -n monitoring -f "${RUNNER_TEMP}/values.yaml" \
+            --set config.pollInterval=60s | grep -o 'checksum/config: .*')
+          if [[ "${before}" == "${after}" ]]; then
+            echo "::error::checksum/config did not change with the config"
+            exit 1
+          fi
+
+      # The rendered config is what arex actually has to load, so load it.
+      - name: the rendered config is valid
+        run: |
+          set -euo pipefail
+          printf 'hunter2\n' > "${RUNNER_TEMP}/password"
+          chmod 600 "${RUNNER_TEMP}/password"
+          helm template arex charts/arex -n monitoring -f "${RUNNER_TEMP}/values.yaml" > "${RUNNER_TEMP}/r.yaml"
+          python3 - "${RUNNER_TEMP}" <<'PY'
+          import sys, textwrap
+          tmp = sys.argv[1]
+          lines = open(f'{tmp}/r.yaml').read().split('\n')
+          i = next(n for n, l in enumerate(lines) if l.strip() == 'config.yaml: |')
+          block = []
+          for line in lines[i + 1:]:
+              if line.strip() and not line.startswith('    '):
+                  break
+              block.append(line)
+          cfg = textwrap.dedent('\n'.join(block))
+          cfg = cfg.replace('pinnedCertSha256: REPLACE', 'pinnedCertSha256: "' + 'A1:' * 31 + 'B2"')
+          cfg = cfg.replace('/etc/arex/secret/password', f'{tmp}/password')
+          open(f'{tmp}/config.yaml', 'w').write(cfg)
+          PY
+          go run . -check -config "${RUNNER_TEMP}/config.yaml"

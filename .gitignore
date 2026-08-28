@@ -1,5 +1,8 @@
-# Binaries for programs and plugins
-arex
+# Binaries for programs and plugins.
+#
+# Anchored: a bare "arex" matches any path component with that name, which
+# silently ignored the whole charts/arex directory.
+/arex
 *.exe
 *.exe~
 *.dll
