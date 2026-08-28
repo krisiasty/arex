@@ -80,6 +80,21 @@ jobs:
       #
       # docker/login-action above already authenticated to ghcr.io, and Helm
       # reads the same credential store, so no second login is needed.
+      # A chart whose appVersion still names an older release installs that older
+      # image for anyone who does not set image.tag. Not fatal -- the chart is
+      # versioned independently and may legitimately lag -- but it should not be
+      # silent either.
+      - name: warn if the chart's appVersion trails this tag
+        run: |
+          set -euo pipefail
+          for chart in charts/*/; do
+            app=$(helm show chart "${chart}" | awk '$1=="appVersion:"{gsub(/"/,"",$2); print $2}')
+            if [[ "${app}" != "${GITHUB_REF_NAME}" ]]; then
+              echo "::warning::${chart} appVersion is ${app}, but this release is ${GITHUB_REF_NAME};" \
+                   "an install without image.tag will get ${app}"
+            fi
+          done
+
       - name: publish charts
         run: |
           set -euo pipefail
