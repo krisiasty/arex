@@ -7,11 +7,11 @@ version: 2
 # workflows pass as inputs or run directly, which are pinned deliberately so a
 # CI run is the same tomorrow as it was today:
 #
-#   golangci-lint  v2.13.1   check.yaml
+#   golangci-lint  v2.13.2   check.yaml
 #   goreleaser     v2.18.0   release.yaml
 #   helm           v4.2.4    check.yaml, release.yaml
 #   actionlint     1.7.12    check.yaml
-#   govulncheck    v1.6.0    check.yaml, run via go run
+#   govulncheck    v1.7.0    check.yaml, run via go run
 #   go-licenses    v2.0.1    hack/gen-notices.sh
 #
 # Those are bumped by hand. That is the trade for a pinned toolchain: the
