@@ -12,6 +12,7 @@ var (
 	lSwitch      = []string{"switch"}
 	lCommand     = []string{"switch", "command"}
 	lEAPI        = []string{"switch", "outcome", "attempt"}
+	lReload      = []string{"switch", "outcome"}
 	lInfo        = []string{"switch", "model", "serial", "version", "mac", "arch"}
 	lSensor      = []string{"switch", "location", "sensor", "description", "position"}
 	lPSUSensor   = []string{"switch", "psu", "sensor", "description", "position"}
@@ -80,6 +81,7 @@ var metricDefs = []metricDef{
 	{"arista_cpu_system_percent", "gauge", "CPU time in kernel space", lSwitch},
 	{"arista_cpu_user_percent", "gauge", "CPU time in user space", lSwitch},
 	{"arista_eapi_request_duration_seconds_total", "counter", "Total time spent on eAPI requests to this switch", lSwitch},
+	{"arista_credential_reloads_total", "counter", "Times arex re-read a switch's password file after a rejection, by outcome: rotated, unchanged or failed", lReload},
 	{"arista_eapi_requests_total", "counter", "eAPI requests arex has made, by outcome and by whether it was the normal batch or a per-command retry", lEAPI},
 	{"arista_eapi_response_bytes_total", "counter", "Total eAPI response bytes received from this switch", lSwitch},
 	{"arista_fan_boot_timestamp_seconds", "gauge", "Unix timestamp when the fan came online", lFan},

@@ -1,0 +1,60 @@
+# Hardened unit for arex. Install to /etc/systemd/system/arex.service.
+#
+# The password reaches arex through systemd's credential store rather than the
+# config file or the environment: LoadCredential= places it on tmpfs as 0400
+# owned by the service user, and unlike an environment variable it is not
+# inherited by child processes or visible in /proc/<pid>/environ.
+#
+# Point passwordFile at /run/credentials/arex.service/switch-password in
+# /etc/arex/config.json. That path is stable, so no expansion is needed.
+
+[Unit]
+Description=arex - Prometheus exporter for Arista EOS switches
+Documentation=https://github.com/krisiasty/arex
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/arex -config /etc/arex/config.json
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5s
+
+# The credential, owned by root and readable only by systemd itself.
+LoadCredential=switch-password:/etc/arex/switch-password
+
+# arex needs no identity of its own: DynamicUser gives it a transient UID with
+# no home, no shell and no presence in /etc/passwd.
+DynamicUser=yes
+
+# It reads a config file and talks to switches. Nothing else.
+ProtectSystem=strict
+ProtectHome=yes
+ReadOnlyPaths=/etc/arex
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+SystemCallArchitectures=native
+
+# Outbound HTTPS to the switches, inbound scrapes on :9100.
+RestrictAddressFamilies=AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

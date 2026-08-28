@@ -21,7 +21,7 @@ type Client struct {
 	url        string
 	path       string
 	username   string
-	password   string
+	cred       *Credential
 
 	// logger is nil unless WithDebug was given, which is what gates
 	// per-request logging.
@@ -44,7 +44,7 @@ func NewClient(host, username, password string, timeout time.Duration,
 		url:      host + commandAPIPath,
 		path:     commandAPIPath,
 		username: username,
-		password: password,
+		cred:     NewStaticCredential(password),
 		httpClient: &http.Client{
 			Timeout:   timeout,
 			Transport: &http.Transport{TLSClientConfig: tlsCfg},
@@ -109,8 +109,7 @@ func (e *rpcError) details() []string {
 func statusError(code int, status string) error {
 	switch code {
 	case http.StatusUnauthorized:
-		return fmt.Errorf("eAPI rejected our credentials (%s): check the username and "+
-			"password, and that the user has a role permitting the show commands", status)
+		return unauthorizedStatus(status)
 	case http.StatusForbidden:
 		return fmt.Errorf("eAPI refused the request (%s): check for an access-group on "+
 			"management api http-commands restricting which sources may connect", status)
@@ -146,6 +145,49 @@ func (e *CommandError) Error() string {
 // Run executes a list of EOS CLI commands and returns the raw JSON results,
 // one entry per command in the same order.
 func (c *Client) Run(cmds []string) ([]json.RawMessage, error) {
+	res, err := c.attempt(cmds)
+	if err == nil || !isUnauthorized(err) {
+		return res, err
+	}
+	return c.retryAfterRotation(cmds, res, err)
+}
+
+// retryAfterRotation re-reads the credential after a rejection and tries once
+// more, but only if the secret actually changed.
+//
+// The condition is the whole point. A changed secret means a rotation landed
+// between polls, and one extra request recovers immediately instead of failing
+// until someone restarts arex. An unchanged secret means the credential is
+// simply wrong, and a second request would double the failed authentications a
+// locked-out account sees -- the amplification the retry classification exists
+// to prevent.
+func (c *Client) retryAfterRotation(cmds []string, res []json.RawMessage, authErr error,
+) ([]json.RawMessage, error) {
+	changed, err := c.cred.Reload()
+	switch {
+	case err != nil:
+		c.recordReload(ReloadFailed)
+		slog.Warn("credential reload failed", "url", c.url, "error", err)
+		return res, authErr
+	case !changed:
+		c.recordReload(ReloadUnchanged)
+		return res, authErr
+	}
+
+	c.recordReload(ReloadRotated)
+	slog.Info("credential rotated; retrying with the new secret", "url", c.url)
+	return c.attempt(cmds)
+}
+
+// recordReload counts a reload attempt when stats are attached.
+func (c *Client) recordReload(r Reload) {
+	if c.stats != nil {
+		c.stats.RecordReload(r)
+	}
+}
+
+// attempt makes one request, recording its own stats and debug record.
+func (c *Client) attempt(cmds []string) ([]json.RawMessage, error) {
 	req := request{
 		Jsonrpc: "2.0",
 		Method:  "runCmds",
@@ -191,7 +233,7 @@ func (c *Client) Run(cmds []string) ([]json.RawMessage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	httpReq.SetBasicAuth(c.username, c.password)
+	httpReq.SetBasicAuth(c.username, c.cred.Password())
 	httpReq.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(httpReq)

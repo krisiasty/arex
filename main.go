@@ -102,6 +102,11 @@ func run(cfgPath string, debugFlag, debugSet bool) error {
 	logger := newLogger(debug)
 	slog.SetDefault(logger)
 
+	// Collected during Load, which runs before the logger exists.
+	for _, w := range cfg.Warnings {
+		logger.Warn("configuration warning", "detail", w)
+	}
+
 	store, err := collector.NewStore(cfg.Switches, cfg.Collect, cfg.PollInterval.Duration)
 	if err != nil {
 		return err

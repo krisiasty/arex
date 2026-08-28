@@ -50,7 +50,21 @@ type Stats struct {
 	requests  map[RequestKey]uint64
 	respBytes uint64
 	duration  time.Duration
+	reloads   map[Reload]uint64
 }
+
+// Reload classifies an attempt to re-read a rotated credential.
+type Reload string
+
+// The outcomes of a credential reload.
+const (
+	// ReloadRotated means the secret on disk had changed and was adopted.
+	ReloadRotated Reload = "rotated"
+	// ReloadUnchanged means the credential is simply being rejected.
+	ReloadUnchanged Reload = "unchanged"
+	// ReloadFailed means the file could not be read.
+	ReloadFailed Reload = "failed"
+)
 
 // StatsSnapshot is a consistent copy, so the renderer never holds the lock
 // while writing output.
@@ -58,6 +72,7 @@ type StatsSnapshot struct {
 	Requests        map[RequestKey]uint64
 	ResponseBytes   uint64
 	DurationSeconds float64
+	Reloads         map[Reload]uint64
 }
 
 // Record accounts for one request. Called by the client on every path,
@@ -75,6 +90,16 @@ func (s *Stats) Record(key RequestKey, respBytes int64, d time.Duration) {
 	s.duration += d
 }
 
+// RecordReload accounts for one credential reload attempt.
+func (s *Stats) RecordReload(r Reload) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.reloads == nil {
+		s.reloads = make(map[Reload]uint64, 3)
+	}
+	s.reloads[r]++
+}
+
 // Snapshot returns a copy of the current counters.
 func (s *Stats) Snapshot() StatsSnapshot {
 	s.mu.Lock()
@@ -86,6 +111,10 @@ func (s *Stats) Snapshot() StatsSnapshot {
 	}
 	for k, v := range s.requests {
 		out.Requests[k] = v
+	}
+	out.Reloads = make(map[Reload]uint64, len(s.reloads))
+	for k, v := range s.reloads {
+		out.Reloads[k] = v
 	}
 	return out
 }
