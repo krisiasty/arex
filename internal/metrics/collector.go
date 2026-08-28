@@ -283,6 +283,10 @@ func collectCPUMemory(ch chan<- prometheus.Metric, label string, p eapi.ShowProc
 	set(ch, "arista_cpu_nice_percent", cpu.Nice, label)
 	set(ch, "arista_cpu_idle_percent", cpu.Idle, label)
 	set(ch, "arista_cpu_iowait_percent", cpu.IoWait, label)
+	// All eight of EOS's modes, so the components sum to 100 and utilisation
+	// can be reconstructed by summing them rather than only as 100 - idle.
+	set(ch, "arista_cpu_irq_percent", cpu.HwIrq, label)
+	set(ch, "arista_cpu_softirq_percent", cpu.SwIrq, label)
 	set(ch, "arista_cpu_steal_percent", cpu.Stolen, label)
 
 	if len(p.TimeInfo.LoadAvg) == 3 {

@@ -92,12 +92,19 @@ where some commands work and others do not will show `arista_scrape_success 1`, 
 | `arista_cpu_nice_percent` | gauge | CPU time on niced processes |
 | `arista_cpu_idle_percent` | gauge | CPU idle |
 | `arista_cpu_iowait_percent` | gauge | CPU waiting on I/O |
+| `arista_cpu_irq_percent` | gauge | CPU servicing hardware interrupts |
+| `arista_cpu_softirq_percent` | gauge | CPU servicing software interrupts |
 | `arista_cpu_steal_percent` | gauge | CPU stolen by the hypervisor, for vEOS |
 | `arista_load_avg_1m` / `_5m` / `_15m` | gauge | Load averages |
 
 `arista_memory_free_bytes` and `arista_memory_available_bytes` measure different things and differ substantially —
 by about 5.3 GiB on a 16 GB switch. Linux spends idle RAM on page cache, so low *free* memory is the normal healthy
 state. Alert on *available*.
+
+The eight CPU modes are all of EOS's, so they sum to 100 and utilisation can be had either as `100 -
+arista_cpu_idle_percent` or by summing the busy modes. Treat any single sample as noisy: `show processes top once`
+reports a short window, and consecutive samples on an idle switch have been observed 12 points apart. Use
+`avg_over_time()` or `arista_load_avg_1m`, which averages over a minute, for anything you alert on.
 
 ### Environment
 
@@ -807,6 +814,30 @@ every 60 seconds in practice.
 Batching is preserved. Each tick sends the groups that are due as a single `runCmds` request, so a slow group
 costs *fewer* requests, not more: with the defaults above and a 30-second poll, most ticks carry seven commands,
 every tenth also carries `transceiver`, and every thirtieth carries everything.
+
+#### Why one batch rather than spread requests
+
+Sending each command separately, spaced out inside the poll interval, would lower the peak the switch sees for the
+same total work. It was measured rather than argued, and the peak turned out not to be there.
+
+Two samples of `show processes top once` typed at the console 44 seconds apart, on a switch arex was polling every
+30 seconds:
+
+| | idle | busy | load avg 1m / 5m / 15m |
+| --- | --- | --- | --- |
+| first | 85.2% | 14.8% | 1.04 / 1.08 / 1.02 |
+| second | 96.9% | 3.0% | 0.98 / 1.08 / 1.02 |
+
+Twelve points of swing between two hand-typed samples, and a load average flat at ~1.0 across all three windows.
+The switch's own agents account for the load; it is steady, not bursty. Samples arex itself reports average 89.8%
+idle over the same period, statistically indistinguishable from the console's 91.1% — and arex samples CPU from
+*inside* its own batch, so if the batch cost 10 points those samples would sit systematically lower. They do not.
+
+Against that, one request per command would multiply authentications by the command count. A switch that rejects
+credentials would then fail nine times per poll instead of once, which is how account lockouts happen — the
+amplification `arista_eapi_requests_total{attempt=...}` exists to make visible. So batching stays, and the peak is
+addressed by the intervals above: the full 1.4-second batch now runs every fifteen minutes rather than every
+thirty seconds.
 
 `stalenessLimit` widens automatically to `3 × interval` for any group polled less often than the limit itself.
 Without that, enabling a 15-minute group under the default 90-second limit would publish its metrics once and then
