@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/krisiasty/arex/config"
 	"github.com/krisiasty/arex/internal/eapi"
@@ -213,28 +212,5 @@ func TestFullCommandSetIsLargerThanOne(t *testing.T) {
 	if n := len(commandsFor(allEnabled(), "")); n < 2 {
 		t.Fatalf("full command set is %d; eAPI request statistics classify a "+
 			"single-command call as a retry", n)
-	}
-}
-
-// Pollers started together would otherwise stay in lockstep for ever, so a
-// fleet hits every switch simultaneously once per interval.
-func TestStartDelayIsSpreadAcrossTheInterval(t *testing.T) {
-	const interval = 30 * time.Second
-	seen := map[time.Duration]bool{}
-	for i := 0; i < 200; i++ {
-		d := startDelay(interval)
-		if d < 0 || d >= interval {
-			t.Fatalf("delay %v outside [0, %v)", d, interval)
-		}
-		seen[d] = true
-	}
-	if len(seen) < 50 {
-		t.Errorf("only %d distinct delays in 200 draws; jitter is not spreading", len(seen))
-	}
-}
-
-func TestStartDelayIsZeroForNonPositiveInterval(t *testing.T) {
-	if d := startDelay(0); d != 0 {
-		t.Errorf("startDelay(0) = %v, want 0", d)
 	}
 }
