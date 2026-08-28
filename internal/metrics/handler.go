@@ -105,10 +105,10 @@ func NewHandler(store *collector.Store, stalenessLimit time.Duration, index map[
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		target := r.URL.Query().Get("target")
 
-		switch {
-		case target == "":
+		switch target {
+		case "":
 			serve(w, r, full)
-		case target == InternalTarget:
+		case InternalTarget:
 			serve(w, r, internal)
 		default:
 			label, ok := index[target]
