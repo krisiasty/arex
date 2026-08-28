@@ -1,7 +1,9 @@
+// Package config loads and validates arex's JSON configuration file.
 package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -83,7 +85,7 @@ func (s SwitchConfig) Label() string {
 
 // Load reads and parses a JSON config file from path.
 func Load(path string) (*Config, error) {
-	f, err := os.Open(path) //nolint:gosec
+	f, err := os.Open(path) //nolint:gosec // the path is an operator-supplied flag, not user input
 	if err != nil {
 		return nil, fmt.Errorf("open config: %w", err)
 	}
@@ -120,7 +122,7 @@ func (c *Config) applyDefaults() {
 
 func (c *Config) validate() error {
 	if len(c.Switches) == 0 {
-		return fmt.Errorf("config: no switches defined")
+		return errors.New("config: no switches defined")
 	}
 	if c.Collect == nil {
 		return fmt.Errorf("config: no collect block; collection is opt-in, so an absent "+

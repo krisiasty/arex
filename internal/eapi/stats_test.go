@@ -16,7 +16,7 @@ func TestStatsCountSuccessfulRequests(t *testing.T) {
 	}
 	// Multiple commands: that is what arex sends normally, and it is how a
 	// batch is distinguished from a per-command retry.
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		if _, err := c.Run([]string{"show version", "show interfaces"}); err != nil {
 			t.Fatal(err)
 		}
@@ -104,15 +104,15 @@ func TestStatsAreSafeForConcurrentUse(t *testing.T) {
 	c, _ := NewClient(srv.URL, "u", "p", 5*time.Second, TLSOptions{SkipVerify: true}, WithStats(&stats))
 
 	done := make(chan struct{})
-	for i := 0; i < 8; i++ {
+	for range 8 {
 		go func() {
 			defer func() { done <- struct{}{} }()
-			for j := 0; j < 20; j++ {
+			for range 20 {
 				_, _ = c.Run([]string{"show version"})
 			}
 		}()
 	}
-	for i := 0; i < 8; i++ {
+	for range 8 {
 		<-done
 	}
 	if got := stats.Snapshot().Requests[RequestKey{Outcome: OutcomeSuccess, Attempt: AttemptRetry}]; got != 160 {

@@ -429,7 +429,7 @@ func TestCommandSuccessMetricPerCommand(t *testing.T) {
 
 var labelValue = regexp.MustCompile(`="((?:[^"\\]|\\.)*)"`)
 
-// Prometheus defines exactly three escapes in a label value: \\ \n \"
+// Prometheus defines exactly three escapes in a label value: \\ \n \".
 func TestLabelValuesUseOnlyValidEscapes(t *testing.T) {
 	out := render(t, func(sd *collector.SwitchData) {
 		ifs := sd.Interfaces.Interfaces
@@ -498,7 +498,7 @@ func TestGoldenExposition(t *testing.T) {
 
 	if *updateGolden {
 		// Golden fixture, deliberately world-readable like the rest of testdata.
-		err := os.WriteFile(goldenPath, []byte(got), 0o644) //nolint:gosec
+		err := os.WriteFile(goldenPath, []byte(got), 0o644) //nolint:gosec // a golden fixture, world-readable like the rest of testdata
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -536,7 +536,7 @@ func TestGoldenExposition(t *testing.T) {
 // unsorted loops would reorder series on every scrape.
 func TestOutputIsDeterministic(t *testing.T) {
 	first := normalize(render(t, nil))
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		if got := normalize(render(t, nil)); got != first {
 			for j, line := range strings.Split(got, "\n") {
 				w := strings.Split(first, "\n")

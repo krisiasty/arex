@@ -1,3 +1,5 @@
+// Command arex polls Arista EOS switches over eAPI and exposes the results as
+// Prometheus metrics.
 package main
 
 import (

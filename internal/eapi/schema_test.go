@@ -28,9 +28,9 @@ func TestProcessesTopSchema(t *testing.T) {
 	load(t, "show_processes_top_once.json", &p)
 
 	// The CPU block hangs off a key literally spelled "%Cpu(s)".
-	if p.CpuInfo.Cpu.Idle != 82.7 || p.CpuInfo.Cpu.User != 13.5 {
+	if p.CPUInfo.CPU.Idle != 82.7 || p.CPUInfo.CPU.User != 13.5 {
 		t.Errorf(`cpuInfo["%%Cpu(s)"] did not resolve: idle=%v user=%v`,
-			p.CpuInfo.Cpu.Idle, p.CpuInfo.Cpu.User)
+			p.CPUInfo.CPU.Idle, p.CPUInfo.CPU.User)
 	}
 	if len(p.TimeInfo.LoadAvg) != 3 {
 		t.Fatalf("LoadAvg = %v, want 3 elements", p.TimeInfo.LoadAvg)
