@@ -178,3 +178,26 @@ func TestLabelFallsBackToHost(t *testing.T) {
 		t.Errorf("Label = %q, want the host", unnamed.Label())
 	}
 }
+
+// debug is off unless asked for, and readable from the config so a deployment
+// can turn it on without changing how it is invoked.
+func TestDebugDefaultsOffAndParses(t *testing.T) {
+	base := `{"tlsSkipVerify":true,%s"collect":{"interfaces":{"enabled":true}},
+		"switches":[{"host":"https://192.0.2.1","username":"u","password":"p"}]}`
+
+	off, err := Load(writeRaw(t, strings.Replace(base, "%s", "", 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if off.Debug {
+		t.Error("debug must be off unless the config asks for it")
+	}
+
+	on, err := Load(writeRaw(t, strings.Replace(base, "%s", `"debug":true,`, 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !on.Debug {
+		t.Error(`"debug":true was not read`)
+	}
+}

@@ -648,9 +648,8 @@ target=leaf-1&module=power                        32
 ### Logging
 
 Logs are JSON Lines on stdout, one object per event, with UTC millisecond timestamps so records from different
-hosts sort together. `-debug` raises the level rather than changing the format: a format that varied with
-verbosity could not be parsed by anything downstream, and the per-request output is only worth having if it can be
-queried.
+hosts sort together. Debug raises the level rather than changing the format: a format that varied with verbosity
+could not be parsed by anything downstream, and the per-request output is only worth having if it can be queried.
 
 ```json
 {"time":"2026-08-28T09:19:18.537Z","level":"INFO","msg":"arex starting",
@@ -692,7 +691,9 @@ into a cluster.
 
 ### Debug logging
 
-`-debug` adds one record per eAPI request:
+Either `"debug": true` in the config or `-debug` on the command line adds one record per eAPI request. The flag
+wins when given, so a deployment can be started verbosely without editing its config — or quietly with
+`-debug=false` when its config leaves debug on. An absent flag does not override the config.
 
 ```json
 {"time":"2026-08-28T09:19:18.545Z","level":"DEBUG","msg":"eapi request","switch":"leaf-1",
@@ -742,6 +743,7 @@ See `config.example.json`. All durations are Go duration strings (`30s`, `1m`, e
 | `scrapeTimeout` | `10s` | eAPI request timeout |
 | `tlsSkipVerify` | `false` | Skip TLS verification for switches with no per-switch method set. See [TLS](#tls) |
 | `stalenessLimit` | `90s` | Stop emitting metrics if data is older than this |
+| `debug` | `false` | Log one record per eAPI request. See [Debug logging](#debug-logging) |
 | `collect` | required | Optional command groups to collect. See [below](#choosing-what-to-collect) |
 | `switches` | required | List of switch connection configs |
 

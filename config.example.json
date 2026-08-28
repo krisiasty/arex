@@ -3,6 +3,7 @@
   "pollInterval": "30s",
   "scrapeTimeout": "10s",
   "stalenessLimit": "90s",
+  "debug": false,
 
   "collect": {
     "processes": { "enabled": true },

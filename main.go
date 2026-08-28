@@ -28,13 +28,21 @@ const shutdownGrace = 5 * time.Second
 
 func main() {
 	cfgPath := flag.String("config", "config.json", "path to config file")
-	debug := flag.Bool("debug", false, "log every eAPI request: status, timing, sizes and commands")
+	debug := flag.Bool("debug", false,
+		"log every eAPI request: status, timing, sizes and commands; overrides the config")
 	flag.Parse()
 
-	logger := newLogger(*debug)
-	slog.SetDefault(logger)
+	// Whether the flag was given at all, as opposed to what it defaulted to:
+	// a bool flag cannot otherwise be distinguished from an absent one, and
+	// -debug=false has to be able to override a config that enables it.
+	debugSet := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "debug" {
+			debugSet = true
+		}
+	})
 
-	if err := run(logger, *cfgPath, *debug); err != nil {
+	if err := run(*cfgPath, *debug, debugSet); err != nil {
 		// Plain text rather than a JSON log line. Nothing reaches this that is
 		// not a startup failure, so the only reader is the person who just ran
 		// arex -- and a JSON string escapes every quote in a message whose
@@ -42,6 +50,16 @@ func main() {
 		fmt.Fprintf(os.Stderr, "arex: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// resolveDebug picks between the config's setting and the flag. The flag wins
+// when it was given, so a deployment can be started verbosely without editing
+// its config, or quietly with -debug=false when its config enables debug.
+func resolveDebug(fromConfig, fromFlag, flagSet bool) bool {
+	if flagSet {
+		return fromFlag
+	}
+	return fromConfig
 }
 
 // newLogger returns a JSON logger on stdout.
@@ -66,7 +84,7 @@ func newLogger(debug bool) *slog.Logger {
 	}))
 }
 
-func run(logger *slog.Logger, cfgPath string, debug bool) error {
+func run(cfgPath string, debugFlag, debugSet bool) error {
 	// Cancelled on SIGINT or SIGTERM, which is how a container runtime or
 	// systemd asks arex to stop.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -76,6 +94,13 @@ func run(logger *slog.Logger, cfgPath string, debug bool) error {
 	if err != nil {
 		return err
 	}
+
+	// The logger is built after the config is read, since the config can set
+	// the level. Nothing logs before this point: a config error is printed by
+	// main, not logged.
+	debug := resolveDebug(cfg.Debug, debugFlag, debugSet)
+	logger := newLogger(debug)
+	slog.SetDefault(logger)
 
 	store, err := collector.NewStore(cfg.Switches, cfg.Collect, cfg.PollInterval.Duration)
 	if err != nil {

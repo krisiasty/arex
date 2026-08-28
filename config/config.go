@@ -14,12 +14,18 @@ import (
 
 // Config is the top-level configuration for arex.
 type Config struct {
-	ListenAddress  string         `json:"listenAddress"`  // default ":9100"
-	PollInterval   duration       `json:"pollInterval"`   // default 30s
-	ScrapeTimeout  duration       `json:"scrapeTimeout"`  // default 10s
-	TLSSkipVerify  bool           `json:"tlsSkipVerify"`  // default false (Go zero value; no default applied)
-	StalenessLimit duration       `json:"stalenessLimit"` // default 3x pollInterval
-	Switches       []SwitchConfig `json:"switches"`
+	ListenAddress  string   `json:"listenAddress"`  // default ":9100"
+	PollInterval   duration `json:"pollInterval"`   // default 30s
+	ScrapeTimeout  duration `json:"scrapeTimeout"`  // default 10s
+	TLSSkipVerify  bool     `json:"tlsSkipVerify"`  // default false (Go zero value; no default applied)
+	StalenessLimit duration `json:"stalenessLimit"` // default 3x pollInterval
+
+	// Debug logs one record per eAPI request. Configurable as well as a flag
+	// so a deployment can be verbose without changing how it is invoked --
+	// under systemd or a container runtime, the config file is usually easier
+	// to edit than the command line. The -debug flag wins when given.
+	Debug    bool           `json:"debug"` // default false
+	Switches []SwitchConfig `json:"switches"`
 
 	// Collect enables optional command groups for every switch that does not
 	// override it. Collection is opt-in: anything not listed here is not
