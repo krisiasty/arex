@@ -130,11 +130,30 @@ func newLogger(debug bool) *slog.Logger {
 	}))
 }
 
+// shutdownSignals stop arex. These are what a container runtime and systemd
+// send to ask a service to exit.
+var shutdownSignals = []os.Signal{syscall.SIGINT, syscall.SIGTERM}
+
+// nonFatalSignals are caught so they do not kill the process.
+//
+// SIGHUP is here because Go's default disposition for it is to terminate, and
+// conventionally it asks a daemon to reload. arex reads its config once, at
+// startup, so there is nothing to reload -- but dying is the wrong answer to
+// being asked, and it is exactly what a "systemctl reload" used to do.
+var nonFatalSignals = []os.Signal{syscall.SIGHUP}
+
 func run(cfgPath string, debugFlag, debugSet bool) error {
 	// Cancelled on SIGINT or SIGTERM, which is how a container runtime or
 	// systemd asks arex to stop.
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), shutdownSignals...)
 	defer stop()
+
+	// Caught and reported rather than left to the default disposition. The
+	// channel is buffered so a signal arriving before the reader is ready is
+	// not lost, and never closed: the process is exiting either way.
+	hup := make(chan os.Signal, 1)
+	signal.Notify(hup, nonFatalSignals...)
+	defer signal.Stop(hup)
 
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
@@ -221,10 +240,19 @@ func run(cfgPath string, debugFlag, debugSet bool) error {
 		}
 	}()
 
-	select {
-	case err := <-serveErr:
-		return err
-	case <-ctx.Done():
+	for done := false; !done; {
+		select {
+		case err := <-serveErr:
+			return err
+		case s := <-hup:
+			// Someone asked for a reload and is waiting for something to
+			// happen. Saying plainly that nothing will is better than both
+			// dying and silently ignoring it.
+			logger.Warn("signal ignored: arex reads its config only at startup",
+				"signal", s.String(), "action", "restart to apply configuration changes")
+		case <-ctx.Done():
+			done = true
+		}
 	}
 	stop() // restore default handling, so a second signal kills immediately
 

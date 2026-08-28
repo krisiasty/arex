@@ -63,6 +63,17 @@ jobs:
       - name: go test
         run: go test -race ./...
 
+      # The seed corpora run as ordinary tests above. This is a short live fuzz
+      # of the three paths where arbitrary input reaches arex: the config file,
+      # the eAPI decoders on the poll goroutines, and label rendering. Short
+      # because it runs on every push -- it is a regression net, not a campaign.
+      - name: fuzz the input paths
+        run: |
+          set -euo pipefail
+          go test ./config/ -run FuzzLoad -fuzz FuzzLoad -fuzztime 30s
+          go test ./internal/collector/ -run FuzzCollect -fuzz FuzzCollect -fuzztime 30s
+          go test ./internal/metrics/ -run FuzzRender -fuzz FuzzRender -fuzztime 30s
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:

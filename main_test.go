@@ -1,6 +1,21 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"syscall"
+	"testing"
+)
+
+// hasSignal reports whether the list contains s. os.Signal is an interface,
+// so this cannot be slices.Contains.
+func hasSignal(list []os.Signal, s os.Signal) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
 
 // The flag wins over the config when it is given, so a running deployment can
 // be started verbosely without editing its config file -- and can be started
@@ -24,5 +39,29 @@ func TestDebugResolution(t *testing.T) {
 					tc.config, tc.flag, tc.set, got, tc.want)
 			}
 		})
+	}
+}
+
+// SIGHUP must not be fatal. Go's default disposition for it is to terminate,
+// and the systemd unit used to send one on "systemctl reload" -- so a reload
+// killed the exporter instead of reloading it.
+func TestSighupIsNotFatal(t *testing.T) {
+	if !hasSignal(nonFatalSignals, syscall.SIGHUP) {
+		t.Error("SIGHUP must be handled, or the process dies on systemctl reload")
+	}
+	for _, s := range shutdownSignals {
+		if s == syscall.SIGHUP {
+			t.Error("SIGHUP must not be a shutdown signal: it is not a stop request")
+		}
+	}
+}
+
+// The signals a container runtime and systemd use to stop a service do have to
+// stop it.
+func TestShutdownSignalsAreHandled(t *testing.T) {
+	for _, want := range []os.Signal{syscall.SIGINT, syscall.SIGTERM} {
+		if !hasSignal(shutdownSignals, want) {
+			t.Errorf("%v must stop arex", want)
+		}
 	}
 }
