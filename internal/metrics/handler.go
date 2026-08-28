@@ -3,6 +3,7 @@ package metrics
 import (
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -66,6 +67,53 @@ func stripScheme(host string) string {
 	return host
 }
 
+// validModules are the filterable metric groups: the configurable collect
+// keys, plus version, which is always collected and so has no key.
+var validModules = func() map[string]bool {
+	out := map[string]bool{"version": true}
+	for _, k := range config.CollectKeys {
+		out[k] = true
+	}
+	return out
+}()
+
+func moduleNames() []string {
+	out := make([]string, 0, len(validModules))
+	for k := range validModules {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// knownInterface reports whether the last poll saw this interface, on the
+// named switch or on any of them.
+//
+// Checked against collected data rather than configuration: interfaces are
+// discovered, not declared, so the last poll is the only authority on which
+// names exist.
+func knownInterface(store *collector.Store, label, name string) bool {
+	switches := store.All()
+	if label != "" {
+		sw := store.Get(label)
+		if sw == nil {
+			return false
+		}
+		switches = []*collector.SwitchData{sw}
+	}
+	for _, sw := range switches {
+		sw.RLock()
+		_, inCounters := sw.Interfaces.Interfaces[name]
+		_, inOptics := sw.Optics.Interfaces[name]
+		_, inPhy := sw.Phy.Interfaces[name]
+		sw.RUnlock()
+		if inCounters || inOptics || inPhy {
+			return true
+		}
+	}
+	return false
+}
+
 // internalCollectors are the process's own metrics: build identity plus the Go
 // runtime and process collectors.
 //
@@ -103,15 +151,28 @@ func NewHandler(store *collector.Store, stalenessLimit time.Duration, index map[
 	internal := newRegistry(internalCollectors()...)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		target := r.URL.Query().Get("target")
+		q := r.URL.Query()
+		target := q.Get("target")
+		filter := Filter{Module: q.Get("module"), Interface: q.Get("interface")}
 
-		switch target {
-		case "":
-			serve(w, r, full)
-		case InternalTarget:
-			serve(w, r, internal)
-		default:
-			label, ok := index[target]
+		// Neither filter means anything for process metrics, so combining them
+		// with the internal target is a mistake worth reporting rather than
+		// quietly ignoring.
+		if target == InternalTarget && (filter.Module != "" || filter.Interface != "") {
+			http.Error(w, fmt.Sprintf("target %q takes no module or interface filter", InternalTarget),
+				http.StatusBadRequest)
+			return
+		}
+
+		if filter.Module != "" && !validModules[filter.Module] {
+			http.Error(w, fmt.Sprintf("unknown module %q: expected one of %s",
+				filter.Module, strings.Join(moduleNames(), ", ")), http.StatusBadRequest)
+			return
+		}
+
+		var label string
+		if target != "" && target != InternalTarget {
+			resolved, ok := index[target]
 			if !ok {
 				// An empty body would leave Prometheus reporting a healthy
 				// scrape with no series, so a bad target fails loudly. A typo
@@ -121,7 +182,29 @@ func NewHandler(store *collector.Store, stalenessLimit time.Duration, index map[
 					target, InternalTarget), http.StatusBadRequest)
 				return
 			}
-			serve(w, r, newRegistry(NewSwitchCollector(store, stalenessLimit, label)))
+			label = resolved
+		}
+
+		// A typo in an interface name would otherwise render nothing, which a
+		// human reads as "this interface has no data" rather than "no such
+		// interface".
+		if filter.Interface != "" && !knownInterface(store, label, filter.Interface) {
+			where := "any switch"
+			if label != "" {
+				where = fmt.Sprintf("switch %q", label)
+			}
+			http.Error(w, fmt.Sprintf("no interface %q in the last poll of %s",
+				filter.Interface, where), http.StatusBadRequest)
+			return
+		}
+
+		switch {
+		case target == InternalTarget:
+			serve(w, r, internal)
+		case target == "" && filter == Filter{}:
+			serve(w, r, full)
+		default:
+			serve(w, r, newRegistry(NewSwitchCollector(store, stalenessLimit, label, filter)))
 		}
 	})
 }

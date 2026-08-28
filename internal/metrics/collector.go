@@ -28,7 +28,20 @@ type Collector struct {
 	// only restricts rendering to one switch label. Empty renders all of them.
 	only string
 
+	// module and iface are ad-hoc query filters. They narrow what is rendered
+	// and nothing else -- collection is unaffected, which is what separates
+	// them from interfaceScope and the collect set, both of which decide what
+	// is asked of the switch.
+	module string
+	iface  string
+
 	now func() time.Time
+}
+
+// Filter narrows a rendering to one module and/or one interface.
+type Filter struct {
+	Module    string
+	Interface string
 }
 
 // NewCollector returns a collector over every switch in store.
@@ -36,10 +49,42 @@ func NewCollector(store *collector.Store, stalenessLimit time.Duration) *Collect
 	return &Collector{store: store, stalenessLimit: stalenessLimit, now: time.Now}
 }
 
-// NewSwitchCollector returns a collector over one switch, for a filtered
-// scrape. The switch must exist; callers resolve the target first.
-func NewSwitchCollector(store *collector.Store, stalenessLimit time.Duration, label string) *Collector {
-	return &Collector{store: store, stalenessLimit: stalenessLimit, only: label, now: time.Now}
+// NewSwitchCollector returns a collector over one switch, or over all of them
+// when label is empty, narrowed by f. Callers resolve the target and validate
+// the filter first.
+func NewSwitchCollector(store *collector.Store, stalenessLimit time.Duration, label string, f Filter) *Collector {
+	return &Collector{
+		store:          store,
+		stalenessLimit: stalenessLimit,
+		only:           label,
+		module:         f.Module,
+		iface:          f.Interface,
+		now:            time.Now,
+	}
+}
+
+// wants reports whether a module should be rendered.
+//
+// An interface query implies the interface-bearing modules: asking about a
+// port and being handed power supply readings would not be an answer.
+func (c *Collector) wants(module string) bool {
+	if c.module != "" {
+		return c.module == module
+	}
+	if c.iface != "" {
+		return interfaceModules[module]
+	}
+	return true
+}
+
+// interfaceModules are the modules whose metrics carry an interface label.
+var interfaceModules = map[string]bool{
+	"interfaces": true, "transceiver": true, "phy": true,
+}
+
+// matchIface reports whether a named interface passes the filter.
+func (c *Collector) matchIface(name string) bool {
+	return c.iface == "" || c.iface == name
 }
 
 func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
@@ -146,32 +191,32 @@ func (c *Collector) collectSwitch(ch chan<- prometheus.Metric, sw *collector.Swi
 		return ok && now.Sub(last) <= c.stalenessLimit
 	}
 
-	if fresh(collector.CmdVersion) {
+	if c.wants("version") && fresh(collector.CmdVersion) {
 		collectVersion(ch, label, sw.Version)
 	}
-	if fresh(collector.CmdProcessesTop) {
+	if c.wants("processes") && fresh(collector.CmdProcessesTop) {
 		collectCPUMemory(ch, label, sw.ProcessTop)
 	}
-	if fresh(collector.CmdEnvTemp) {
+	if c.wants("temperature") && fresh(collector.CmdEnvTemp) {
 		collectTemperature(ch, label, sw.EnvTemp)
 	}
-	if fresh(collector.CmdEnvPower) {
+	if c.wants("power") && fresh(collector.CmdEnvPower) {
 		collectPower(ch, label, sw.EnvPower)
 	}
-	if fresh(collector.CmdEnvCooling) {
+	if c.wants("cooling") && fresh(collector.CmdEnvCooling) {
 		collectCooling(ch, label, sw.EnvCooling)
 	}
-	if fresh(collector.CmdInterfaces) {
-		collectInterfaces(ch, label, sw.Interfaces)
+	if c.wants("interfaces") && fresh(collector.CmdInterfaces) {
+		c.collectInterfaces(ch, label, sw.Interfaces)
 	}
-	if fresh(collector.CmdBGPSummary) {
+	if c.wants("bgp") && fresh(collector.CmdBGPSummary) {
 		collectBGP(ch, label, sw.BGPSummary)
 	}
-	if fresh(collector.CmdTransceivers) {
-		collectTransceivers(ch, label, sw.Optics)
+	if c.wants("transceiver") && fresh(collector.CmdTransceivers) {
+		c.collectTransceivers(ch, label, sw.Optics)
 	}
-	if fresh(collector.CmdPhy) {
-		collectPhy(ch, label, sw.Phy)
+	if c.wants("phy") && fresh(collector.CmdPhy) {
+		c.collectPhy(ch, label, sw.Phy)
 	}
 }
 
@@ -294,8 +339,11 @@ func collectCooling(ch chan<- prometheus.Metric, label string, env eapi.ShowEnvi
 	}
 }
 
-func collectInterfaces(ch chan<- prometheus.Metric, label string, ifaces eapi.ShowInterfaces) {
+func (c *Collector) collectInterfaces(ch chan<- prometheus.Metric, label string, ifaces eapi.ShowInterfaces) {
 	for name, iface := range ifaces.Interfaces {
+		if !c.matchIface(name) {
+			continue
+		}
 		c := iface.InterfaceCounters
 
 		// Description and membership live on an info metric: editing a port
@@ -395,8 +443,11 @@ var domParams = []struct {
 //
 // totalRxPower is deliberately not emitted: EOS reports it with the
 // *Overridden flags but no limit values at all.
-func collectTransceivers(ch chan<- prometheus.Metric, label string, t eapi.ShowTransceiverDetail) {
+func (c *Collector) collectTransceivers(ch chan<- prometheus.Metric, label string, t eapi.ShowTransceiverDetail) {
 	for name, x := range t.Interfaces {
+		if !c.matchIface(name) {
+			continue
+		}
 		set(ch, "arista_transceiver_info", 1, label, name,
 			x.Slot, x.Channel, x.MediaType, string(x.VendorSn))
 		setTime(ch, "arista_transceiver_update_timestamp_seconds", x.UpdateTime, label, name)
@@ -430,8 +481,11 @@ func collectTransceivers(ch chan<- prometheus.Metric, label string, t eapi.ShowT
 //
 // Serdes is excluded: half the payload, eye values are meaningless on a down
 // link, and every field drifts between polls.
-func collectPhy(ch chan<- prometheus.Metric, label string, phy eapi.ShowPhyDetail) {
+func (c *Collector) collectPhy(ch chan<- prometheus.Metric, label string, phy eapi.ShowPhyDetail) {
 	for name, iface := range phy.Interfaces {
+		if !c.matchIface(name) {
+			continue
+		}
 		setBool(ch, "arista_phy_interface_up", iface.InterfaceState.Current == "up", label, name)
 		set(ch, "arista_phy_interface_changes_total", float64(iface.InterfaceState.Changes), label, name)
 
