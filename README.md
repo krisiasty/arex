@@ -745,7 +745,7 @@ docker run -d \
   arex
 ```
 
-The image is `distroless/static`, pinned by digest: no shell, no package manager, nothing writable, and it runs
+The image is `distroless/static-debian13`, pinned by digest: no shell, no package manager, nothing writable, and it runs
 as UID 65532. That satisfies `readOnlyRootFilesystem` and `runAsNonRoot`, and means mounted files must be readable
 by that UID. It also means `docker exec` gets you nothing — use `-debug`, `/status` and the metrics instead.
 
