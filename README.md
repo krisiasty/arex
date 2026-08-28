@@ -100,6 +100,11 @@ go test ./...
 Requires Go 1.27. `docker build -t arex .` builds the container from source; released images come from
 `Dockerfile.goreleaser`, which copies an already-built binary onto the same pinned distroless base.
 
+## Security
+
+Report a vulnerability privately through the repository's **Security** tab, not as an issue. What is in scope, what
+is deliberately not, and what arex already does are in [SECURITY.md](SECURITY.md).
+
 ## Licensing
 
 arex is Apache-2.0. `LICENSE` and `NOTICE` apply to arex itself.
