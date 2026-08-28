@@ -782,8 +782,8 @@ The tarball carries the binary, `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES`, the 
 examples, and `checksums.txt` on the release page covers all of them. Darwin builds exist too, for running it
 against a lab switch by hand.
 
-`dockers_v2` also publishes the per-architecture images it assembles each manifest from, so `vX.Y.Z-amd64` and
-`vX.Y.Z-arm64` appear alongside `vX.Y.Z`. Pull the unsuffixed tag; Docker picks the right architecture.
+Each tag is a multi-platform manifest, so Docker picks the architecture. Three tags per release: `vX.Y.Z` for the
+exact version, `vX.Y` following its latest patch, and `latest` following the newest release.
 
 `arex_build_info` reports the released version, because the release sets it at link time; a plain `go build`
 reports `(devel)` and the VCS revision the toolchain embeds.
