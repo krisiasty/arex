@@ -178,17 +178,17 @@ func (c *Collector) collectSwitch(ch chan<- prometheus.Metric, sw *collector.Swi
 
 	age := now.Sub(sw.LastSuccess)
 	set(ch, "arista_scrape_age_seconds", age.Seconds(), label)
-	if age > c.stalenessLimit {
+	if age > c.scrapeLimit(sw) {
 		return // too old to be worth publishing
 	}
 
-	// Each command's data is bounded separately. Data from a failed command is
-	// retained so a transient rejection does not create a gap, but one command
-	// that keeps working must not hold the whole scrape "fresh" while
-	// everything else silently ages.
+	// Each command's data is bounded separately, against its own interval.
+	// Data from a failed command is retained so a transient rejection does
+	// not create a gap, but one command that keeps working must not hold the
+	// whole scrape "fresh" while everything else silently ages.
 	fresh := func(cli string) bool {
 		last, ok := sw.CommandLastSuccess[cli]
-		return ok && now.Sub(last) <= c.stalenessLimit
+		return ok && now.Sub(last) <= c.limitFor(sw, cli)
 	}
 
 	if c.wants("version") && fresh(collector.CmdVersion) {
@@ -225,6 +225,36 @@ func (c *Collector) collectSwitch(ch chan<- prometheus.Metric, sw *collector.Swi
 // These describe the exporter rather than the switch, so they are emitted
 // regardless of scrape health. The attempt label is what makes retry
 // amplification visible.
+// limitFor returns how old a command's data may be before it is suppressed.
+//
+// A module polled every 15 minutes cannot be judged against a 90-second
+// limit: it would be stale on every scrape but the first, so enabling it
+// would silently produce no metrics. Three intervals tolerates two
+// consecutive missed polls, which is what the default stalenessLimit gives a
+// 30-second poll.
+func (c *Collector) limitFor(sw *collector.SwitchData, cli string) time.Duration {
+	limit := c.stalenessLimit
+	if bound := 3 * sw.CommandInterval[cli]; bound > limit {
+		limit = bound
+	}
+	return limit
+}
+
+// scrapeLimit bounds the scrape as a whole. LastSuccess advances whenever any
+// command succeeds, so the bound has to be the most lenient of the
+// per-command ones: otherwise a switch collecting only slow modules would
+// have every metric suppressed between its polls. The per-command gates then
+// do the real work.
+func (c *Collector) scrapeLimit(sw *collector.SwitchData) time.Duration {
+	limit := c.stalenessLimit
+	for _, iv := range sw.CommandInterval {
+		if bound := 3 * iv; bound > limit {
+			limit = bound
+		}
+	}
+	return limit
+}
+
 func (c *Collector) collectEAPIStats(ch chan<- prometheus.Metric, label string, snap eapi.StatsSnapshot) {
 	for k, v := range snap.Requests {
 		set(ch, "arista_eapi_requests_total", float64(v), label, string(k.Outcome), string(k.Attempt))

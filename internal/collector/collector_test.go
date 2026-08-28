@@ -21,10 +21,14 @@ type fakeRunner struct {
 	// batch rejection can be distinguished from an unreachable switch.
 	failBatchOnly bool
 	calls         []string
+	// batches counts Run calls, so a test can assert that due commands share
+	// one request instead of taking one each.
+	batches int
 }
 
 func (f *fakeRunner) Run(cmds []string) ([]json.RawMessage, error) {
 	f.calls = append(f.calls, cmds...)
+	f.batches++
 	if f.allErr != nil && (!f.failBatchOnly || len(cmds) > 1) {
 		return nil, f.allErr
 	}
@@ -44,6 +48,30 @@ func (f *fakeRunner) Run(cmds []string) ([]json.RawMessage, error) {
 
 func newFake() *fakeRunner {
 	return &fakeRunner{results: map[string]string{}, fail: map[string]error{}}
+}
+
+// testEpoch is a fixed start time, so scheduling tests do not depend on the
+// wall clock.
+var testEpoch = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+// newSwitchData builds a SwitchData from a module set.
+func newSwitchData(label string, collect map[string]config.ModuleConfig, scope string) *SwitchData {
+	return newSwitchDataFromSpecs(label, commandsFor(collect, scope, pollFloor(collect)))
+}
+
+// pollFloor is the shortest configured interval, standing in for the poll
+// interval the loop would tick at.
+func pollFloor(collect map[string]config.ModuleConfig) time.Duration {
+	floor := time.Duration(0)
+	for _, m := range collect {
+		if m.Interval > 0 && (floor == 0 || m.Interval < floor) {
+			floor = m.Interval
+		}
+	}
+	if floor == 0 {
+		floor = directInterval
+	}
+	return floor
 }
 
 func TestBGPUsesVrfAll(t *testing.T) {
@@ -144,7 +172,7 @@ func TestDuplicateSwitchNamesAreRejected(t *testing.T) {
 	_, err := NewStore([]config.SwitchConfig{
 		{Host: "https://192.0.2.1", Username: "u", Password: "p", Name: "spine1"},
 		{Host: "https://192.0.2.2", Username: "u", Password: "p", Name: "spine1"},
-	}, allEnabled())
+	}, allEnabled(), directInterval)
 	if err == nil {
 		t.Fatal("two switches sharing a label must be rejected, not silently merged")
 	}
@@ -163,7 +191,7 @@ func TestTransportFailureDoesNotRetryPerCommand(t *testing.T) {
 
 	Collect(f, &SwitchData{Label: "sw1"})
 
-	if n := len(commandsFor(allEnabled(), "")); len(f.calls) > n {
+	if n := len(commandsFor(allEnabled(), "", directInterval)); len(f.calls) > n {
 		t.Errorf("issued %d commands for an unreachable switch, want at most one batch of %d",
 			len(f.calls), n)
 	}
@@ -176,7 +204,7 @@ func TestEAPIRejectionDoesRetryPerCommand(t *testing.T) {
 
 	Collect(f, &SwitchData{Label: "sw1"})
 
-	if n := len(commandsFor(allEnabled(), "")); len(f.calls) <= n {
+	if n := len(commandsFor(allEnabled(), "", directInterval)); len(f.calls) <= n {
 		t.Errorf("issued %d commands; an eAPI rejection should trigger individual retries",
 			len(f.calls))
 	}
@@ -190,7 +218,7 @@ func TestTotalFailureMarksEveryCommandFailed(t *testing.T) {
 	f.allErr = errors.New("unexpected HTTP status: 401 Unauthorized")
 
 	data := &SwitchData{Label: "sw1"}
-	data.specs = commandsFor(allEnabled(), "")
+	data.specs = commandsFor(allEnabled(), "", directInterval)
 	data.Commands = commandNames(data.specs)
 	Collect(f, data)
 
@@ -211,7 +239,7 @@ func TestTotalFailureMarksEveryCommandFailed(t *testing.T) {
 // opt-in, a switch could legitimately be configured down to just
 // "show version" -- in which case every request is labelled a retry.
 func TestFullCommandSetIsLargerThanOne(t *testing.T) {
-	if n := len(commandsFor(allEnabled(), "")); n < 2 {
+	if n := len(commandsFor(allEnabled(), "", directInterval)); n < 2 {
 		t.Fatalf("full command set is %d; eAPI request statistics classify a "+
 			"single-command call as a retry", n)
 	}
@@ -222,7 +250,7 @@ func TestFullCommandSetIsLargerThanOne(t *testing.T) {
 func TestPollLoopStopsOnContextCancel(t *testing.T) {
 	f := newFake()
 	data := &SwitchData{Label: "sw1"}
-	data.specs = commandsFor(allEnabled(), "")
+	data.specs = commandsFor(allEnabled(), "", directInterval)
 	data.Commands = commandNames(data.specs)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -252,7 +280,7 @@ func TestPollLoopStopsOnContextCancel(t *testing.T) {
 func TestPollLoopHonoursCancelDuringStartOffset(t *testing.T) {
 	f := newFake()
 	data := &SwitchData{Label: "sw1"}
-	data.specs = commandsFor(allEnabled(), "")
+	data.specs = commandsFor(allEnabled(), "", directInterval)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})

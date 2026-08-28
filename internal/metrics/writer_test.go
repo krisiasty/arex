@@ -60,7 +60,7 @@ func render(t *testing.T, mutate func(*collector.SwitchData)) string {
 	t.Helper()
 	store, err := collector.NewStore([]config.SwitchConfig{
 		{Host: "https://192.0.2.33", Username: "u", Password: "p", Name: "sw1"},
-	}, collectAll())
+	}, collectAll(), 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,8 +168,15 @@ func TestErrorDoesNotDiscardFreshData(t *testing.T) {
 }
 
 func TestPastStalenessLimitStopsEmitting(t *testing.T) {
+	// Polls stopping ages the scrape and every command together; ageing
+	// LastSuccess alone is a state that cannot occur, since it is set from the
+	// same instant as the command times.
 	out := render(t, func(sd *collector.SwitchData) {
-		sd.LastSuccess = time.Now().Add(-200 * time.Second)
+		old := time.Now().Add(-200 * time.Second)
+		sd.LastSuccess = old
+		for cmd := range sd.CommandLastSuccess {
+			sd.CommandLastSuccess[cmd] = old
+		}
 	})
 	if sample(out, "arista_info", "") != "" {
 		t.Error("arista_info present for data 200s old with a 90s staleness limit")
@@ -182,7 +189,7 @@ func TestPastStalenessLimitStopsEmitting(t *testing.T) {
 func TestNeverCollectedEmitsOnlyScrapeMetrics(t *testing.T) {
 	store, err := collector.NewStore([]config.SwitchConfig{
 		{Host: "h", Username: "u", Password: "p", Name: "sw1"},
-	}, collectAll())
+	}, collectAll(), 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -623,7 +630,7 @@ func TestFECConfigLivesOnAnInfoMetric(t *testing.T) {
 func TestCommandSuccessEmittedForNeverCollectedSwitch(t *testing.T) {
 	store, err := collector.NewStore([]config.SwitchConfig{
 		{Host: "h", Username: "u", Password: "p", Name: "sw1"},
-	}, collectAll())
+	}, collectAll(), 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -680,7 +687,7 @@ func (s staleRunner) Run(cmds []string) ([]json.RawMessage, error) {
 func TestPerCommandStalenessSuppressesOneCommand(t *testing.T) {
 	store, err := collector.NewStore([]config.SwitchConfig{
 		{Host: "h", Username: "u", Password: "p", Name: "sw1"},
-	}, collectAll())
+	}, collectAll(), 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -728,7 +735,7 @@ func TestPerCommandStalenessSuppressesOneCommand(t *testing.T) {
 func TestEAPIRequestMetricsExposed(t *testing.T) {
 	store, err := collector.NewStore([]config.SwitchConfig{
 		{Host: "h", Username: "u", Password: "p", Name: "sw1"},
-	}, collectAll())
+	}, collectAll(), 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -761,7 +768,7 @@ func TestEAPIRequestMetricsExposed(t *testing.T) {
 func TestEAPIRequestMetricsSurviveTotalFailure(t *testing.T) {
 	store, _ := collector.NewStore([]config.SwitchConfig{
 		{Host: "h", Username: "u", Password: "p", Name: "sw1"},
-	}, collectAll())
+	}, collectAll(), 30*time.Second)
 	sd := store.All()[0]
 	collector.Collect(failingRunner{}, sd)
 	sd.Stats.Record(eapi.RequestKey{Outcome: eapi.OutcomeHTTPError, Attempt: eapi.AttemptBatch}, 0, time.Millisecond)
@@ -778,10 +785,10 @@ func TestEAPIRequestMetricsSurviveTotalFailure(t *testing.T) {
 
 // collectAll enables every optional command group, which is what most of
 // these tests want: they are about rendering, not about collection control.
-func collectAll() map[string]bool {
-	m := make(map[string]bool, len(config.CollectKeys))
+func collectAll() map[string]config.ModuleConfig {
+	m := make(map[string]config.ModuleConfig, len(config.CollectKeys))
 	for _, k := range config.CollectKeys {
-		m[k] = true
+		m[k] = config.ModuleConfig{Enabled: true}
 	}
 	return m
 }

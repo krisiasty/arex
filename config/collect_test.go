@@ -24,7 +24,7 @@ func TestMissingCollectIsRejected(t *testing.T) {
 // A typo must not silently disable collection.
 func TestUnknownCollectKeyIsRejected(t *testing.T) {
 	_, err := Load(write(t, `{"tlsSkipVerify":true,
-		"collect":{"interfaces":true,"phy":true,"transciever":true},
+		"collect":{"interfaces":{"enabled": true},"phy":{"enabled": true},"transciever":{"enabled": true}},
 		"switches":[{"host":"https://192.0.2.1","username":"u","password":"p"}]}`))
 	if err == nil {
 		t.Fatal("an unknown collect key must be rejected")
@@ -38,20 +38,20 @@ func TestUnknownCollectKeyIsRejected(t *testing.T) {
 // partial-inheritance puzzle to reason about.
 func TestPerSwitchCollectReplacesDefault(t *testing.T) {
 	cfg, err := Load(write(t, `{"tlsSkipVerify":true,
-		"collect":{"processes":true,"temperature":true,"power":true,"cooling":true,
-		           "interfaces":true,"bgp":true,"transceiver":true,"phy":true},
+		"collect":{"processes":{"enabled": true},"temperature":{"enabled": true},"power":{"enabled": true},"cooling":{"enabled": true},
+		           "interfaces":{"enabled": true},"bgp":{"enabled": true},"transceiver":{"enabled": true},"phy":{"enabled": true}},
 		"switches":[
 			{"host":"https://192.0.2.1","username":"u","password":"p","name":"full"},
 			{"host":"https://192.0.2.2","username":"u","password":"p","name":"lean",
-			 "collect":{"interfaces":true}}]}`))
+			 "collect":{"interfaces":{"enabled": true}}}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n := len(cfg.Switches[0].EffectiveCollect(cfg.Collect)); n != 8 {
+	if n := len(cfg.Switches[0].EffectiveCollect(cfg.Collect, cfg.PollInterval.Duration)); n != 8 {
 		t.Errorf("inheriting switch enables %d, want 8", n)
 	}
-	lean := cfg.Switches[1].EffectiveCollect(cfg.Collect)
-	if len(lean) != 1 || !lean["interfaces"] {
+	lean := cfg.Switches[1].EffectiveCollect(cfg.Collect, cfg.PollInterval.Duration)
+	if len(lean) != 1 || !lean["interfaces"].Enabled {
 		t.Errorf("overriding switch = %v, want interfaces only", lean)
 	}
 }
@@ -60,8 +60,8 @@ func TestPerSwitchCollectReplacesDefault(t *testing.T) {
 // is concerned; reject rather than pass it through.
 func TestInterfaceScopeRejectsControlCharacters(t *testing.T) {
 	_, err := Load(write(t, `{"tlsSkipVerify":true,
-		"collect":{"interfaces":true,"transceiver":true,"phy":true,"bgp":true,
-		           "processes":true,"temperature":true,"power":true,"cooling":true},
+		"collect":{"interfaces":{"enabled": true},"transceiver":{"enabled": true},"phy":{"enabled": true},"bgp":{"enabled": true},
+		           "processes":{"enabled": true},"temperature":{"enabled": true},"power":{"enabled": true},"cooling":{"enabled": true}},
 		"switches":[{"host":"https://192.0.2.1","username":"u","password":"p",
 		             "interfaceScope":"Ethernet1/1\nshow running-config"}]}`))
 	if err == nil {

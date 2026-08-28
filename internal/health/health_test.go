@@ -23,10 +23,10 @@ func newStore(t *testing.T, names ...string) *collector.Store {
 	for _, n := range names {
 		switches = append(switches, config.SwitchConfig{
 			Host: "https://192.0.2.1", Username: "u", Password: "p", Name: n,
-			Collect: map[string]bool{"interfaces": true},
+			Collect: map[string]config.ModuleConfig{"interfaces": {Enabled: true}},
 		})
 	}
-	store, err := collector.NewStore(switches, map[string]bool{"interfaces": true})
+	store, err := collector.NewStore(switches, map[string]config.ModuleConfig{"interfaces": {Enabled: true}}, 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}

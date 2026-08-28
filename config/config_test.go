@@ -10,8 +10,8 @@ import (
 
 // collectAll enables every optional group. The block is mandatory, and most
 // tests here are not about collection, so write injects it when absent.
-const collectAll = `"collect":{"processes":true,"temperature":true,"power":true,` +
-	`"cooling":true,"interfaces":true,"bgp":true,"transceiver":true,"phy":true},`
+const collectAll = `"collect":{"processes":{"enabled": true},"temperature":{"enabled": true},"power":{"enabled": true},` +
+	`"cooling":{"enabled": true},"interfaces":{"enabled": true},"bgp":{"enabled": true},"transceiver":{"enabled": true},"phy":{"enabled": true}},`
 
 // write stores a config for Load, adding a full collect block if the body
 // does not mention one.
