@@ -18,6 +18,7 @@ import (
 	"github.com/krisiasty/arex/config"
 	"github.com/krisiasty/arex/internal/collector"
 	"github.com/krisiasty/arex/internal/health"
+	"github.com/krisiasty/arex/internal/legal"
 	"github.com/krisiasty/arex/internal/metrics"
 )
 
@@ -30,7 +31,16 @@ func main() {
 	cfgPath := flag.String("config", "config.json", "path to config file")
 	debug := flag.Bool("debug", false,
 		"log every eAPI request: status, timing, sizes and commands; overrides the config")
+	licenses := flag.Bool("licenses", false, "print third-party licenses and notices, then exit")
+	check := flag.Bool("check", false, "validate the config file and exit")
 	flag.Parse()
+
+	// Answered before anything else: the notices have to be readable from a
+	// container that has no shell and no copy of the source tree.
+	if *licenses {
+		fmt.Print(legal.ThirdPartyNotices())
+		return
+	}
 
 	// Whether the flag was given at all, as opposed to what it defaulted to:
 	// a bool flag cannot otherwise be distinguished from an absent one, and
@@ -42,6 +52,14 @@ func main() {
 		}
 	})
 
+	if *check {
+		if err := checkConfig(*cfgPath); err != nil {
+			fmt.Fprintf(os.Stderr, "arex: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	if err := run(*cfgPath, *debug, debugSet); err != nil {
 		// Plain text rather than a JSON log line. Nothing reaches this that is
 		// not a startup failure, so the only reader is the person who just ran
@@ -50,6 +68,34 @@ func main() {
 		fmt.Fprintf(os.Stderr, "arex: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// checkConfig validates a config file without starting anything.
+//
+// Useful as a systemd ExecStartPre, where a typo should stop the restart rather
+// than take the service down, and in CI, where the example manifests would
+// otherwise rot unnoticed.
+func checkConfig(path string) error {
+	cfg, err := config.Load(path)
+	if err != nil {
+		return err
+	}
+	for _, w := range cfg.Warnings {
+		fmt.Fprintf(os.Stderr, "arex: warning: %s\n", w)
+	}
+
+	// Building each client exercises everything that can fail before the first
+	// request: an unreadable CA bundle, a malformed certificate pin, a
+	// credential file that has stopped being readable. Nothing connects.
+	for _, sw := range cfg.Switches {
+		if _, err := newClient(sw, cfg); err != nil {
+			return fmt.Errorf("switch %s: %w", sw.Label(), err)
+		}
+	}
+
+	fmt.Printf("%s: %d switch(es), poll interval %s\n",
+		path, len(cfg.Switches), cfg.PollInterval)
+	return nil
 }
 
 // resolveDebug picks between the config's setting and the flag. The flag wins
@@ -101,6 +147,11 @@ func run(cfgPath string, debugFlag, debugSet bool) error {
 	debug := resolveDebug(cfg.Debug, debugFlag, debugSet)
 	logger := newLogger(debug)
 	slog.SetDefault(logger)
+
+	// Collected during Load, which runs before the logger exists.
+	for _, w := range cfg.Warnings {
+		logger.Warn("configuration warning", "detail", w)
+	}
 
 	store, err := collector.NewStore(cfg.Switches, cfg.Collect, cfg.PollInterval.Duration)
 	if err != nil {

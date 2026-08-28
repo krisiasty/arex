@@ -6,6 +6,7 @@ import (
 
 	"github.com/krisiasty/arex/config"
 	"github.com/krisiasty/arex/internal/collector"
+	"github.com/krisiasty/arex/internal/eapi"
 )
 
 // A module polled less often than stalenessLimit must be judged against its
@@ -80,5 +81,30 @@ func TestConfiguredLimitWinsWhenLonger(t *testing.T) {
 	out := gather(t, store, time.Hour)
 	if sample(out, "arista_interface_link_up", `interface="Ethernet1/1"`) == "" {
 		t.Error("an explicit one-hour stalenessLimit must be honoured")
+	}
+}
+
+// A rotation is worth seeing from Prometheus, not just from the logs: if a
+// mounted secret stops being readable, the counter says so while the scrape
+// still shows the switch failing.
+func TestCredentialReloadsAreExposed(t *testing.T) {
+	store, err := collector.NewStore([]config.SwitchConfig{
+		{Host: "h", Username: "u", Password: "p", Name: "sw1"},
+	}, config.CollectSet{"interfaces": {Enabled: true}}, 30*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sd := store.All()[0]
+	sd.Stats.RecordReload(eapi.ReloadRotated)
+	sd.Stats.RecordReload(eapi.ReloadUnchanged)
+	sd.Stats.RecordReload(eapi.ReloadUnchanged)
+	collector.Collect(fixtureRunner{t}, sd)
+
+	out := gather(t, store, 90*time.Second)
+	for outcome, want := range map[string]string{"rotated": "1", "unchanged": "2"} {
+		got := sample(out, "arista_credential_reloads_total", `outcome="`+outcome+`"`)
+		if got != want {
+			t.Errorf("reloads{outcome=%q} = %q, want %q", outcome, got, want)
+		}
 	}
 }

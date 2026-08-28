@@ -1,0 +1,91 @@
+version: 2
+
+project_name: arex
+
+before:
+  hooks:
+    # The notices are committed, and CI fails if they are stale. Verifying here
+    # too means a release cannot ship a binary whose embedded notices do not
+    # match its dependencies, however the tag was pushed.
+    - go mod verify
+
+builds:
+  - id: arex
+    main: .
+    binary: arex
+    env:
+      - CGO_ENABLED=0
+    # No Windows: arex is a daemon for systemd and Kubernetes. Darwin is here
+    # because that is where it gets run against a lab switch by hand.
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      # Without this the released binary reports "(devel)" from the embedded VCS
+      # data, so arex_build_info would not name the version anyone deployed.
+      - -s -w
+      - -X github.com/krisiasty/arex/internal/metrics.Version={{ .Version }}
+
+archives:
+  - id: arex
+    ids: [arex]
+    formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - LICENSE
+      - NOTICE
+      - README.md
+      - src: internal/legal/THIRD_PARTY_NOTICES
+        dst: THIRD_PARTY_NOTICES
+      - src: deploy/*
+        dst: deploy
+
+checksum:
+  name_template: checksums.txt
+
+dockers_v2:
+  - id: arex
+    ids: [arex]
+    images:
+      - ghcr.io/krisiasty/arex
+    tags:
+      - "{{ .Version }}"
+      - "{{ .Major }}.{{ .Minor }}"
+      - latest
+    dockerfile: Dockerfile.goreleaser
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      org.opencontainers.image.title: "{{ .ProjectName }}"
+      org.opencontainers.image.description: Prometheus exporter for Arista EOS switches over eAPI
+      org.opencontainers.image.url: https://github.com/krisiasty/arex
+      org.opencontainers.image.source: https://github.com/krisiasty/arex
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.licenses: Apache-2.0
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^chore:"
+      - "^test:"
+      - Merge pull request
+      - Merge branch
+
+release:
+  draft: false
+  prerelease: auto
+  footer: |
+    ## Container image
+
+    ```
+    docker pull ghcr.io/krisiasty/arex:{{ .Version }}
+    ```
+
+    Third-party licenses are embedded in the binary: `arex -licenses`.

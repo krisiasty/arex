@@ -9,7 +9,7 @@ preserved exactly — those are what the tests assert on.
 Identifiers were replaced consistently across every file. Shapes were not changed.
 
 | Real | Fixture |
-|------|---------|
+| --- | --- |
 | chassis serial | `ABC1234567X` |
 | MAC addresses | `00:1c:73:00:00:0N` |
 | management address | `192.0.2.33` |
@@ -48,7 +48,7 @@ produce. They follow the schema of a real sibling entry.
 `show_interfaces_phy_detail.json` holds three interfaces because the PHY schema differs by speed:
 
 | Interface | Speed | `fec` block | `pcs.blockLock` | `correctedSymbols` | serdes lanes |
-|-----------|-------|-------------|-----------------|--------------------|--------------|
+| --- | --- | --- | --- | --- | --- |
 | `Ethernet1/1` | 10Gbps | absent | present | — | 1 |
 | `Ethernet4/1` | 25Gbps | present | absent | empty | 1 |
 | `Ethernet29/1` | 100Gbps | present | absent | 4 lanes | 4 |

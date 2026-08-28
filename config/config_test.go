@@ -154,7 +154,7 @@ func TestValidationRejectsIncompleteSwitches(t *testing.T) {
 		{"no switches", `{"switches":[]}`, "no switches"},
 		{"missing host", `{"tlsSkipVerify":true,"switches":[{"username":"u","password":"p"}]}`, "missing host"},
 		{"missing username", `{"tlsSkipVerify":true,"switches":[{"host":"h","password":"p"}]}`, "missing username"},
-		{"missing password", `{"tlsSkipVerify":true,"switches":[{"host":"h","username":"u"}]}`, "missing password"},
+		{"no credential", `{"tlsSkipVerify":true,"switches":[{"host":"h","username":"u"}]}`, "has no credential"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := Load(write(t, tc.body))

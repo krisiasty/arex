@@ -4,6 +4,7 @@
   "scrapeTimeout": "10s",
   "stalenessLimit": "90s",
   "debug": false,
+  "passwordFile": "/run/credentials/arex.service/switch-password",
 
   "collect": {
     "processes": { "enabled": true },
@@ -20,14 +21,12 @@
     {
       "host": "https://192.0.2.11",
       "username": "prometheus",
-      "password": "secret",
       "name": "spine1",
       "pinnedCertSha256": "A1:B2:C3:D4:E5:F6:07:18:29:3A:4B:5C:6D:7E:8F:90:A1:B2:C3:D4:E5:F6:07:18:29:3A:4B:5C:6D:7E:8F:90"
     },
     {
       "host": "https://192.0.2.12",
       "username": "prometheus",
-      "password": "secret",
       "name": "leaf1",
       "caFile": "/etc/arex/switch-ca.pem",
       "interfaceScope": "Ethernet1/1-4,Ethernet2/1-4,Ethernet29/1-4",
@@ -45,7 +44,7 @@
     {
       "host": "https://192.0.2.13",
       "username": "prometheus",
-      "password": "secret",
+      "password": "a-switch-with-its-own-account",
       "name": "leaf2"
     }
   ],

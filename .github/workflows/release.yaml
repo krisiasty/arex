@@ -1,0 +1,123 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  # The dry run below, on demand. Nothing about the release path is exercised by
+  # ordinary CI, so without this the first time it runs is the time it matters —
+  # and a failure part way through leaves images in ghcr.io for a version that
+  # has no release, since GoReleaser pushes images before creating one.
+  workflow_dispatch:
+
+# Read-only by default, so a job has to ask for anything more. Only the job that
+# publishes asks.
+permissions:
+  contents: read
+
+# Every external action is pinned to a full commit SHA. This is the workflow
+# where it matters most: it runs with a token that can create releases and push
+# images, so a tag moved upstream would be a way to publish artifacts nobody in
+# this repository reviewed. The trailing comment is the release that SHA is.
+jobs:
+  release:
+    name: release
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # create the GitHub release
+      packages: write  # push to ghcr.io
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0  # GoReleaser reads the changelog from history
+          # Without this, checkout leaves the token in .git/config where every
+          # later step can read it. Nothing here needs it: the changelog comes
+          # from local history, the release is published over the API with the
+          # token passed to that step, and images go through the registry login.
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # A release must not ship a binary whose embedded notices disagree with
+      # its dependencies. CI checks this on every push; checking it here too
+      # means it holds however the tag arrived.
+      - name: third-party notices are current
+        run: |
+          ./hack/gen-notices.sh
+          git diff --exit-code -- internal/legal/THIRD_PARTY_NOTICES
+
+      # linux/arm64 images are built by emulation, so QEMU comes before buildx.
+      - uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          version: v2.18.0
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Everything the release job does short of publishing: the same checkout, the
+  # same notices check, the same binaries, and the same multi-arch image builds.
+  # Snapshot mode needs no tag, and the docker build runs in GoReleaser's build
+  # phase while only the push lives in publish — so skipping publish still
+  # exercises the part worth exercising.
+  #
+  # No write permissions and no registry login: this proves the release path
+  # works without holding the ability to use it.
+  dry-run:
+    name: dry run
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: third-party notices are current
+        run: |
+          ./hack/gen-notices.sh
+          git diff --exit-code -- internal/legal/THIRD_PARTY_NOTICES
+
+      - uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      # --snapshot already implies --skip=publish. Both are given because this
+      # job is one flag away from publishing for real, and that is not a thing
+      # to leave implied.
+      - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          version: v2.18.0
+          args: release --snapshot --clean --skip=publish
+
+      # The released binary has to answer for itself: a stale or empty embed
+      # would otherwise only be discovered by someone reading a published image.
+      - name: the built binary carries its notices
+        run: |
+          set -euo pipefail
+          binary=dist/arex_linux_amd64_v1/arex
+          test -x "${binary}"
+          "${binary}" -licenses | grep -q 'arex - third-party notices'
+          "${binary}" -licenses | grep -q 'Apache License'

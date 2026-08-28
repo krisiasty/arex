@@ -38,6 +38,7 @@ request counts matter most.
 | `arex_build_info` | gauge | Version, VCS revision and Go version of the running binary. Always 1 |
 | `go_*`, `process_*` | — | Go runtime and process metrics: goroutines, heap, GC, memory, open files |
 | `arista_eapi_requests_total` | counter | eAPI requests made, by `outcome` and `attempt` |
+| `arista_credential_reloads_total` | counter | Password file re-reads after a rejection, by `outcome`: `rotated`, `unchanged`, `failed` |
 | `arista_eapi_response_bytes_total` | counter | Total response bytes received from this switch |
 | `arista_eapi_request_duration_seconds_total` | counter | Total time spent on eAPI requests to this switch |
 
@@ -493,12 +494,23 @@ All nine at 1. Any at 0 and `-debug` reports the refusal verbatim in its `cause=
 # Build
 go build -o arex .
 
+# Validate a config without starting: exits non-zero and says what is wrong
+./arex -check -config config.json
+
 # Run
 ./arex -config config.json
 
 # Run with per-request eAPI logging
 ./arex -config config.json -debug
+
+# Print the licences of everything linked into this binary
+./arex -licenses
 ```
+
+`-check` loads the config and builds each switch's client without connecting, so it catches an unreadable CA bundle,
+a malformed certificate pin and a credential file that has stopped being readable — the failures that otherwise
+surface as a service that starts and immediately exits. [deploy/arex.service](deploy/arex.service) runs it as
+`ExecStartPre`, so a bad edit stops the restart instead of taking the exporter down.
 
 ### Endpoints
 
@@ -729,12 +741,75 @@ docker build -t arex .
 docker run -d \
   -p 9100:9100 \
   -v /etc/arex/config.json:/etc/arex/config.json:ro \
+  -v /etc/arex/switch-password:/etc/arex/secret/password:ro \
   arex
 ```
+
+The image is `distroless/static-debian13`, pinned by digest: no shell, no package manager, nothing writable, and it runs
+as UID 65532. That satisfies `readOnlyRootFilesystem` and `runAsNonRoot`, and means mounted files must be readable
+by that UID. It also means `docker exec` gets you nothing — use `-debug`, `/status` and the metrics instead.
+
+`Dockerfile` builds from source for local use. Releases are built from `Dockerfile.goreleaser`, which copies an
+already-built binary; both pin the same base digest, so a local image and a released one are built on the same
+thing.
+
+## Deployment
+
+[deploy/arex.service](deploy/arex.service) is a hardened systemd unit — `DynamicUser`, `ProtectSystem=strict`, no
+capabilities, and the password delivered through `LoadCredential=`.
+[deploy/kubernetes.yaml](deploy/kubernetes.yaml) is a single-replica Deployment with a ConfigMap, a Secret volume,
+probes wired to `/livez` and `/readyz`, and a ServiceMonitor.
+
+Both are commented with the reasoning; see [Credentials](#credentials) for why one replica and why no `subPath`.
+
+## Install
+
+Released binaries and container images are published for `linux/amd64` and `linux/arm64` on every `v*` tag.
+
+```bash
+# Container
+docker pull ghcr.io/krisiasty/arex:latest
+
+# Binary
+curl -fsSL https://github.com/krisiasty/arex/releases/latest/download/arex_linux_amd64.tar.gz | tar xz
+```
+
+The tarball carries the binary, `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES`, the README, and the `deploy/`
+examples. Darwin builds exist too, for running it against a lab switch by hand.
+
+`arex_build_info` reports the released version, because the release sets it at link time; a plain `go build`
+reports `(devel)` and the VCS revision the toolchain embeds.
+
+## Licensing
+
+arex is Apache-2.0. `LICENSE` and `NOTICE` apply to arex itself.
+
+`internal/legal/THIRD_PARTY_NOTICES` reproduces the licence texts, copyright notices and upstream `NOTICE`
+contents of everything linked into the binary. It is embedded, so a container with no shell can still answer for
+itself:
+
+```bash
+arex -licenses
+```
+
+It is generated, not maintained by hand:
+
+```bash
+./hack/gen-notices.sh
+```
+
+The script checks and collects licences for each released target separately — build constraints mean a dependency
+can enter the graph on one platform and not another, so a single `GOOS` would under-report. It fails closed if a
+dependency's licence is forbidden, restricted or unknown, and also if one carries source-redistribution
+obligations, which a text notice cannot satisfy. CI regenerates and diffs the file, so a dependency added without
+regenerating fails the build rather than shipping an image whose notices are incomplete.
 
 ## Configuration
 
 See `config.example.json`. All durations are Go duration strings (`30s`, `1m`, etc.).
+
+The example points `passwordFile` at a systemd credential path, so trying it locally means either creating that
+file or replacing it with an inline `password`.
 
 | Field | Default | Description |
 | --- | --- | --- |
@@ -744,6 +819,7 @@ See `config.example.json`. All durations are Go duration strings (`30s`, `1m`, e
 | `tlsSkipVerify` | `false` | Skip TLS verification for switches with no per-switch method set. See [TLS](#tls) |
 | `stalenessLimit` | `90s` | Stop emitting metrics if data is older than this |
 | `debug` | `false` | Log one record per eAPI request. See [Debug logging](#debug-logging) |
+| `passwordFile` | — | Credential file for every switch that does not name its own. See [Credentials](#credentials) |
 | `collect` | required | Optional command groups to collect. See [below](#choosing-what-to-collect) |
 | `switches` | required | List of switch connection configs |
 
@@ -851,7 +927,8 @@ actually polls:
 
 ```json
 {"level":"INFO","msg":"switch schedule","switch":"leaf1",
- "modules":"show version=30s show interfaces=30s show ip bgp summary vrf all=30s show interfaces transceiver detail=5m0s show interfaces phy detail=15m0s"}
+ "modules":"show version=30s show interfaces=30s show ip bgp summary vrf all=30s
+             show interfaces transceiver detail=5m0s show interfaces phy detail=15m0s"}
 ```
 
 #### What actually detects a degrading link
@@ -946,7 +1023,8 @@ Per-switch fields:
 | --- | --- |
 | `host` | Scheme and address of the switch, e.g. `https://10.10.0.11` |
 | `username` | eAPI username |
-| `password` | eAPI password |
+| `password` | eAPI password, inline. See [Credentials](#credentials) |
+| `passwordFile` | File to read the password from, instead of `password` |
 | `name` | Value for the `switch` label on every metric. Optional, falls back to `host` |
 | `collect` | Overrides the top-level collect set for this switch, wholesale |
 | `interfaceScope` | Interface argument for the three interface commands, passed verbatim |
@@ -958,6 +1036,96 @@ Keep `name` unique across switches: two entries sharing one label collapse into 
 
 There is no VRF setting in arex's own config. It runs off-box, so the VRF is purely a switch-side concern, handled
 by the `vrf management` stanza in [switch configuration](#switch-configuration).
+
+### Credentials
+
+`password` puts the secret in the config file, which is fine for a quick test and wrong for anything else.
+`passwordFile` points at a file instead:
+
+```json
+{
+  "passwordFile": "/run/credentials/arex.service/switch-password",
+  "switches": [
+    { "host": "https://10.10.0.11", "username": "prometheus", "name": "leaf1" },
+    { "host": "https://10.10.0.12", "username": "prometheus", "name": "leaf2" }
+  ]
+}
+```
+
+A fleet normally shares one monitoring account, so the top-level `passwordFile` covers every switch. A switch may
+name its own `passwordFile`, or carry a `password` inline, and either wins over the fleet default. Setting both
+`password` and `passwordFile` on one switch is an error rather than a precedence rule nobody will remember, and a
+switch with no credential at all is rejected at startup.
+
+**Trailing line endings are stripped.** `echo secret > file` appends a newline, and EOS rejects a password with one
+attached — a failure that looks exactly like a wrong password. Only `\r` and `\n` are removed; a trailing space
+could conceivably be part of a real secret.
+
+The file is read at startup, so a missing path, an unreadable file or one holding only a newline fails immediately
+with the switch named, rather than surfacing as an unexplained scrape failure on the first poll. A file readable
+beyond its owner is a warning, not an error — the External Secrets Operator mounts secrets `0644` by default, and
+refusing to start would be worse than saying so:
+
+```json
+{"level":"WARN","msg":"configuration warning",
+ "detail":"config: switch[0] (leaf1): passwordFile /etc/arex/pw is mode 0644, readable beyond its owner"}
+```
+
+#### Rotation is handled without a restart
+
+When a switch rejects the credentials with a 401, arex re-reads the password file before giving up. If the secret on
+disk has changed, it retries the request once with the new one; the poll succeeds and nothing is lost but a single
+rejected request. That is what makes a Vault rotation propagate on its own: the secret store updates the file, and
+arex picks it up on its next poll.
+
+If the secret has **not** changed, arex does not retry. The credential is simply wrong, and a second request would
+double the failed authentications a locked-out account sees — the same amplification the per-command retry
+classification exists to prevent. A wrong password therefore costs exactly one request per poll, no matter how long
+it stays wrong.
+
+A read failure during reload keeps the previous secret. A partial write or a remounted volume would otherwise turn a
+transient glitch into an authentication failure against a switch that was working a moment ago.
+
+Watch `arista_credential_reloads_total`:
+
+```promql
+# rotations picked up automatically
+increase(arista_credential_reloads_total{outcome="rotated"}[1h]) > 0
+
+# the credential is wrong, not stale — someone has to fix it
+rate(arista_credential_reloads_total{outcome="unchanged"}[15m]) > 0
+
+# the file itself cannot be read: check the mount
+increase(arista_credential_reloads_total{outcome="failed"}[15m]) > 0
+```
+
+#### systemd
+
+Use `LoadCredential=`, which puts the secret on tmpfs as `0400` owned by the service user and does **not** pass it
+to child processes. The runtime path is stable, so it can be named directly in the config:
+
+```ini
+[Service]
+LoadCredential=switch-password:/etc/arex/switch-password
+ExecStart=/usr/local/bin/arex -config /etc/arex/config.json
+```
+
+The credential then appears at `/run/credentials/arex.service/switch-password`. See
+[deploy/arex.service](deploy/arex.service) for a hardened unit.
+
+#### Kubernetes
+
+Mount the secret as a volume and point `passwordFile` at the mounted path. With the External Secrets Operator, the
+`ExternalSecret` syncs Vault into a `Secret` and the kubelet updates the mounted file in place — no pod restart, and
+arex's reload-on-401 completes the loop.
+
+**Do not mount it with `subPath`.** A `subPath` mount is populated once at pod start and is never updated, so
+rotation silently stops working. The same applies to a `ConfigMap` holding the config file. See
+[deploy/kubernetes.yaml](deploy/kubernetes.yaml).
+
+Run **one replica**. arex has no leader election, so two replicas poll every switch twice — doubling eAPI load — and
+Prometheus then holds two series per switch differing only by `pod`, which quietly double-counts any aggregation.
+Use `strategy: Recreate` for the same reason: a rolling update briefly runs both.
 
 ## TLS
 

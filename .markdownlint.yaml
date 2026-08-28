@@ -2,3 +2,6 @@ MD013:
   line_length: 120
   heading_line_length: 120
   code_block_line_length: 120
+  # A table row cannot be wrapped without breaking the table, and several
+  # reference tables here carry a full sentence per cell.
+  tables: false

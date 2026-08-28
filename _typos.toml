@@ -1,0 +1,30 @@
+# typos would otherwise "fix" spellings that must not change.
+#
+# Frequncy is Arista's own misspelling, in the JSON that "show interfaces phy
+# detail" returns. It appears in a struct tag, in the captured fixtures, and in
+# the notes describing them; correcting any of those breaks parsing.
+#
+# intervall and transciever are deliberate: tests assert that a config error
+# names the misspelled field or key rather than failing anonymously.
+
+[default]
+extend-ignore-identifiers-re = [
+  "Frequncy",
+]
+
+[default.extend-words]
+# A variant spelling, in a comment.
+unparseable = "unparseable"
+
+[default.extend-identifiers]
+intervall = "intervall"
+transciever = "transciever"
+Unparseable = "Unparseable"
+unparseable = "unparseable"
+
+[files]
+extend-exclude = [
+  # Generated: it reproduces upstream license texts verbatim, and their
+  # spelling is not ours to correct.
+  "internal/legal/THIRD_PARTY_NOTICES",
+]

@@ -1,0 +1,170 @@
+# arex on Kubernetes: one replica, config from a ConfigMap, password from a
+# Secret volume.
+#
+# Two things that matter more than they look:
+#
+#   1. Neither volume uses subPath. A subPath mount is populated once at pod
+#      start and never updated, so a rotated secret would silently stop
+#      reaching arex -- which is the whole point of passwordFile.
+#
+#   2. replicas is 1 and the strategy is Recreate. arex has no leader
+#      election, so two replicas poll every switch twice and Prometheus ends
+#      up holding two series per switch differing only by pod, which
+#      double-counts any aggregation. A rolling update briefly runs both.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: arex
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: arex-config
+  namespace: arex
+data:
+  config.json: |
+    {
+      "listenAddress": ":9100",
+      "pollInterval": "30s",
+      "stalenessLimit": "90s",
+      "passwordFile": "/etc/arex/secret/password",
+      "collect": {
+        "processes":   { "enabled": true },
+        "temperature": { "enabled": true },
+        "power":       { "enabled": true },
+        "cooling":     { "enabled": true },
+        "interfaces":  { "enabled": true },
+        "bgp":         { "enabled": true },
+        "transceiver": { "enabled": true, "interval": "5m" },
+        "phy":         { "enabled": true, "interval": "15m" }
+      },
+      "switches": [
+        {
+          "host": "https://10.10.0.11",
+          "username": "prometheus",
+          "name": "leaf1",
+          "pinnedCertSha256": "REPLACE_WITH_THE_SWITCH_FINGERPRINT"
+        }
+      ]
+    }
+---
+# Replace with an ExternalSecret when the credential comes from Vault. The
+# kubelet updates the mounted file in place, and arex re-reads it after a
+# rejection, so a rotation needs no restart.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: arex-switch-password
+  namespace: arex
+type: Opaque
+stringData:
+  password: REPLACE_ME
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: arex
+  namespace: arex
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: arex
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: arex
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: arex
+          image: ghcr.io/krisiasty/arex:latest
+          args: ["-config", "/etc/arex/config.json"]
+          ports:
+            - name: metrics
+              containerPort: 9100
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          # livez stays up while a switch is unreachable -- restarting arex
+          # would not fix a switch -- so it only fails if the poll loop stops.
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: metrics
+            periodSeconds: 30
+            failureThreshold: 3
+          # readyz waits until every switch has been polled once, so a fresh
+          # pod is not scraped before it has anything to serve.
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: metrics
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/arex
+              readOnly: true
+            - name: switch-password
+              mountPath: /etc/arex/secret
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: arex-config
+        - name: switch-password
+          secret:
+            secretName: arex-switch-password
+            defaultMode: 0400
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: arex
+  namespace: arex
+  labels:
+    app.kubernetes.io/name: arex
+spec:
+  selector:
+    app.kubernetes.io/name: arex
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: metrics
+---
+# Requires prometheus-operator. Without it, scrape the Service directly.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: arex
+  namespace: arex
+  labels:
+    app.kubernetes.io/name: arex
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: arex
+  endpoints:
+    - port: metrics
+      interval: 30s
+      # arex serves cached data, so the scrape only reads memory. The poll
+      # interval, not this, decides how often switches are contacted.
+      scrapeTimeout: 10s

@@ -1,0 +1,120 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  schedule:
+    - cron: "0 8 * * 1"  # weekly on monday — catches newly published vulnerabilities
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# Every external action is pinned to a full commit SHA rather than a tag,
+# because a tag is movable: whoever can push one can change what runs here, and
+# this workflow's sibling holds the token that publishes releases. The trailing
+# comment is the release that SHA is.
+#
+# Tool versions an action downloads are pinned too, since a pinned action that
+# fetches "latest" still runs unreviewed code.
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: setup go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: go mod tidy
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
+      - name: go mod verify
+        run: go mod verify
+
+      # The notices are generated from the build graph, so a dependency added
+      # without regenerating would ship an image whose notices are incomplete.
+      # Same idea as the tidy check above: the artifact is committed, and CI
+      # proves it is current.
+      - name: third-party notices are current
+        run: |
+          ./hack/gen-notices.sh
+          git diff --exit-code -- internal/legal/THIRD_PARTY_NOTICES
+          git ls-files --error-unmatch internal/legal/THIRD_PARTY_NOTICES
+
+      - name: shellcheck
+        run: shellcheck hack/*.sh
+
+      - name: go build
+        run: go build ./...
+
+      - name: go test
+        run: go test -race ./...
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.13.1
+          args: -v
+
+      # Pinning the scanner does not stale what it finds: the vulnerability
+      # database is fetched from vuln.go.dev at run time, so a bump improves the
+      # analysis, never the data.
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
+
+      - name: markdownlint
+        uses: DavidAnson/markdownlint-cli2-action@21c1be1b93ad9ed58fa840aacc3f279cde2a72ff # v24.2.0
+        with:
+          globs: "**/*.md"
+
+      - name: typos
+        uses: crate-ci/typos@8a48f81b6c64dcfea44b3633223084c4be58ac5f # v1.49.0
+
+      - name: actionlint
+        uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
+        with:
+          version: 1.7.12
+
+      # The manifests are hand-maintained YAML holding a JSON config, which is
+      # exactly the shape that rots silently. Loading it through arex proves the
+      # example still validates.
+      - name: deployment manifests are valid
+        run: |
+          set -euo pipefail
+          printf 'hunter2\n' > "${RUNNER_TEMP}/manifest-password"
+          chmod 600 "${RUNNER_TEMP}/manifest-password"
+          python3 - "${RUNNER_TEMP}" <<'PY'
+          import json, sys, textwrap
+          tmp = sys.argv[1]
+          lines = open('deploy/kubernetes.yaml').read().split('\n')
+          i = next(n for n, l in enumerate(lines) if l.strip() == 'config.json: |')
+          block = []
+          for line in lines[i + 1:]:
+              if line.strip() and not line.startswith('    '):
+                  break
+              block.append(line)
+          cfg = json.loads(textwrap.dedent('\n'.join(block)))
+          # Placeholders a real deployment replaces, substituted so the config
+          # can actually be validated here.
+          cfg['switches'][0]['pinnedCertSha256'] = 'A1:' * 31 + 'B2'
+          cfg['passwordFile'] = f'{tmp}/manifest-password'
+          with open(f'{tmp}/manifest-config.json', 'w') as f:
+              json.dump(cfg, f)
+          PY
+          go run . -check -config "${RUNNER_TEMP}/manifest-config.json"
+
+      - name: go vet
+        run: go vet ./...

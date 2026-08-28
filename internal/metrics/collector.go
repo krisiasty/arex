@@ -261,6 +261,9 @@ func (c *Collector) collectEAPIStats(ch chan<- prometheus.Metric, label string, 
 	for k, v := range snap.Requests {
 		set(ch, "arista_eapi_requests_total", float64(v), label, string(k.Outcome), string(k.Attempt))
 	}
+	for outcome, v := range snap.Reloads {
+		set(ch, "arista_credential_reloads_total", float64(v), label, string(outcome))
+	}
 	set(ch, "arista_eapi_response_bytes_total", float64(snap.ResponseBytes), label)
 	set(ch, "arista_eapi_request_duration_seconds_total", snap.DurationSeconds, label)
 }

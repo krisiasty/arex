@@ -27,6 +27,16 @@ type Config struct {
 	Debug    bool           `json:"debug"` // default false
 	Switches []SwitchConfig `json:"switches"`
 
+	// PasswordFile is the credential file for every switch that does not name
+	// its own. A fleet normally shares one monitoring account, and repeating
+	// the path per switch is how configs drift.
+	PasswordFile string `json:"passwordFile"`
+
+	// Warnings are problems worth reporting that do not prevent startup.
+	// Collected rather than logged because Load runs before the logger
+	// exists -- the config decides the log level.
+	Warnings []string `json:"-"`
+
 	// Collect enables optional command groups for every switch that does not
 	// override it. Collection is opt-in: anything not listed here is not
 	// collected. A nil map means the block was absent, which is an error --
@@ -39,7 +49,16 @@ type Config struct {
 type SwitchConfig struct {
 	Host     string `json:"host"` // e.g. "https://192.168.1.1"
 	Username string `json:"username"`
+
+	// Password is the credential inline. Convenient for a quick test; use
+	// PasswordFile for anything else, since a file can be given restrictive
+	// permissions, delivered by systemd credentials or a Kubernetes secret,
+	// and re-read after a rotation without restarting arex.
 	Password string `json:"password"`
+
+	// PasswordFile holds the credential instead. Trailing newlines are
+	// stripped, since writing a secret with a shell redirect appends one.
+	PasswordFile string `json:"passwordFile"`
 	// Optional human-readable name used as the "switch" label.
 	// Falls back to Host if empty.
 	Name string `json:"name"`
@@ -87,6 +106,60 @@ func (s SwitchConfig) Label() string {
 		return s.Name
 	}
 	return s.Host
+}
+
+// EffectivePasswordFile returns the credential file this switch should read,
+// or "" when it carries its password inline.
+//
+// An inline password is an explicit per-switch choice, so it wins over the
+// fleet default rather than being silently overridden by it.
+func (s SwitchConfig) EffectivePasswordFile(fleetDefault string) string {
+	if s.Password != "" {
+		return ""
+	}
+	if s.PasswordFile != "" {
+		return s.PasswordFile
+	}
+	return fleetDefault
+}
+
+// checkPasswordFile confirms the credential is usable at startup rather than
+// on the first poll, and reports a mode that lets others read it.
+//
+// A loose mode is a warning, not an error: the External Secrets Operator
+// mounts secrets 0644 by default, and refusing to start would be worse than
+// saying so.
+func checkPasswordFile(path, where string) (warning string, err error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", fmt.Errorf("config: %s: passwordFile: %w", where, err)
+	}
+	if info.IsDir() {
+		return "", fmt.Errorf("config: %s: passwordFile %s is a directory", where, path)
+	}
+
+	body, err := os.ReadFile(path) //nolint:gosec // the path is operator-supplied config
+	if err != nil {
+		return "", fmt.Errorf("config: %s: passwordFile: %w", where, err)
+	}
+	if TrimSecret(body) == "" {
+		return "", fmt.Errorf("config: %s: passwordFile %s is empty", where, path)
+	}
+
+	if mode := info.Mode().Perm(); mode&0o077 != 0 {
+		return fmt.Sprintf("config: %s: passwordFile %s is mode %#o, readable beyond its owner",
+			where, path, mode), nil
+	}
+	return "", nil
+}
+
+// TrimSecret strips the line ending a secret file usually carries.
+//
+// Only the line ending: "echo secret > file" appends a newline that EOS would
+// otherwise reject as part of the password, while a space could conceivably be
+// part of a real one.
+func TrimSecret(b []byte) string {
+	return strings.TrimRight(string(b), "\r\n")
 }
 
 // Load reads and parses a JSON config file from path.
@@ -145,8 +218,23 @@ func (c *Config) validate() error {
 		if sw.Username == "" {
 			return fmt.Errorf("config: switch[%d] missing username", i)
 		}
-		if sw.Password == "" {
-			return fmt.Errorf("config: switch[%d] missing password", i)
+		where := fmt.Sprintf("switch[%d] (%s)", i, sw.Label())
+		if sw.Password != "" && sw.PasswordFile != "" {
+			return fmt.Errorf("config: %s sets both password and passwordFile; pick one", where)
+		}
+		file := sw.EffectivePasswordFile(c.PasswordFile)
+		if sw.Password == "" && file == "" {
+			return fmt.Errorf("config: %s has no credential: set password or passwordFile, "+
+				"or a top-level passwordFile for the whole fleet", where)
+		}
+		if file != "" {
+			warning, ferr := checkPasswordFile(file, where)
+			if ferr != nil {
+				return ferr
+			}
+			if warning != "" {
+				c.Warnings = append(c.Warnings, warning)
+			}
 		}
 		if sw.Label() == ReservedTarget {
 			return fmt.Errorf("config: switch[%d] is named %q, which is reserved: "+
