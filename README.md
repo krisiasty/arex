@@ -70,6 +70,7 @@ docker pull ghcr.io/krisiasty/arex:v0.2.0
 | `-config` | Path to the config file. Default `config.yaml`. YAML, and JSON is accepted since JSON is valid YAML |
 | `-check` | Validate the config and every switch's TLS material and credential, then exit. Connects to nothing |
 | `-debug` | One structured log record per eAPI request. Also settable as `debug: true` in the config |
+| `-version` | Print the version, commit, build time and Go version, then exit |
 | `-licenses` | Print the licences of everything linked into the binary, then exit |
 
 ## Design notes
@@ -105,9 +106,10 @@ arex is Apache-2.0. `LICENSE` and `NOTICE` apply to arex itself.
 
 `internal/legal/THIRD_PARTY_NOTICES` reproduces the licence texts, copyright notices and upstream `NOTICE`
 contents of everything linked into the binary. It is embedded, so a container with no shell can still answer for
-itself:
+itself — as it can about which build it is:
 
 ```bash
+arex -version
 arex -licenses
 ```
 

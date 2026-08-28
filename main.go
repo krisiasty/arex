@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/krisiasty/arex/config"
+	"github.com/krisiasty/arex/internal/buildinfo"
 	"github.com/krisiasty/arex/internal/collector"
 	"github.com/krisiasty/arex/internal/health"
 	"github.com/krisiasty/arex/internal/legal"
@@ -34,12 +35,18 @@ func main() {
 	cfgPath := flag.String("config", "config.yaml", "path to config file")
 	debug := flag.Bool("debug", false,
 		"log every eAPI request: status, timing, sizes and commands; overrides the config")
+	version := flag.Bool("version", false, "print version and build information, then exit")
 	licenses := flag.Bool("licenses", false, "print third-party licenses and notices, then exit")
 	check := flag.Bool("check", false, "validate the config file and exit")
 	flag.Parse()
 
-	// Answered before anything else: the notices have to be readable from a
-	// container that has no shell and no copy of the source tree.
+	// Both answered before anything else, for the same reason: they have to be
+	// readable from a container that has no shell and no copy of the source
+	// tree, and without a config file existing.
+	if *version {
+		fmt.Println(buildinfo.String())
+		return
+	}
 	if *licenses {
 		fmt.Print(legal.ThirdPartyNotices())
 		return

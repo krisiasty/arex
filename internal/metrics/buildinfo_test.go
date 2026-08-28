@@ -64,11 +64,12 @@ func TestBuildInfoEmittedOncePerScrape(t *testing.T) {
 }
 
 // Go version is always knowable; the rest may be absent in an unusual build,
-// and must degrade to a placeholder rather than an empty label.
+// and must degrade to a placeholder rather than an empty label. Read through
+// this package's own view, since that is what feeds the metric.
 func TestBuildInfoNeverHasEmptyLabels(t *testing.T) {
-	info := buildInfo()
+	info := BuildLabels()
 	for name, v := range map[string]string{
-		"version": info.version, "revision": info.revision, "go_version": info.goVersion,
+		"version": info.Version, "revision": info.Revision, "go_version": info.GoVersion,
 	} {
 		if v == "" {
 			t.Errorf("%s is empty; want a placeholder such as \"unknown\"", name)
