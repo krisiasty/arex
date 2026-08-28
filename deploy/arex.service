@@ -35,6 +35,17 @@ LoadCredential=switch-password:/etc/arex/switch-password
 # no home, no shell and no presence in /etc/passwd.
 DynamicUser=yes
 
+# If something rotates secrets underneath arex -- Vault Agent, for instance --
+# LoadCredential is the wrong mechanism, because it copies the file once at
+# start. Agent writes files instead, and a transient UID cannot be chowned to,
+# so share a group and let it write 0640 root:arex-secrets:
+#
+#   SupplementaryGroups=arex-secrets
+#   RuntimeDirectory=arex
+#
+# with the secret written to /run/arex, so it stays in memory rather than on
+# disk. See docs/install-systemd.md.
+
 # It reads a config file and talks to switches. Nothing else.
 ProtectSystem=strict
 ProtectHome=yes
