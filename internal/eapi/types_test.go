@@ -8,7 +8,7 @@ import (
 )
 
 // load unmarshals a repo-root testdata fixture into dst.
-func load(t *testing.T, name string, dst interface{}) {
+func load(t *testing.T, name string, dst any) {
 	t.Helper()
 	path := filepath.Join("..", "..", "testdata", name)
 	raw, err := os.ReadFile(path) //nolint:gosec // fixture path is test-controlled

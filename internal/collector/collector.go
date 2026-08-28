@@ -252,7 +252,7 @@ type cmdSpec struct {
 	// ones.
 	interval time.Duration
 
-	into  func(*snapshot) interface{}
+	into  func(*snapshot) any
 	apply func(*snapshot, *SwitchData)
 }
 
@@ -275,7 +275,7 @@ const (
 // not useful.
 var versionCommand = cmdSpec{
 	name: CmdVersion, cli: CmdVersion,
-	into:  func(s *snapshot) interface{} { return &s.version },
+	into:  func(s *snapshot) any { return &s.version },
 	apply: func(s *snapshot, d *SwitchData) { d.Version = s.version },
 }
 
@@ -284,42 +284,42 @@ var versionCommand = cmdSpec{
 var optionalCommands = map[string]cmdSpec{
 	"processes": {
 		name: CmdProcessesTop, cli: CmdProcessesTop,
-		into:  func(s *snapshot) interface{} { return &s.processTop },
+		into:  func(s *snapshot) any { return &s.processTop },
 		apply: func(s *snapshot, d *SwitchData) { d.ProcessTop = s.processTop },
 	},
 	"temperature": {
 		name: CmdEnvTemp, cli: CmdEnvTemp,
-		into:  func(s *snapshot) interface{} { return &s.envTemp },
+		into:  func(s *snapshot) any { return &s.envTemp },
 		apply: func(s *snapshot, d *SwitchData) { d.EnvTemp = s.envTemp },
 	},
 	"power": {
 		name: CmdEnvPower, cli: CmdEnvPower,
-		into:  func(s *snapshot) interface{} { return &s.envPower },
+		into:  func(s *snapshot) any { return &s.envPower },
 		apply: func(s *snapshot, d *SwitchData) { d.EnvPower = s.envPower },
 	},
 	"cooling": {
 		name: CmdEnvCooling, cli: CmdEnvCooling,
-		into:  func(s *snapshot) interface{} { return &s.envCooling },
+		into:  func(s *snapshot) any { return &s.envCooling },
 		apply: func(s *snapshot, d *SwitchData) { d.EnvCooling = s.envCooling },
 	},
 	"interfaces": {
 		name: CmdInterfaces, cli: CmdInterfaces,
-		into:  func(s *snapshot) interface{} { return &s.interfaces },
+		into:  func(s *snapshot) any { return &s.interfaces },
 		apply: func(s *snapshot, d *SwitchData) { d.Interfaces = s.interfaces },
 	},
 	"bgp": {
 		name: CmdBGPSummary, cli: CmdBGPSummary,
-		into:  func(s *snapshot) interface{} { return &s.bgp },
+		into:  func(s *snapshot) any { return &s.bgp },
 		apply: func(s *snapshot, d *SwitchData) { d.BGPSummary = s.bgp },
 	},
 	"transceiver": {
 		name: CmdTransceivers, cli: CmdTransceivers,
-		into:  func(s *snapshot) interface{} { return &s.optics },
+		into:  func(s *snapshot) any { return &s.optics },
 		apply: func(s *snapshot, d *SwitchData) { d.Optics = s.optics },
 	},
 	"phy": {
 		name: CmdPhy, cli: CmdPhy,
-		into:  func(s *snapshot) interface{} { return &s.phy },
+		into:  func(s *snapshot) any { return &s.phy },
 		apply: func(s *snapshot, d *SwitchData) { d.Phy = s.phy },
 	},
 }
@@ -526,8 +526,7 @@ func collect(client Runner, data *SwitchData, specs []cmdSpec, now time.Time) {
 // worthRetryingIndividually reports whether a failed batch could partly
 // succeed if its commands were sent one at a time.
 func worthRetryingIndividually(err error) bool {
-	var cmdErr *eapi.CommandError
-	if errors.As(err, &cmdErr) {
+	if _, ok := errors.AsType[*eapi.CommandError](err); ok {
 		return true
 	}
 	// A result-count mismatch is also a per-command problem, not transport.
