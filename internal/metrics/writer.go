@@ -74,10 +74,13 @@ func writeSwitch(w io.Writer, sw *collector.SwitchData, now time.Time, staleness
 	// emitted even when nothing was ever collected. A missing series is not
 	// zero in Prometheus: omitting these would drop the most broken switch
 	// out of any aggregate over arista_command_success.
+	// Per switch, since collection is opt-in and configured individually: a
+	// command this switch does not collect gets no series at all, rather
+	// than a misleading 0.
 	if sw.CommandErrors != nil {
-		for _, cli := range collector.Commands() {
-			_, failed := sw.CommandErrors[cli]
-			boolGauge(w, "arista_command_success", join(sl, labels("command", cli)), !failed)
+		for _, name := range sw.Commands {
+			_, failed := sw.CommandErrors[name]
+			boolGauge(w, "arista_command_success", join(sl, labels("command", name)), !failed)
 		}
 	}
 
