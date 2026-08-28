@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/krisiasty/arex/internal/eapi"
@@ -17,6 +18,13 @@ type Config struct {
 	TLSSkipVerify  bool           `json:"tlsSkipVerify"`  // default false (Go zero value; no default applied)
 	StalenessLimit duration       `json:"stalenessLimit"` // default 3x pollInterval
 	Switches       []SwitchConfig `json:"switches"`
+
+	// Collect enables optional command groups for every switch that does not
+	// override it. Collection is opt-in: anything not listed here is not
+	// collected. A nil map means the block was absent, which is an error --
+	// defaulting it either way would silently change what a deployment
+	// gathers.
+	Collect map[string]bool `json:"collect"`
 }
 
 // SwitchConfig holds connection details for a single switch.
@@ -39,6 +47,20 @@ type SwitchConfig struct {
 	// default certificate carries no subject alternative names, so no
 	// hostname or address can match it.
 	PinnedCertSHA256 string `json:"pinnedCertSha256"`
+
+	// Collect overrides the top-level set for this switch, wholesale.
+	Collect map[string]bool `json:"collect"`
+
+	// InterfaceScope is passed to the switch verbatim as the interface
+	// argument of the interface-related commands, e.g.
+	// "Ethernet1/1-4,Ethernet29/1-4". Empty means every interface.
+	//
+	// Verbatim because EOS accepts forms that are not worth modelling: a
+	// per-cage subinterface range silently returns only the interfaces that
+	// exist, so it survives breakout changes, whereas a range before the
+	// slash is rejected outright and a non-existent cage fails the whole
+	// command.
+	InterfaceScope string `json:"interfaceScope"`
 }
 
 // TLSOptions returns how this switch's certificate should be verified.
@@ -100,6 +122,14 @@ func (c *Config) validate() error {
 	if len(c.Switches) == 0 {
 		return fmt.Errorf("config: no switches defined")
 	}
+	if c.Collect == nil {
+		return fmt.Errorf("config: no collect block; collection is opt-in, so an absent "+
+			"block would gather only \"show version\". List the groups to enable: %s",
+			strings.Join(CollectKeys, ", "))
+	}
+	if err := validateCollect(c.Collect, "collect"); err != nil {
+		return err
+	}
 	for i, sw := range c.Switches {
 		if sw.Host == "" {
 			return fmt.Errorf("config: switch[%d] missing host", i)
@@ -109,6 +139,12 @@ func (c *Config) validate() error {
 		}
 		if sw.Password == "" {
 			return fmt.Errorf("config: switch[%d] missing password", i)
+		}
+		if err := validateCollect(sw.Collect, fmt.Sprintf("switch[%d] (%s)", i, sw.Label())); err != nil {
+			return err
+		}
+		if err := validateScope(sw.InterfaceScope, fmt.Sprintf("switch[%d] (%s)", i, sw.Label())); err != nil {
+			return err
 		}
 		if sw.CAFile != "" && sw.PinnedCertSHA256 != "" {
 			return fmt.Errorf("config: switch[%d] (%s) sets both caFile and pinnedCertSha256; pick one",
@@ -141,5 +177,60 @@ func (d *duration) UnmarshalJSON(b []byte) error {
 		return fmt.Errorf("invalid duration %q: %w", s, err)
 	}
 	d.Duration = v
+	return nil
+}
+
+// CollectKeys names every optional command group. show version has no key:
+// it is always collected, being the identity metric everything else joins
+// against.
+var CollectKeys = []string{
+	"processes", "temperature", "power", "cooling",
+	"interfaces", "bgp", "transceiver", "phy",
+}
+
+// EffectiveCollect resolves which optional groups this switch collects.
+//
+// A per-switch block replaces the default wholesale rather than merging, so
+// there is no partial inheritance to reason about: what you see in a
+// switch's block is exactly what it collects.
+func (s SwitchConfig) EffectiveCollect(defaults map[string]bool) map[string]bool {
+	src := defaults
+	if s.Collect != nil {
+		src = s.Collect
+	}
+	out := make(map[string]bool, len(src))
+	for k, v := range src {
+		if v {
+			out[k] = true
+		}
+	}
+	return out
+}
+
+// validateCollect rejects unknown keys, so a typo cannot silently disable
+// collection.
+func validateCollect(set map[string]bool, where string) error {
+	known := make(map[string]bool, len(CollectKeys))
+	for _, k := range CollectKeys {
+		known[k] = true
+	}
+	for k := range set {
+		if !known[k] {
+			return fmt.Errorf("config: %s: unknown collect key %q; valid keys are %s",
+				where, k, strings.Join(CollectKeys, ", "))
+		}
+	}
+	return nil
+}
+
+// validateScope rejects anything that would not survive being spliced into a
+// CLI command. The scope is passed to the switch verbatim, so a control
+// character in it is a malformed command rather than a filter.
+func validateScope(scope, where string) error {
+	for _, r := range scope {
+		if r < 0x20 || r == 0x7f {
+			return fmt.Errorf("config: %s: interfaceScope contains a control character", where)
+		}
+	}
 	return nil
 }

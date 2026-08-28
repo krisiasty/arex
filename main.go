@@ -22,7 +22,7 @@ func main() {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	store, err := collector.NewStore(cfg.Switches)
+	store, err := collector.NewStore(cfg.Switches, cfg.Collect)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}

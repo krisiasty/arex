@@ -8,7 +8,23 @@ import (
 	"time"
 )
 
+// collectAll enables every optional group. The block is mandatory, and most
+// tests here are not about collection, so write injects it when absent.
+const collectAll = `"collect":{"processes":true,"temperature":true,"power":true,` +
+	`"cooling":true,"interfaces":true,"bgp":true,"transceiver":true,"phy":true},`
+
+// write stores a config for Load, adding a full collect block if the body
+// does not mention one.
 func write(t *testing.T, body string) string {
+	t.Helper()
+	if !strings.Contains(body, `"collect"`) {
+		body = strings.Replace(body, `"switches"`, collectAll+`"switches"`, 1)
+	}
+	return writeRaw(t, body)
+}
+
+// writeRaw stores a config verbatim, for tests about the collect block itself.
+func writeRaw(t *testing.T, body string) string {
 	t.Helper()
 	p := filepath.Join(t.TempDir(), "config.json")
 	if err := os.WriteFile(p, []byte(body), 0o600); err != nil {

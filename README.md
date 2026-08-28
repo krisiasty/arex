@@ -534,7 +534,66 @@ See `config.example.json`. All durations are Go duration strings (`30s`, `1m`, e
 | `scrapeTimeout` | `10s` | eAPI request timeout |
 | `tlsSkipVerify` | `false` | Skip TLS verification for switches with no per-switch method set. See [TLS](#tls) |
 | `stalenessLimit` | `90s` | Stop emitting metrics if data is older than this |
+| `collect` | required | Optional command groups to collect. See [below](#choosing-what-to-collect) |
 | `switches` | required | List of switch connection configs |
+
+### Choosing what to collect
+
+Collection is **opt-in**. `show version` is always issued — it provides `arista_info`, which everything else joins
+against — and every other command group must be enabled explicitly:
+
+```json
+"collect": {
+  "processes": true, "temperature": true, "power": true, "cooling": true,
+  "interfaces": true, "bgp": true, "transceiver": true, "phy": true
+}
+```
+
+An absent `collect` block is a configuration error rather than a default, because defaulting it either way would
+silently change what an existing deployment gathers. An unknown key is also an error, so a typo cannot quietly
+disable a group.
+
+A switch may carry its own `collect`, which **replaces** the top-level set rather than merging with it — what you
+see in a switch's block is exactly what it collects.
+
+This is the main lever on cost. Measured on a 32-port leaf, one poll is roughly 654 kB and occupies eAPI for 1.4
+seconds; three commands account for 88% of it, at about 30% each:
+
+| command | share of a poll |
+| --- | --- |
+| `show interfaces phy detail` | 30% |
+| `show interfaces` | 30% |
+| `show interfaces transceiver detail` | 28% |
+| the other six combined | 12% |
+
+So `"phy": false` removes roughly a third of both the bytes and the switch-side work, and disabling `phy` and
+`transceiver` together removes about 58%.
+
+### Limiting which interfaces are polled
+
+`interfaceScope` is passed to the switch verbatim as the interface argument of the three interface commands:
+
+```json
+{ "interfaceScope": "Ethernet1/1-4,Ethernet29/1-4" }
+```
+
+produces `show interfaces Ethernet1/1-4,Ethernet29/1-4`, and the same scope on the `transceiver detail` and
+`phy detail` variants. Commands that take no interface argument are untouched.
+
+Verbatim, because EOS accepts forms that are not worth modelling, and the details matter:
+
+- a **subinterface range** tolerates gaps — `Ethernet29/1-4` on a cage that is not broken out returns just
+  `Ethernet29/1`, with no error, so a scope survives breakout changes
+- a range **before** the slash is rejected outright: `Ethernet1-32/1-4` is invalid
+- a **non-existent cage** fails the whole command: `Ethernet1/1,Ethernet99/1` returns `% Invalid input`
+
+That last one is the useful failure. A typo in a scope takes down its three commands loudly, reporting
+`arista_command_success 0` for each with the switch's own complaint in the log, rather than quietly monitoring
+nothing. The other six
+commands keep working, and the per-command staleness bound removes the affected series.
+
+The `command` label on `arista_command_success` stays the unscoped name, so switches with different scopes do not
+each produce their own series for the same logical command.
 
 Per-switch fields:
 
@@ -544,6 +603,8 @@ Per-switch fields:
 | `username` | eAPI username |
 | `password` | eAPI password |
 | `name` | Value for the `switch` label on every metric. Optional, falls back to `host` |
+| `collect` | Overrides the top-level collect set for this switch, wholesale |
+| `interfaceScope` | Interface argument for the three interface commands, passed verbatim |
 | `caFile` | PEM bundle to verify this switch's certificate against. See [TLS](#tls) |
 | `pinnedCertSha256` | SHA-256 of this switch's leaf certificate. See [TLS](#tls) |
 

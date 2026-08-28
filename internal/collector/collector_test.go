@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/krisiasty/arex/config"
 	"github.com/krisiasty/arex/internal/eapi"
@@ -142,7 +143,7 @@ func TestDuplicateSwitchNamesAreRejected(t *testing.T) {
 	_, err := NewStore([]config.SwitchConfig{
 		{Host: "https://192.0.2.1", Username: "u", Password: "p", Name: "spine1"},
 		{Host: "https://192.0.2.2", Username: "u", Password: "p", Name: "spine1"},
-	})
+	}, allEnabled())
 	if err == nil {
 		t.Fatal("two switches sharing a label must be rejected, not silently merged")
 	}
@@ -161,9 +162,9 @@ func TestTransportFailureDoesNotRetryPerCommand(t *testing.T) {
 
 	Collect(f, &SwitchData{Label: "sw1"})
 
-	if len(f.calls) > len(Commands()) {
+	if n := len(commandsFor(allEnabled(), "")); len(f.calls) > n {
 		t.Errorf("issued %d commands for an unreachable switch, want at most one batch of %d",
-			len(f.calls), len(Commands()))
+			len(f.calls), n)
 	}
 }
 
@@ -174,7 +175,7 @@ func TestEAPIRejectionDoesRetryPerCommand(t *testing.T) {
 
 	Collect(f, &SwitchData{Label: "sw1"})
 
-	if len(f.calls) <= len(Commands()) {
+	if n := len(commandsFor(allEnabled(), "")); len(f.calls) <= n {
 		t.Errorf("issued %d commands; an eAPI rejection should trigger individual retries",
 			len(f.calls))
 	}
@@ -188,6 +189,8 @@ func TestTotalFailureMarksEveryCommandFailed(t *testing.T) {
 	f.allErr = errors.New("unexpected HTTP status: 401 Unauthorized")
 
 	data := &SwitchData{Label: "sw1"}
+	data.specs = commandsFor(allEnabled(), "")
+	data.Commands = commandNames(data.specs)
 	Collect(f, data)
 
 	data.RLock()
@@ -195,18 +198,43 @@ func TestTotalFailureMarksEveryCommandFailed(t *testing.T) {
 	if data.CommandErrors == nil {
 		t.Fatal("CommandErrors must be populated so the writer can report per-command state")
 	}
-	for _, cli := range Commands() {
-		if _, failed := data.CommandErrors[cli]; !failed {
-			t.Errorf("command %q should be marked failed after a total failure", cli)
+	for _, name := range data.Commands {
+		if _, failed := data.CommandErrors[name]; !failed {
+			t.Errorf("command %q should be marked failed after a total failure", name)
 		}
 	}
 }
 
 // eapi.attemptFor treats a one-command request as a per-command retry, which
-// only holds while the batch is larger than one command.
-func TestCommandSetIsLargerThanOne(t *testing.T) {
-	if len(Commands()) < 2 {
-		t.Fatalf("command set is %d; eAPI request statistics classify a single-command "+
-			"call as a retry, which breaks if the batch is one command", len(Commands()))
+// only holds while the batch is larger than one command. With collection
+// opt-in, a switch could legitimately be configured down to just
+// "show version" -- in which case every request is labelled a retry.
+func TestFullCommandSetIsLargerThanOne(t *testing.T) {
+	if n := len(commandsFor(allEnabled(), "")); n < 2 {
+		t.Fatalf("full command set is %d; eAPI request statistics classify a "+
+			"single-command call as a retry", n)
+	}
+}
+
+// Pollers started together would otherwise stay in lockstep for ever, so a
+// fleet hits every switch simultaneously once per interval.
+func TestStartDelayIsSpreadAcrossTheInterval(t *testing.T) {
+	const interval = 30 * time.Second
+	seen := map[time.Duration]bool{}
+	for i := 0; i < 200; i++ {
+		d := startDelay(interval)
+		if d < 0 || d >= interval {
+			t.Fatalf("delay %v outside [0, %v)", d, interval)
+		}
+		seen[d] = true
+	}
+	if len(seen) < 50 {
+		t.Errorf("only %d distinct delays in 200 draws; jitter is not spreading", len(seen))
+	}
+}
+
+func TestStartDelayIsZeroForNonPositiveInterval(t *testing.T) {
+	if d := startDelay(0); d != 0 {
+		t.Errorf("startDelay(0) = %v, want 0", d)
 	}
 }

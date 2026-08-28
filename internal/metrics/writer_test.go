@@ -54,7 +54,7 @@ func render(t *testing.T, mutate func(*collector.SwitchData)) string {
 	t.Helper()
 	store, err := collector.NewStore([]config.SwitchConfig{
 		{Host: "https://192.0.2.33", Username: "u", Password: "p", Name: "sw1"},
-	})
+	}, collectAll())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func TestPastStalenessLimitStopsEmitting(t *testing.T) {
 func TestNeverCollectedEmitsOnlyScrapeMetrics(t *testing.T) {
 	store, err := collector.NewStore([]config.SwitchConfig{
 		{Host: "h", Username: "u", Password: "p", Name: "sw1"},
-	})
+	}, collectAll())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -376,9 +376,11 @@ func TestCommandSuccessMetricPerCommand(t *testing.T) {
 	if got := sample(out, "arista_command_success", `command="show version"`); got != "1" {
 		t.Errorf("command success = %q, want 1", got)
 	}
-	n := strings.Count(out, "arista_command_success{")
-	if n != len(collector.Commands()) {
-		t.Errorf("%d arista_command_success series, want %d", n, len(collector.Commands()))
+	// render enables every group, so one series per optional command plus
+	// show version, which is always collected.
+	want := len(config.CollectKeys) + 1
+	if n := strings.Count(out, "arista_command_success{"); n != want {
+		t.Errorf("%d arista_command_success series, want %d", n, want)
 	}
 }
 
@@ -587,7 +589,7 @@ func TestFECConfigLivesOnAnInfoMetric(t *testing.T) {
 func TestCommandSuccessEmittedForNeverCollectedSwitch(t *testing.T) {
 	store, err := collector.NewStore([]config.SwitchConfig{
 		{Host: "h", Username: "u", Password: "p", Name: "sw1"},
-	})
+	}, collectAll())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -603,8 +605,8 @@ func TestCommandSuccessEmittedForNeverCollectedSwitch(t *testing.T) {
 		t.Errorf("scrape_success = %q, want 0", v)
 	}
 	n := strings.Count(out, "arista_command_success{")
-	if n != len(collector.Commands()) {
-		t.Errorf("%d command_success series, want %d", n, len(collector.Commands()))
+	if n != len(sd.Commands) {
+		t.Errorf("%d command_success series, want %d", n, len(sd.Commands))
 	}
 	for _, line := range strings.Split(out, "\n") {
 		if strings.HasPrefix(line, "arista_command_success{") && !strings.HasSuffix(line, " 0") {
@@ -646,7 +648,7 @@ func (s staleRunner) Run(cmds []string) ([]json.RawMessage, error) {
 func TestPerCommandStalenessSuppressesOneCommand(t *testing.T) {
 	store, err := collector.NewStore([]config.SwitchConfig{
 		{Host: "h", Username: "u", Password: "p", Name: "sw1"},
-	})
+	}, collectAll())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -698,7 +700,7 @@ func TestPerCommandStalenessSuppressesOneCommand(t *testing.T) {
 func TestEAPIRequestMetricsExposed(t *testing.T) {
 	store, err := collector.NewStore([]config.SwitchConfig{
 		{Host: "h", Username: "u", Password: "p", Name: "sw1"},
-	})
+	}, collectAll())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -733,7 +735,7 @@ func TestEAPIRequestMetricsExposed(t *testing.T) {
 func TestEAPIRequestMetricsSurviveTotalFailure(t *testing.T) {
 	store, _ := collector.NewStore([]config.SwitchConfig{
 		{Host: "h", Username: "u", Password: "p", Name: "sw1"},
-	})
+	}, collectAll())
 	sd := store.All()[0]
 	collector.Collect(failingRunner{}, sd)
 	sd.Stats.Record(eapi.RequestKey{Outcome: eapi.OutcomeHTTPError, Attempt: eapi.AttemptBatch}, 0, time.Millisecond)
@@ -748,4 +750,14 @@ func TestEAPIRequestMetricsSurviveTotalFailure(t *testing.T) {
 	if v := sample(out, "arista_scrape_success", ""); v != "0" {
 		t.Errorf("scrape_success = %q, want 0", v)
 	}
+}
+
+// collectAll enables every optional command group, which is what most of
+// these tests want: they are about rendering, not about collection control.
+func collectAll() map[string]bool {
+	m := make(map[string]bool, len(config.CollectKeys))
+	for _, k := range config.CollectKeys {
+		m[k] = true
+	}
+	return m
 }

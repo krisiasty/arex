@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/rand/v2"
 	"strings"
 	"sync"
 	"time"
@@ -46,6 +47,13 @@ type SwitchData struct {
 	// unreachable -- which is precisely when request counts matter.
 	Stats eapi.Stats
 
+	// Commands lists the stable metric names of the commands this switch
+	// collects, in issue order. Per switch, because collection is opt-in and
+	// configurable individually.
+	Commands []string
+
+	specs []cmdSpec
+
 	// tracker collapses repeated identical failures so a permanently broken
 	// switch does not emit one log line per poll indefinitely.
 	tracker repeatTracker
@@ -77,7 +85,7 @@ type Store struct {
 //
 // Labels must be unique: two switches sharing one would write into the same
 // SwitchData, producing a single series alternating between two devices.
-func NewStore(switches []config.SwitchConfig) (*Store, error) {
+func NewStore(switches []config.SwitchConfig, defaults map[string]bool) (*Store, error) {
 	s := &Store{
 		switches: make(map[string]*SwitchData, len(switches)),
 		order:    make([]string, 0, len(switches)),
@@ -87,9 +95,12 @@ func NewStore(switches []config.SwitchConfig) (*Store, error) {
 		if _, dup := s.switches[label]; dup {
 			return nil, fmt.Errorf("config: duplicate switch label %q — names must be unique", label)
 		}
+		specs := commandsFor(sw.EffectiveCollect(defaults), sw.InterfaceScope)
 		s.switches[label] = &SwitchData{
 			Label:              label,
 			CommandLastSuccess: make(map[string]time.Time),
+			Commands:           commandNames(specs),
+			specs:              specs,
 		}
 		s.order = append(s.order, label)
 	}
@@ -124,8 +135,14 @@ type snapshot struct {
 	phy        eapi.ShowPhyDetail
 }
 
-// cmdSpec binds a CLI command to where its output is parsed and committed.
+// cmdSpec binds a command to where its output is parsed and committed.
+//
+// name is the stable identifier used for metric labels; cli is what actually
+// goes on the wire and may carry an interface scope. Keeping them separate
+// stops switches with different scopes from each producing their own
+// arista_command_success series for the same logical command.
 type cmdSpec struct {
+	name  string
 	cli   string
 	into  func(*snapshot) interface{}
 	apply func(*snapshot, *SwitchData)
@@ -145,45 +162,110 @@ const (
 	CmdPhy          = "show interfaces phy detail"
 )
 
-// commands is the set of EOS CLI commands arex issues per poll.
-//
-// "vrf all" is required: plain "show ip bgp summary" returns the default VRF
-// only, so peers in any other VRF are invisible.
-var commands = []cmdSpec{
-	{CmdVersion,
-		func(s *snapshot) interface{} { return &s.version },
-		func(s *snapshot, d *SwitchData) { d.Version = s.version }},
-	{CmdProcessesTop,
-		func(s *snapshot) interface{} { return &s.processTop },
-		func(s *snapshot, d *SwitchData) { d.ProcessTop = s.processTop }},
-	{CmdEnvTemp,
-		func(s *snapshot) interface{} { return &s.envTemp },
-		func(s *snapshot, d *SwitchData) { d.EnvTemp = s.envTemp }},
-	{CmdEnvPower,
-		func(s *snapshot) interface{} { return &s.envPower },
-		func(s *snapshot, d *SwitchData) { d.EnvPower = s.envPower }},
-	{CmdEnvCooling,
-		func(s *snapshot) interface{} { return &s.envCooling },
-		func(s *snapshot, d *SwitchData) { d.EnvCooling = s.envCooling }},
-	{CmdInterfaces,
-		func(s *snapshot) interface{} { return &s.interfaces },
-		func(s *snapshot, d *SwitchData) { d.Interfaces = s.interfaces }},
-	{CmdBGPSummary,
-		func(s *snapshot) interface{} { return &s.bgp },
-		func(s *snapshot, d *SwitchData) { d.BGPSummary = s.bgp }},
-	{CmdTransceivers,
-		func(s *snapshot) interface{} { return &s.optics },
-		func(s *snapshot, d *SwitchData) { d.Optics = s.optics }},
-	{CmdPhy,
-		func(s *snapshot) interface{} { return &s.phy },
-		func(s *snapshot, d *SwitchData) { d.Phy = s.phy }},
+// versionCommand is collected unconditionally: arista_info is the identity
+// metric every other series is joined against, and a scrape without it is
+// not useful.
+var versionCommand = cmdSpec{
+	name: CmdVersion, cli: CmdVersion,
+	into:  func(s *snapshot) interface{} { return &s.version },
+	apply: func(s *snapshot, d *SwitchData) { d.Version = s.version },
 }
 
-// Commands returns the CLI strings arex issues, for metric labelling.
-func Commands() []string {
-	out := make([]string, 0, len(commands))
-	for _, c := range commands {
-		out = append(out, c.cli)
+// optionalCommands is keyed by the names in config.CollectKeys. Collection is
+// opt-in, so a command absent from a switch's set is never issued.
+var optionalCommands = map[string]cmdSpec{
+	"processes": {
+		name: CmdProcessesTop, cli: CmdProcessesTop,
+		into:  func(s *snapshot) interface{} { return &s.processTop },
+		apply: func(s *snapshot, d *SwitchData) { d.ProcessTop = s.processTop },
+	},
+	"temperature": {
+		name: CmdEnvTemp, cli: CmdEnvTemp,
+		into:  func(s *snapshot) interface{} { return &s.envTemp },
+		apply: func(s *snapshot, d *SwitchData) { d.EnvTemp = s.envTemp },
+	},
+	"power": {
+		name: CmdEnvPower, cli: CmdEnvPower,
+		into:  func(s *snapshot) interface{} { return &s.envPower },
+		apply: func(s *snapshot, d *SwitchData) { d.EnvPower = s.envPower },
+	},
+	"cooling": {
+		name: CmdEnvCooling, cli: CmdEnvCooling,
+		into:  func(s *snapshot) interface{} { return &s.envCooling },
+		apply: func(s *snapshot, d *SwitchData) { d.EnvCooling = s.envCooling },
+	},
+	"interfaces": {
+		name: CmdInterfaces, cli: CmdInterfaces,
+		into:  func(s *snapshot) interface{} { return &s.interfaces },
+		apply: func(s *snapshot, d *SwitchData) { d.Interfaces = s.interfaces },
+	},
+	"bgp": {
+		name: CmdBGPSummary, cli: CmdBGPSummary,
+		into:  func(s *snapshot) interface{} { return &s.bgp },
+		apply: func(s *snapshot, d *SwitchData) { d.BGPSummary = s.bgp },
+	},
+	"transceiver": {
+		name: CmdTransceivers, cli: CmdTransceivers,
+		into:  func(s *snapshot) interface{} { return &s.optics },
+		apply: func(s *snapshot, d *SwitchData) { d.Optics = s.optics },
+	},
+	"phy": {
+		name: CmdPhy, cli: CmdPhy,
+		into:  func(s *snapshot) interface{} { return &s.phy },
+		apply: func(s *snapshot, d *SwitchData) { d.Phy = s.phy },
+	},
+}
+
+// commandOrder fixes the sequence commands are issued in, so /metrics output
+// and log lines are stable rather than following Go map iteration.
+var commandOrder = []string{
+	"processes", "temperature", "power", "cooling",
+	"interfaces", "bgp", "transceiver", "phy",
+}
+
+// scoped inserts an interface scope into the commands that accept one.
+//
+// The scope is spliced verbatim; EOS is the only thing that knows what it
+// means. A per-cage subinterface range returns only the interfaces that
+// exist, so it survives breakout changes, while a bad cage fails the command
+// outright -- which is the loud failure we want, since the alternative is
+// silently monitoring nothing.
+func scoped(name, scope string) string {
+	if scope == "" {
+		return name
+	}
+	switch name {
+	case CmdInterfaces:
+		return "show interfaces " + scope
+	case CmdTransceivers:
+		return "show interfaces " + scope + " transceiver detail"
+	case CmdPhy:
+		return "show interfaces " + scope + " phy detail"
+	default:
+		return name
+	}
+}
+
+// commandsFor builds the command list for one switch.
+func commandsFor(collect map[string]bool, scope string) []cmdSpec {
+	out := make([]cmdSpec, 0, len(commandOrder)+1)
+	out = append(out, versionCommand)
+	for _, key := range commandOrder {
+		if !collect[key] {
+			continue
+		}
+		spec := optionalCommands[key]
+		spec.cli = scoped(spec.name, scope)
+		out = append(out, spec)
+	}
+	return out
+}
+
+// commandNames returns the stable metric names for a command list.
+func commandNames(specs []cmdSpec) []string {
+	out := make([]string, 0, len(specs))
+	for _, c := range specs {
+		out = append(out, c.name)
 	}
 	return out
 }
@@ -195,38 +277,44 @@ func Commands() []string {
 // individually: one command unsupported on a platform then costs only its
 // own metrics instead of every metric for the switch.
 func Collect(client Runner, data *SwitchData) {
+	specs := data.specs
+	if specs == nil {
+		// Direct construction, as in tests: collect everything.
+		specs = commandsFor(allCollectKeys(), "")
+	}
+
 	var snap snapshot
 	cmdErrs := make(map[string]error)
-	ok := make([]bool, len(commands))
+	ok := make([]bool, len(specs))
 
-	raws, err := runBatch(client, len(commands))
+	raws, err := runBatch(client, specs)
 	if err != nil && !worthRetryingIndividually(err) {
 		// The switch is unreachable or refusing us outright. Retrying each
-		// command would multiply the timeout by len(commands) for nothing.
-		setError(data, fmt.Errorf("collection failed: %w", err))
+		// command would multiply the timeout by the command count for nothing.
+		setError(data, specs, fmt.Errorf("collection failed: %w", err))
 		return
 	}
 	if err != nil {
-		for i, c := range commands {
+		for i, c := range specs {
 			raw, cerr := runOne(client, c.cli)
 			if cerr != nil {
-				cmdErrs[c.cli] = cerr
+				cmdErrs[c.name] = cerr
 				continue
 			}
 			raws[i] = raw
 		}
 	}
 
-	for i, c := range commands {
-		if _, failed := cmdErrs[c.cli]; failed {
+	for i, c := range specs {
+		if _, failed := cmdErrs[c.name]; failed {
 			continue
 		}
 		if len(raws[i]) == 0 {
-			cmdErrs[c.cli] = fmt.Errorf("empty result")
+			cmdErrs[c.name] = fmt.Errorf("empty result")
 			continue
 		}
 		if perr := json.Unmarshal(raws[i], c.into(&snap)); perr != nil {
-			cmdErrs[c.cli] = fmt.Errorf("parse: %w", perr)
+			cmdErrs[c.name] = fmt.Errorf("parse: %w", perr)
 			continue
 		}
 		ok[i] = true
@@ -246,7 +334,7 @@ func Collect(client Runner, data *SwitchData) {
 		if reason == nil {
 			reason = fmt.Errorf("no command returned usable output")
 		}
-		setError(data, fmt.Errorf("collection failed: %w", reason))
+		setError(data, specs, fmt.Errorf("collection failed: %w", reason))
 		return
 	}
 
@@ -257,7 +345,7 @@ func Collect(client Runner, data *SwitchData) {
 		// One message for the whole picture, so an unchanging partial
 		// failure is suppressed as a unit rather than per command.
 		summary := fmt.Sprintf("%d of %d commands failed: %s",
-			len(cmdErrs), len(commands), describeCmdErrors(cmdErrs))
+			len(cmdErrs), len(specs), describeCmdErrors(specs, cmdErrs))
 		if line := data.tracker.observe(summary, time.Now()); line != "" {
 			log.Printf("[%s] %s", data.Label, line)
 		}
@@ -266,12 +354,12 @@ func Collect(client Runner, data *SwitchData) {
 	}
 	now := time.Now()
 	if data.CommandLastSuccess == nil {
-		data.CommandLastSuccess = make(map[string]time.Time, len(commands))
+		data.CommandLastSuccess = make(map[string]time.Time, len(specs))
 	}
-	for i, c := range commands {
+	for i, c := range specs {
 		if ok[i] {
 			c.apply(&snap, data)
-			data.CommandLastSuccess[c.cli] = now
+			data.CommandLastSuccess[c.name] = now
 		}
 	}
 	data.CommandErrors = cmdErrs
@@ -291,8 +379,13 @@ func worthRetryingIndividually(err error) bool {
 }
 
 // runBatch issues every command in a single request.
-func runBatch(client Runner, n int) ([]json.RawMessage, error) {
-	raws, err := client.Run(Commands())
+func runBatch(client Runner, specs []cmdSpec) ([]json.RawMessage, error) {
+	n := len(specs)
+	cli := make([]string, 0, n)
+	for _, c := range specs {
+		cli = append(cli, c.cli)
+	}
+	raws, err := client.Run(cli)
 	if err != nil {
 		return make([]json.RawMessage, n), err
 	}
@@ -300,6 +393,15 @@ func runBatch(client Runner, n int) ([]json.RawMessage, error) {
 		return make([]json.RawMessage, n), fmt.Errorf("%w: expected %d, got %d", errResultCount, n, len(raws))
 	}
 	return raws, nil
+}
+
+// allCollectKeys enables every optional command group.
+func allCollectKeys() map[string]bool {
+	out := make(map[string]bool, len(commandOrder))
+	for _, k := range commandOrder {
+		out[k] = true
+	}
+	return out
 }
 
 // runOne issues a single command on its own.
@@ -314,10 +416,33 @@ func runOne(client Runner, cli string) (json.RawMessage, error) {
 	return raws[0], nil
 }
 
+// startDelay returns a random offset within one interval.
+//
+// Without it every poller started at process start stays in lockstep, so a
+// fleet of switches is polled simultaneously once per interval rather than
+// spread across it -- a load spike on any shared path, and on the collector
+// itself, that grows with the number of switches.
+func startDelay(interval time.Duration) time.Duration {
+	if interval <= 0 {
+		return 0
+	}
+	// Not security-sensitive: this spreads poll scheduling across an
+	// interval, so a predictable sequence costs nothing.
+	return time.Duration(rand.Int64N(int64(interval))) //nolint:gosec // load spreading, not a secret
+}
+
 // PollLoop runs Collect on every tick until the process exits.
-// It collects once immediately on startup before waiting for the first tick.
+//
+// The first poll is offset by a random fraction of the interval so pollers
+// do not run in lockstep. That costs up to one interval of delay before a
+// switch first reports, which is why the offset is logged.
 func PollLoop(client Runner, data *SwitchData, interval time.Duration) {
-	log.Printf("[%s] starting poller (interval: %s)", data.Label, interval)
+	delay := startDelay(interval)
+	log.Printf("[%s] starting poller (interval: %s, first poll in %s)",
+		data.Label, interval, delay.Round(time.Millisecond))
+
+	timer := time.NewTimer(delay)
+	<-timer.C
 	Collect(client, data)
 
 	ticker := time.NewTicker(interval)
@@ -329,11 +454,11 @@ func PollLoop(client Runner, data *SwitchData, interval time.Duration) {
 
 // describeCmdErrors renders per-command failures in a stable order, so an
 // unchanged failure produces an unchanged message and stays suppressed.
-func describeCmdErrors(cmdErrs map[string]error) string {
+func describeCmdErrors(specs []cmdSpec, cmdErrs map[string]error) string {
 	parts := make([]string, 0, len(cmdErrs))
-	for _, c := range commands {
-		if err, ok := cmdErrs[c.cli]; ok {
-			parts = append(parts, fmt.Sprintf("%s (%v)", c.cli, err))
+	for _, c := range specs {
+		if err, ok := cmdErrs[c.name]; ok {
+			parts = append(parts, fmt.Sprintf("%s (%v)", c.name, err))
 		}
 	}
 	return strings.Join(parts, "; ")
@@ -345,14 +470,14 @@ func describeCmdErrors(cmdErrs map[string]error) string {
 // arista_command_success for each: a missing series is not zero in
 // Prometheus, and omitting them would exclude the most broken switch from
 // any aggregate over that metric.
-func setError(data *SwitchData, err error) {
+func setError(data *SwitchData, specs []cmdSpec, err error) {
 	data.mu.Lock()
 	defer data.mu.Unlock()
 
 	data.ScrapeErr = err
-	data.CommandErrors = make(map[string]error, len(commands))
-	for _, c := range commands {
-		data.CommandErrors[c.cli] = err
+	data.CommandErrors = make(map[string]error, len(specs))
+	for _, c := range specs {
+		data.CommandErrors[c.name] = err
 	}
 
 	if line := data.tracker.observe(err.Error(), time.Now()); line != "" {
