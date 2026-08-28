@@ -151,20 +151,14 @@ func (c *Checker) Report(stalenessLimit time.Duration) Report {
 	return rep
 }
 
-// Register adds the probe endpoints to mux.
-func (c *Checker) Register(mux *http.ServeMux, logger *slog.Logger, stalenessLimit time.Duration) {
-	live := func(w http.ResponseWriter, _ *http.Request) {
-		if c.Live() {
-			_, _ = w.Write([]byte("ok\n"))
-			return
-		}
-		http.Error(w, "poll loop stalled", http.StatusServiceUnavailable)
-	}
-
-	mux.HandleFunc("/livez", live)
-	// /health predates the probes and stays as an alias for /livez.
-	mux.HandleFunc("/health", live)
-
+// RegisterProbes wires only /livez and /readyz.
+//
+// Separate from Register so a second listener can serve just these: they report
+// whether arex is up and nothing else, which is what makes it safe to expose
+// them without TLS or authentication when the main listener requires a client
+// certificate the kubelet cannot present.
+func (c *Checker) RegisterProbes(mux *http.ServeMux) {
+	mux.HandleFunc("/livez", c.liveHandler())
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, _ *http.Request) {
 		if c.Ready() {
 			_, _ = w.Write([]byte("ok\n"))
@@ -172,6 +166,25 @@ func (c *Checker) Register(mux *http.ServeMux, logger *slog.Logger, stalenessLim
 		}
 		http.Error(w, "waiting for every switch to be polled once", http.StatusServiceUnavailable)
 	})
+}
+
+// liveHandler answers whether the poll loop is still cycling.
+func (c *Checker) liveHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		if c.Live() {
+			_, _ = w.Write([]byte("ok\n"))
+			return
+		}
+		http.Error(w, "poll loop stalled", http.StatusServiceUnavailable)
+	}
+}
+
+// Register adds every endpoint to mux: the two probes, the /health alias that
+// predates them, and /status.
+func (c *Checker) Register(mux *http.ServeMux, logger *slog.Logger, stalenessLimit time.Duration) {
+	c.RegisterProbes(mux)
+	// /health predates the probes and stays as an alias for /livez.
+	mux.HandleFunc("/health", c.liveHandler())
 
 	mux.HandleFunc("/status", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

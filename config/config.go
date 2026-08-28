@@ -30,6 +30,17 @@ type Config struct {
 	Debug    bool           `json:"debug"` // default false
 	Switches []SwitchConfig `json:"switches"`
 
+	// ProbeAddress serves /livez and /readyz on a second listener, in plain
+	// HTTP, when set.
+	//
+	// It exists for mutual TLS. RequireAndVerifyClientCert applies to a
+	// listener rather than a path, and a kubelet probe presents no client
+	// certificate, so without a second port the probes would have to drop to
+	// checking that the port is open -- losing the readiness gate that waits
+	// for every switch to be polled once. These two endpoints report only
+	// whether arex is up, so a plain port exposes nothing.
+	ProbeAddress string `json:"probeAddress"`
+
 	// ListenTLS serves /metrics over HTTPS, and optionally requires a client
 	// certificate. Absent means plain HTTP.
 	ListenTLS ListenTLS `json:"listenTLS"`

@@ -190,3 +190,38 @@ func TestAuthWithoutTLSWarns(t *testing.T) {
 		t.Errorf("expected a warning that credentials travel in clear: %q", cfg.Warnings)
 	}
 }
+
+// A separate probe listener exists so mutual TLS does not force probes down to
+// tcpSocket: RequireAndVerifyClientCert refuses the kubelet at the handshake,
+// and a plain port carrying only up/down keeps the real readiness gate.
+func TestProbeAddressIsOptional(t *testing.T) {
+	cfg, err := Load(writeRaw(t, listenCfg("")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.ProbeAddress != "" {
+		t.Errorf("probeAddress = %q, want empty by default", cfg.ProbeAddress)
+	}
+}
+
+func TestProbeAddressLoads(t *testing.T) {
+	cfg, err := Load(writeRaw(t, listenCfg(`"probeAddress":":9101",`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.ProbeAddress != ":9101" {
+		t.Errorf("probeAddress = %q", cfg.ProbeAddress)
+	}
+}
+
+// Two servers cannot share one address, and the mistake is easy to make when
+// copying the listen address.
+func TestProbeAddressMustDifferFromListenAddress(t *testing.T) {
+	_, err := Load(writeRaw(t, listenCfg(`"listenAddress":":9100","probeAddress":":9100",`)))
+	if err == nil {
+		t.Fatal("the same address for both listeners must be rejected")
+	}
+	if !strings.Contains(err.Error(), "probeAddress") {
+		t.Errorf("error should name the field: %v", err)
+	}
+}

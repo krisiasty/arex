@@ -29,6 +29,7 @@ file or replacing it with an inline `password`.
 | `debug` | `false` | Log one record per eAPI request. See [Debug logging](operations.md#debug-logging) |
 | `passwordFile` | — | Credential file for every switch that does not name its own. See [Credentials](#credentials) |
 | `listenTLS` | — | Serve `/metrics` over HTTPS. See [securing the endpoint](operations.md#securing-the-endpoint) |
+| `probeAddress` | — | Serve `/livez` and `/readyz` on a second, plain-HTTP listener. Needed with mutual TLS |
 | `listenAuth` | — | Require callers to authenticate. Never covers `/livez` and `/readyz` |
 | `collect` | required | Optional command groups to collect. See [below](#choosing-what-to-collect) |
 | `switches` | required | List of switch connection configs |

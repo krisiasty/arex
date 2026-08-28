@@ -56,6 +56,11 @@ func (a ListenAuth) Enabled() bool { return a.Basic != nil }
 func (c *Config) validateListen() ([]string, error) {
 	var warnings []string
 
+	if c.ProbeAddress != "" && c.ProbeAddress == c.ListenAddress {
+		return nil, fmt.Errorf("config: probeAddress %s is the listen address: "+
+			"the probe listener needs an address of its own", c.ProbeAddress)
+	}
+
 	t := c.ListenTLS
 	switch {
 	case t.CertFile != "" && t.KeyFile == "",

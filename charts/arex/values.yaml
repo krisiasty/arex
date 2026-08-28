@@ -47,6 +47,15 @@ listen:
     clientCAKey: ""
     mountPath: /etc/arex/tls
 
+  # A second listener serving only /livez and /readyz, in plain HTTP.
+  #
+  # Required with mutual TLS: RequireAndVerifyClientCert applies to a listener
+  # rather than a path, and a kubelet probe presents no client certificate, so
+  # without this the probes would have to drop to checking that the port is
+  # open -- losing the readiness gate that waits for every switch to be polled
+  # once. These two endpoints report only whether arex is up.
+  probePort: 0
+
   basicAuth:
     # Name a Secret holding the scrape password.
     existingSecret: ""

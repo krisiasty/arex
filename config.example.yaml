@@ -24,6 +24,12 @@ listenAddress: ":9100"
 #     # Kubernetes secret, and re-read after a rejection so a rotation needs
 #     # no restart. /livez and /readyz are never covered.
 #     passwordFile: /run/credentials/arex.service/web-password
+#
+# With mutual TLS the kubelet cannot reach /livez -- a client certificate is
+# required by the listener, not by the path -- so the probes need a plain
+# listener of their own. It serves those two endpoints and nothing else.
+#
+# probeAddress: ":9101"
 pollInterval: 30s
 scrapeTimeout: 10s
 stalenessLimit: 90s

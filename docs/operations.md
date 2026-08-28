@@ -311,6 +311,26 @@ covered, because it names the switches.
 | `/livez` | open |
 | `/readyz` | open |
 
+### A separate port for probes
+
+Exemption is enough for basic auth, but not for mutual TLS: `RequireAndVerifyClientCert` applies to the listener
+rather than to a path, so a caller with no client certificate — a kubelet, for instance — is refused during the
+handshake, before arex sees a path to exempt.
+
+`probeAddress` puts `/livez` and `/readyz` on a second listener with neither TLS nor authentication:
+
+```yaml
+listenAddress: ":9100"
+probeAddress: ":9101"
+```
+
+That listener serves **only** those two endpoints; `/metrics`, `/status` and `/health` return 404 there. Both
+answer `ok` or a fixed error string and carry no switch data, so an unauthenticated plain-HTTP port gives away
+only whether arex is up.
+
+Without it, mutual TLS forces probes down to checking that the port accepts a connection, which loses the readiness
+gate that waits for every switch to be polled once.
+
 ### Telling Prometheus
 
 ```yaml

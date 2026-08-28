@@ -55,6 +55,11 @@ spec:
             - name: metrics
               containerPort: 9100
               protocol: TCP
+            {{- if gt (int .Values.listen.probePort) 0 }}
+            - name: probes
+              containerPort: {{ .Values.listen.probePort }}
+              protocol: TCP
+            {{- end }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           {{- /* The scheme has to follow listen.tls, or an httpGet probe fails

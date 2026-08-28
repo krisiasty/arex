@@ -178,8 +178,60 @@ the switch password, this works because the chart mounts the Secret as a volume
 never updated, so renewal would silently stop reaching arex until the pod
 happened to restart, and then only until the next renewal.
 
-Without cert-manager, create the Secret by hand with the same three keys, or
-point `certKey`/`keyKey` at whatever names you used.
+### Without cert-manager
+
+arex takes two file paths and re-reads them when they change. It has no opinion about what wrote them, so anything
+that produces a Secret with a certificate and key will do.
+
+| approach | who issues | who renews |
+| --- | --- | --- |
+| cert-manager with a **Vault issuer** | Vault PKI | cert-manager, before expiry |
+| **ESO generator** against Vault PKI | Vault PKI | ESO, on `refreshInterval` |
+| **Vault Agent** templating to files | Vault PKI | the Agent — and this one works on bare metal too |
+| a Secret you create yourself | your CA, out of band | you |
+| a service mesh | the mesh | the mesh — arex then serves plain HTTP and configures no TLS at all |
+
+**If Vault is already your secret store**, you can issue from its PKI engine with the External Secrets Operator you
+are running anyway, and skip cert-manager entirely. Its generator calls any Vault path:
+
+```yaml
+apiVersion: generators.external-secrets.io/v1alpha1
+kind: VaultDynamicSecret
+metadata:
+  name: arex-tls
+  namespace: monitoring
+spec:
+  path: /pki/issue/arex
+  method: POST
+  parameters:
+    common_name: arex.monitoring.svc
+    alt_names: arex.monitoring.svc.cluster.local
+    ttl: 720h
+  resultType: Data
+  provider:
+    server: https://vault.example.com
+    path: kv
+    auth: { ... }
+```
+
+An `ExternalSecret` referencing it through `sourceRef.generatorRef` maps the response into the keys the chart
+expects — `certificate` to `tls.crt`, `private_key` to `tls.key`, `issuing_ca` to `ca.crt`.
+
+**The trade against cert-manager:** that generator *issues on refresh*, it does not *renew before expiry*. Every
+`refreshInterval` mints a brand-new certificate and key, so set the interval comfortably under the TTL and accept
+that rotation follows ESO's clock rather than the certificate's remaining life. cert-manager's Vault issuer exists
+because renew-before-expiry is better lifecycle management than reissue-on-a-timer. Same trust root either way;
+the difference is who decides when to rotate.
+
+**Vault Agent** is the option that covers both deployment models: it templates the certificate and key into files
+and rewrites them on renewal. No reload hook is needed — arex notices within 30 seconds by itself.
+
+One subtlety common to all of them. A Kubernetes Secret volume update is atomic: the kubelet swaps a symlink, so
+the certificate and key change together. A tool writing two files separately has a window where they do not match,
+and arex handles that by keeping the working certificate in memory and retrying, rather than dropping the endpoint.
+
+Whatever produces it, create the Secret with the same three keys, or point `certKey`/`keyKey`/`clientCAKey` at
+whatever names you used.
 
 ### The scrape password
 
@@ -268,29 +320,43 @@ serviceMonitor:
 
 A caller without a certificate is refused during the handshake, before any request is served.
 
-**That includes the kubelet.** `RequireAndVerifyClientCert` applies to the listener, not per path, and a kubelet
-probe presents no client certificate — so with mTLS on, an `httpGet` probe fails at the handshake and the pod
-restart-loops. The probes must become `tcpSocket`, which checks only that the port accepts a connection:
+**That includes the kubelet**, which is why mutual TLS needs a probe port. `RequireAndVerifyClientCert` applies to
+the listener rather than to a path, and a kubelet probe presents no client certificate — so with mTLS on a single
+listener, every `httpGet` probe fails at the handshake and the pod restart-loops.
+
+The answer is a second listener carrying only `/livez` and `/readyz`, in plain HTTP:
+
+```yaml
+listen:
+  tls:
+    existingSecret: arex-tls
+    clientCAKey: ca.crt
+  probePort: 9101
+```
+
+The chart then points the probes at that port, opens a `probes` container port, and sets `probeAddress` in the
+config. Those two endpoints answer `ok` or a fixed error string — no switch names, no metrics, nothing else is
+served there at all — so exposing them without TLS gives away only whether arex is up.
+
+The chart **refuses to render** mutual TLS with `httpGet` probes and no probe port, rather than letting you
+discover it as a restart loop.
+
+The alternative, if you would rather not open a second port, is `tcpSocket` probes:
 
 ```yaml
 livenessProbe:
   httpGet: null          # Helm merges maps; the default handler must be removed
   tcpSocket:
     port: metrics
-  periodSeconds: 30
 readinessProbe:
   httpGet: null
   tcpSocket:
     port: metrics
-  periodSeconds: 10
 ```
 
-`httpGet: null` is not optional. Kubernetes rejects a probe carrying two handlers, and Helm merges values maps
-rather than replacing them, so without it the rendered probe has both.
-
-This is a real cost: `tcpSocket` readiness only proves the port is open, losing the gate that waits until every
-switch has been polled once. Weigh that against mTLS being the stronger control. If you want both the readiness
-gate and mutual TLS, run basic auth for Prometheus and leave mTLS off — or accept the weaker probe.
+`httpGet: null` is not optional there — Kubernetes rejects a probe carrying two handlers, and Helm merges values
+maps rather than replacing them. But it costs the readiness gate: `tcpSocket` proves only that the port is open,
+not that every switch has been polled. The probe port is the better trade.
 
 ## Why one replica
 
