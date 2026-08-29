@@ -389,3 +389,48 @@ jobs:
           open(f'{tmp}/config.yaml', 'w').write(cfg)
           PY
           go run . -check -config "${RUNNER_TEMP}/config.yaml"
+
+  # Publishing the chart on merge is what decouples its cadence from arex's: a
+  # chart-only fix ships when it lands rather than waiting for the next version
+  # tag, which used to be the only trigger that published anything.
+  #
+  # needs: chart is the gate. This runs unattended and a published chart version
+  # cannot be taken back, so it goes out only after the lint, the
+  # refuses-an-unusable-config assertions and the rendered-config load have all
+  # passed on this commit. The script skips any version already in the registry,
+  # so the usual outcome on a merge that did not touch the chart is a no-op.
+  publish-chart:
+    name: publish chart
+    needs: chart
+    # The repository guard keeps a fork's own main from failing this job on a
+    # registry it has no business pushing to.
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
+      && github.repository == 'krisiasty/arex'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write  # push to ghcr.io
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: setup helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.2.4
+
+      # --password-stdin rather than a flag: an argument is visible in the
+      # process list of everything else running on the runner.
+      - name: log in to ghcr.io
+        run: printf '%s\n' "${GITHUB_TOKEN}" |
+          helm registry login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: publish charts
+        run: ./hack/publish-charts.sh
