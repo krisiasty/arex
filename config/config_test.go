@@ -170,7 +170,7 @@ func TestCAFileAndPinTogetherIsRejected(t *testing.T) {
 
 // TLSOptions carries each switch's own choice, and nothing else: there is no
 // fleet-wide setting left for it to fall back to.
-func TestTLSOptionsCarryTheSwitchsOwnChoice(t *testing.T) {
+func TestTLSOptionsReflectOneSwitchOnly(t *testing.T) {
 	pinned := SwitchConfig{Host: "h", PinnedCertSHA256: "abcd"}.TLSOptions()
 	if pinned.PinnedCertSHA256 != "abcd" {
 		t.Errorf("pin not carried through: %+v", pinned)
