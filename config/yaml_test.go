@@ -24,7 +24,6 @@ func TestYAMLConfigLoads(t *testing.T) {
 # arex, in YAML
 listenAddress: ":9100"
 pollInterval: 30s
-tlsSkipVerify: true
 
 collect:
   interfaces:
@@ -39,6 +38,7 @@ switches:
   - host: https://10.10.0.11
     username: prometheus
     password: secret
+    tlsSkipVerify: true
     name: leaf1
     interfaceScope: Ethernet1/1-4,Ethernet29/1-4
 `))
@@ -75,10 +75,12 @@ switches:
 // rather than needing a second parser or an extension rule.
 func TestJSONConfigStillLoads(t *testing.T) {
 	cfg, err := Load(writeFile(t, "config.json", `{
-	"tlsSkipVerify": true,
 	"pollInterval": "45s",
 	"collect": {"interfaces": {"enabled": true}},
-	"switches": [{"host": "https://10.10.0.11", "username": "u", "password": "p", "name": "a"}]
+	"switches": [
+		{"host": "https://10.10.0.11", "username": "u", "password": "p", "name": "a",
+		 "tlsSkipVerify": true}
+	]
 }`))
 	if err != nil {
 		t.Fatal(err)
@@ -95,7 +97,6 @@ func TestJSONConfigStillLoads(t *testing.T) {
 // collect block already rejects: the setting silently does nothing.
 func TestUnknownTopLevelKeyIsRejected(t *testing.T) {
 	_, err := Load(writeFile(t, "config.yaml", `
-tlsSkipVerify: true
 pollIntervall: 30s
 collect:
   interfaces: {enabled: true}
@@ -129,13 +130,13 @@ func TestMalformedYAMLIsReported(t *testing.T) {
 // to work out which field.
 func TestNumericSwitchNameIsRejectedClearly(t *testing.T) {
 	_, err := Load(writeFile(t, "config.yaml", `
-tlsSkipVerify: true
 collect:
   interfaces: {enabled: true}
 switches:
   - host: h
     username: u
     password: p
+    tlsSkipVerify: true
     name: 10
 `))
 	if err == nil {

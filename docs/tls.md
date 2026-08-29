@@ -2,9 +2,9 @@
 
 How to verify a switch's certificate, and why a stock EOS switch cannot be verified by hostname.
 
-Every switch needs exactly one of `caFile`, `pinnedCertSha256`, or the global `tlsSkipVerify`. arex refuses to
-start otherwise, rather than defaulting to something wrong in either direction: verifying fails against every
-stock switch, and silently skipping hides that nothing is being checked.
+Every switch needs exactly one of `caFile`, `pinnedCertSha256`, or `tlsSkipVerify`, set on that switch. arex
+refuses to start otherwise, rather than defaulting to something wrong in either direction: verifying fails against
+every stock switch, and silently skipping hides that nothing is being checked.
 
 ## Why the stock certificate cannot be verified
 
@@ -72,12 +72,19 @@ the presented and the expected digest so the new value can be verified and confi
 ## Option 3: skip verification
 
 ```json
-{ "tlsSkipVerify": true }
+{ "host": "https://10.10.0.11", "tlsSkipVerify": true }
 ```
 
-Applies to every switch without a per-switch method, so it can be combined with pinning some switches and
-skipping others. Defensible on an isolated out-of-band management network, but anything able to intercept that
-network can feed arex whatever it likes — including metrics showing every optic healthy.
+Applies to that switch alone, so some switches can be pinned while others are skipped. Setting it alongside
+`caFile` or `pinnedCertSha256` is rejected: the two are contradictory instructions, and quietly preferring either
+one would hide the mistake.
+
+It was a single fleet-wide setting once. That made it too easy to add a switch that inherited it without anyone
+deciding to — the file said nothing about that switch's verification, and nothing was verified. Stating it per
+switch means an unverified switch is visible in the config as a line someone wrote.
+
+Defensible on an isolated out-of-band management network, but anything able to intercept that network can feed
+arex whatever it likes — including metrics showing every optic healthy.
 
 ---
 

@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-const modBase = `{"tlsSkipVerify":true,"pollInterval":"30s","collect":%s,
-	"switches":[{"host":"https://192.0.2.1","username":"u","password":"p","name":"sw1"}]}`
+const modBase = `{"pollInterval":"30s","collect":%s,
+	"switches":[{"tlsSkipVerify":true,"host":"https://192.0.2.1","username":"u","password":"p","name":"sw1"}]}`
 
 func loadCollect(t *testing.T, collect string) *Config {
 	t.Helper()
@@ -94,9 +94,9 @@ func TestModuleIntervalBelowPollIntervalIsRejected(t *testing.T) {
 // A default slower than pollInterval is fine; a default faster than it is
 // raised, since the loop cannot tick more often than its interval.
 func TestDefaultsNeverBeatThePollInterval(t *testing.T) {
-	cfg, err := Load(writeRaw(t, `{"tlsSkipVerify":true,"pollInterval":"30m",
+	cfg, err := Load(writeRaw(t, `{"pollInterval":"30m",
 		"collect":{"transceiver":{"enabled":true},"phy":{"enabled":true}},
-		"switches":[{"host":"https://192.0.2.1","username":"u","password":"p"}]}`))
+		"switches":[{"tlsSkipVerify":true,"host":"https://192.0.2.1","username":"u","password":"p"}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,11 +119,11 @@ func TestInvalidIntervalIsRejected(t *testing.T) {
 
 // A per-switch block still replaces the default wholesale.
 func TestPerSwitchOverrideCarriesIntervals(t *testing.T) {
-	cfg, err := Load(writeRaw(t, `{"tlsSkipVerify":true,"pollInterval":"30s",
+	cfg, err := Load(writeRaw(t, `{"pollInterval":"30s",
 		"collect":{"interfaces":{"enabled":true},"phy":{"enabled":true}},
 		"switches":[
-		  {"host":"https://192.0.2.1","username":"u","password":"p","name":"a"},
-		  {"host":"https://192.0.2.2","username":"u","password":"p","name":"b",
+		  {"tlsSkipVerify":true,"host":"https://192.0.2.1","username":"u","password":"p","name":"a"},
+		  {"tlsSkipVerify":true,"host":"https://192.0.2.2","username":"u","password":"p","name":"b",
 		   "collect":{"phy":{"enabled":true,"interval":"1h"}}}]}`))
 	if err != nil {
 		t.Fatal(err)

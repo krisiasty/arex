@@ -24,7 +24,6 @@ file or replacing it with an inline `password`.
 | `listenAddress` | `:9100` | Address to serve `/metrics` on |
 | `pollInterval` | `30s` | How often to poll each switch |
 | `scrapeTimeout` | `10s` | eAPI request timeout |
-| `tlsSkipVerify` | `false` | Skip TLS verification for switches with no per-switch method set. See [TLS](tls.md) |
 | `stalenessLimit` | `90s` | Stop emitting metrics if data is older than this |
 | `debug` | `false` | Log one record per eAPI request. See [Debug logging](operations.md#debug-logging) |
 | `passwordFile` | — | Credential file for every switch that does not name its own. See [Credentials](#credentials) |
@@ -242,6 +241,10 @@ Per-switch fields:
 | `interfaceScope` | Interface argument for the three interface commands, passed verbatim |
 | `caFile` | PEM bundle to verify this switch's certificate against. See [TLS](tls.md) |
 | `pinnedCertSha256` | SHA-256 of this switch's leaf certificate. See [TLS](tls.md) |
+| `tlsSkipVerify` | Do not verify this switch's certificate at all. See [TLS](tls.md) |
+
+Exactly one of `caFile`, `pinnedCertSha256`, and `tlsSkipVerify` is required per switch — verification is not
+something arex will decide for you. Setting more than one is rejected.
 
 Point `host` at the switch's management address — on a typical switch that address lives in the `management` VRF.
 Keep `name` unique across switches: two entries sharing one label collapse into a single metric series.

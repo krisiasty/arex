@@ -39,7 +39,6 @@ curl -fsSL "https://github.com/krisiasty/arex/releases/download/${VERSION}/arex_
   | tar xz
 
 cat > config.yaml <<'YAML'
-tlsSkipVerify: true          # replace with a pin or a CA — see docs/tls.md
 collect:
   interfaces:
     enabled: true
@@ -48,6 +47,7 @@ switches:
     username: prometheus
     password: secret         # use passwordFile for anything real
     name: leaf1
+    tlsSkipVerify: true      # replace with a pin or a CA — see docs/tls.md
 YAML
 
 ./arex -check -config config.yaml   # validates without connecting

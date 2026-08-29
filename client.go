@@ -29,7 +29,7 @@ func newClient(sw config.SwitchConfig, cfg *config.Config, opts ...eapiOption) (
 		sw.Username,
 		"",
 		cfg.ScrapeTimeout.Duration,
-		sw.TLSOptions(cfg.TLSSkipVerify),
+		sw.TLSOptions(),
 		append(opts, eapi.WithCredential(cred))...,
 	)
 }

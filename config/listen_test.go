@@ -53,8 +53,8 @@ func certPair(t *testing.T) (certPath, keyPath string) {
 }
 
 func listenCfg(fields string) string {
-	return `{"tlsSkipVerify":true,` + fields + `"collect":{"interfaces":{"enabled":true}},
-		"switches":[{"host":"https://192.0.2.1","username":"u","password":"p","name":"sw1"}]}`
+	return `{` + fields + `"collect":{"interfaces":{"enabled":true}},
+		"switches":[{"tlsSkipVerify":true,"host":"https://192.0.2.1","username":"u","password":"p","name":"sw1"}]}`
 }
 
 // Both sections are optional: without them arex serves plain HTTP, which is
