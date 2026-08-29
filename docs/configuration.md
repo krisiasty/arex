@@ -44,6 +44,7 @@ against — and every other command group must be enabled explicitly:
   "temperature": { "enabled": true },
   "power":       { "enabled": true },
   "cooling":     { "enabled": true },
+  "ntp":         { "enabled": true },
   "interfaces":  { "enabled": true },
   "bgp":         { "enabled": true },
   "transceiver": { "enabled": true, "interval": "5m" },
@@ -71,7 +72,7 @@ eAPI for 1.4 seconds; three commands account for 88% of it, at about 30% each:
 | `show interfaces phy detail` | 30% |
 | `show interfaces` | 30% |
 | `show interfaces transceiver detail` | 28% |
-| the other six combined | 12% |
+| the other seven combined | 12% |
 
 So disabling `phy` removes roughly a third of both the bytes and the switch-side work, and disabling `phy` and
 `transceiver` together removes about 58%. Lengthening their intervals achieves most of the same saving while
@@ -90,7 +91,8 @@ Each group has a default interval, which an explicit `interval` overrides:
 | --- | --- | --- |
 | `interfaces` | `pollInterval` | Error counters and link state are the fastest-moving signals arex collects, and the primary detection source. |
 | `bgp` | `pollInterval` | Session state changes in seconds. |
-| `processes`, `temperature`, `power`, `cooling` | `pollInterval` | Cheap — 12% of a poll for all six together, including `show version`. |
+| `processes`, `temperature`, `power`, `cooling` | `pollInterval` | Cheap — 12% of a poll for all seven together, including `show version` and `ntp`. |
+| `ntp` | `1m` | ntpd polls its own upstream every 64 seconds at the fastest, so anything quicker re-reads unchanged numbers. |
 | `transceiver` | `5m` | Optical values are slowly-varying analogue readings; see below. |
 | `phy` | `15m` | Its unique signal is FEC, which EOS does not refresh on a timer; see below. |
 

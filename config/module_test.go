@@ -142,7 +142,7 @@ func TestPerSwitchOverrideCarriesIntervals(t *testing.T) {
 	}
 }
 
-// The error names the offending key. A config listing eight groups is not
+// The error names the offending key. A config listing nine groups is not
 // helped by being told that "true" is wrong somewhere in it.
 func TestErrorNamesTheOffendingKey(t *testing.T) {
 	for _, entry := range []string{
@@ -152,5 +152,17 @@ func TestErrorNamesTheOffendingKey(t *testing.T) {
 		`{"interfaces":{"enabled":true},"phy":{"enabled":true,"interval":"soon"}}`,
 	} {
 		loadCollectErr(t, entry, "phy")
+	}
+}
+
+// ntpd polls its own upstream every 64 seconds at the fastest, so reading the
+// associations on a 30-second loop returns the same numbers twice. A minute is
+// the floor at which the values can have moved.
+func TestNTPDefaultsToAMinute(t *testing.T) {
+	cfg := loadCollect(t, `{"ntp":{"enabled":true}}`)
+	mods := cfg.Switches[0].EffectiveCollect(cfg.Collect, cfg.PollInterval.Duration)
+
+	if got := mods["ntp"].Interval; got != time.Minute {
+		t.Errorf("ntp interval = %v, want 1m", got)
 	}
 }

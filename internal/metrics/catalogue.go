@@ -25,6 +25,8 @@ var (
 	lIfaceInfo   = []string{"switch", "interface", "description", "membership", "mtu"}
 	lIfaceCast   = []string{"switch", "interface", "cast"}
 	lIfaceCause  = []string{"switch", "interface", "cause"}
+	lNTPPeer     = []string{"switch", "peer"}
+	lNTPPeerInfo = []string{"switch", "peer", "refid", "peer_type"}
 	lPeer        = []string{"switch", "vrf", "peer", "asn"}
 	lPeerInfo    = []string{"switch", "vrf", "peer", "asn", "description"}
 	lXcvrInfo    = []string{"switch", "interface", "slot", "channel", "media_type", "vendor_sn"}
@@ -117,6 +119,17 @@ var metricDefs = []metricDef{
 	{"arista_memory_free_bytes", "gauge", "Strictly unused memory. Normally low: Linux spends idle RAM on cache", lSwitch},
 	{"arista_memory_total_bytes", "gauge", "Total physical memory", lSwitch},
 	{"arista_memory_used_bytes", "gauge", "Memory in use", lSwitch},
+	{"arista_ntp_offset_seconds", "gauge", "Clock offset from the selected NTP source; absent while unsynchronised", lSwitch},
+	{"arista_ntp_peer_delay_seconds", "gauge", "Round-trip delay to the NTP peer", lNTPPeer},
+	{"arista_ntp_peer_info", "gauge", "NTP peer reference id and association type. Always 1", lNTPPeerInfo},
+	{"arista_ntp_peer_jitter_seconds", "gauge", "Dispersion of recent offset measurements for the NTP peer", lNTPPeer},
+	{"arista_ntp_peer_last_received_timestamp_seconds", "gauge", "Unix timestamp of the last reply from the NTP peer; absent if it has never answered", lNTPPeer},
+	{"arista_ntp_peer_offset_seconds", "gauge", "Clock offset the NTP peer reports; only meaningful where the peer is reachable", lNTPPeer},
+	{"arista_ntp_peer_poll_interval_seconds", "gauge", "How often the switch polls this NTP peer; ntpd shortens it while hunting for a source", lNTPPeer},
+	{"arista_ntp_peer_reachable_samples", "gauge", "Successful polls in the last 8 attempts on this NTP peer", lNTPPeer},
+	{"arista_ntp_peer_selected", "gauge", "1 if the clock is being steered to this NTP peer", lNTPPeer},
+	{"arista_ntp_peer_stratum", "gauge", "Stratum the NTP peer reports; 16 means the peer is itself unsynchronised", lNTPPeer},
+	{"arista_ntp_synchronised", "gauge", "1 if the switch has selected an NTP source; every timestamp it reports is dated by this clock", lSwitch},
 	{"arista_phy_fec_alignment_lock", "gauge", "1 if FEC alignment lock is achieved; absent on links without FEC", lPhy},
 	{"arista_phy_fec_alignment_lock_changes_total", "counter", "Transitions of arista_phy_fec_alignment_lock since boot", lPhy},
 	{"arista_phy_fec_corrected_codewords", "gauge", "FEC codewords corrected (gauge: EOS semantics are ambiguous and the counter is clearable)", lPhy},

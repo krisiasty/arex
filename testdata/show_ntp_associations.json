@@ -1,0 +1,48 @@
+{
+    "peers": {
+        "192.0.2.36": {
+            "condition": "reject",
+            "peerIpAddr": "192.0.2.36",
+            "refid": "GPS",
+            "stratumLevel": 1,
+            "peerType": "unicast",
+            "lastReceived": 1788026802.4444194,
+            "pollInterval": 64,
+            "reachabilityHistory": [
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                true
+            ],
+            "delay": 0.323752,
+            "offset": 0.149053,
+            "jitter": 0.0
+        },
+        "192.0.2.37": {
+            "condition": "reject",
+            "peerIpAddr": "192.0.2.37",
+            "refid": ".INIT.",
+            "stratumLevel": 16,
+            "peerType": "unicast",
+            "lastReceived": -2208988800.0,
+            "pollInterval": 64,
+            "reachabilityHistory": [
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+            ],
+            "delay": 0.0,
+            "offset": 0.0,
+            "jitter": 0.000119
+        }
+    }
+}

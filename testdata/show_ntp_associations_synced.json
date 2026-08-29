@@ -1,0 +1,26 @@
+{
+    "peers": {
+        "192.0.2.36": {
+            "condition": "sys.peer",
+            "peerIpAddr": "192.0.2.36",
+            "refid": "GPS",
+            "stratumLevel": 1,
+            "peerType": "unicast",
+            "lastReceived": 1788026559.8225746,
+            "pollInterval": 1024,
+            "reachabilityHistory": [
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true
+            ],
+            "delay": 0.318305,
+            "offset": 0.242092,
+            "jitter": 0.284624
+        }
+    }
+}

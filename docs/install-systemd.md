@@ -62,6 +62,8 @@ collect:
     enabled: true
   cooling:
     enabled: true
+  ntp:
+    enabled: true
   interfaces:
     enabled: true
   bgp:
