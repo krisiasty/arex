@@ -104,6 +104,8 @@ jobs:
       # reads the same credential store, so no second login is needed.
       - name: publish charts
         run: ./hack/publish-charts.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Everything the release job does short of publishing: the same checkout, the
   # same notices check, the same binaries, and the same multi-arch image builds.

@@ -38,6 +38,56 @@ notice() {
 	fi
 }
 
+# warn is notice for something that should be looked at. It does not fail the
+# run: declining to publish is the correct outcome of the check below, not an
+# error, and the release job publishes the chart once the images exist.
+warn() {
+	if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+		printf '::warning::%s\n' "$*"
+	else
+		printf 'publish-charts: %s\n' "$*" >&2
+	fi
+}
+
+# imageExists reports whether a chart's appVersion names an image that is
+# actually in the registry.
+#
+# A chart whose appVersion has never been built installs nothing: helm resolves
+# image.tag to appVersion by default, and the pull fails. That is worse than not
+# publishing, because a published chart version is never overwritten -- the fix
+# would be a new chart version or deleting the package by hand.
+#
+# So the bump merges, this declines to publish, and the release job's own run of
+# this script publishes it after GoReleaser has pushed the images. A chart-only
+# change, whose appVersion still names a release that exists, is unaffected and
+# still publishes on merge.
+imageExists() {
+	local ref="$1" tag="$2" host path
+
+	host="${ref%%/*}"
+	path="${ref#*/}"
+	if [[ "$host" != "ghcr.io" ]]; then
+		notice "cannot check ${ref}:${tag}: only ghcr.io is understood here"
+		return 0
+	fi
+	if [[ -z "${GITHUB_TOKEN:-}" ]]; then
+		notice "cannot check ${ref}:${tag}: GITHUB_TOKEN is not set"
+		return 0
+	fi
+
+	# ghcr takes the token base64-encoded as a bearer credential. base64 wraps
+	# its output at 76 columns on GNU coreutils, which would split the header.
+	local bearer
+	bearer="$(printf '%s' "$GITHUB_TOKEN" | base64 | tr -d '\n')"
+
+	curl -sf -o /dev/null \
+		-H "Authorization: Bearer ${bearer}" \
+		-H "Accept: application/vnd.oci.image.index.v1+json" \
+		-H "Accept: application/vnd.docker.distribution.manifest.list.v2+json" \
+		-H "Accept: application/vnd.oci.image.manifest.v1+json" \
+		"https://${host}/v2/${path}/manifests/${tag}"
+}
+
 mkdir -p dist/charts
 
 published=0
@@ -53,6 +103,20 @@ for chart in charts/*/; do
 
 	if helm show chart "${registry}/${name}" --version "$version" >/dev/null 2>&1; then
 		notice "${name} ${version} is already published, skipping"
+		continue
+	fi
+
+	# What this chart installs when nobody sets image.tag.
+	appVersion="$(awk '$1=="appVersion:"{gsub(/"/,"",$2); print $2}' <<<"$metadata")"
+	imageRepo="$(helm show values "$chart" | awk '
+		/^image:/ { inImage = 1; next }
+		/^[^[:space:]]/ { inImage = 0 }
+		inImage && $1 == "repository:" { print $2; exit }
+	')"
+
+	if [[ -n "$appVersion" && -n "$imageRepo" ]] && ! imageExists "$imageRepo" "$appVersion"; then
+		warn "${name} ${version} names ${imageRepo}:${appVersion}, which is not in the registry;" \
+			"not publishing a chart that would install nothing. Tag ${appVersion} to build it."
 		continue
 	fi
 

@@ -7,7 +7,7 @@ Two things are released, on two different triggers:
 | Artifact | Published by | Goes to |
 | --- | --- | --- |
 | Binaries, SBOMs, container images, GitHub release | pushing a `v*` tag | GitHub releases and `ghcr.io/krisiasty/arex` |
-| Helm chart | merging to `main` | `ghcr.io/krisiasty/charts/arex` |
+| Helm chart | merging to `main`, once the image it names exists | `ghcr.io/krisiasty/charts/arex` |
 
 They are separate because the chart is versioned independently: most releases carry an unchanged chart, and a
 chart-only fix should not have to wait for a version of arex it has nothing to do with.
@@ -26,8 +26,15 @@ appVersion: "v0.7.0"    # the image tag an install gets when it does not set ima
 Both, together. `appVersion` lives inside `Chart.yaml`, so changing it changes the chart, and a chart version
 already in the registry is never overwritten — so `appVersion` cannot move without `version` moving too.
 
-**3. Merge it.** That publishes the chart. Nothing to run: the `publish-chart` job on `main` pushes any chart
-whose version is not already in the registry, and skips otherwise.
+**3. Merge it.** The `publish-chart` job on `main` picks it up. For a release bump it will decline for now, and
+say so, because `v0.7.0` has not been built yet:
+
+```text
+::warning::arex 0.7.0 names ghcr.io/krisiasty/arex:v0.7.0, which is not in the registry;
+           not publishing a chart that would install nothing. Tag v0.7.0 to build it.
+```
+
+That is the expected outcome, not a problem. The next step publishes it.
 
 **4. Tag, and push the tag.** This is the release.
 
@@ -39,9 +46,11 @@ git push origin v0.7.0
 
 Everything else follows from the tag: binaries for linux and darwin on amd64 and arm64, an SBOM beside each,
 multi-arch images tagged `v0.7.0`, `v0.7` and `latest`, and a GitHub release whose changelog is built from the
-commits since the previous tag.
+commits since the previous tag. The release then publishes the chart the merge held back, now that the image it
+names exists.
 
-**Do steps 3 and 4 together.** See [the ordering hazard](#the-ordering-hazard) for what happens otherwise.
+So a chart is published as soon as the image it names is real: on the merge when that is already true, on the tag
+when it is not.
 
 ## Releasing a chart-only change
 
@@ -66,19 +75,21 @@ gets the previous version. The release workflow emits a warning when it notices:
 
 That is a warning rather than a failure because the chart is allowed to lag. Read the run summary and decide.
 
-## The ordering hazard
+## If you bump appVersion and never tag
 
-Bumping `appVersion` to a version that is never tagged publishes a chart pointing at an image that does not
-exist. The merge publishes chart 0.8.0 with `appVersion: v0.8.0` immediately, and if `v0.8.0` is never tagged,
-`ghcr.io/krisiasty/arex:v0.8.0` is never built.
+Nothing is published, and nothing is broken. The merge declines with the warning above, and the chart stays
+unpublished until the tag exists.
 
-It cannot be fixed in place. Publishing skips any version already in the registry, so correcting it means
-publishing 0.8.1, or deleting the package version in ghcr.io by hand.
+This is worth knowing because the alternative would be unfixable. A chart naming an image that was never built
+installs nothing — `helm` resolves `image.tag` to `appVersion` by default, and the pull fails — and a published
+chart version is never overwritten, so correcting it would mean a new chart version or deleting the package in
+ghcr.io by hand. The check in [`hack/publish-charts.sh`](../hack/publish-charts.sh) exists so that cannot happen.
 
-What it breaks is narrow — running deployments already have their image, and anyone setting `image.tag` is
-unaffected. A *new* install, or an upgrade to that chart version without a pinned tag, gets `ImagePullBackOff`.
+It only defers a *release* bump. A chart-only change, whose `appVersion` still names a version that shipped,
+passes the check and publishes on merge as usual.
 
-So keep the gap between merging the bump and pushing the tag to minutes.
+The check needs `GITHUB_TOKEN` to query the registry, and understands ghcr.io only. Without either it says so and
+publishes anyway, rather than blocking on something it could not verify.
 
 ## Verifying
 
