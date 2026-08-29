@@ -29,6 +29,7 @@ are actually polled.
 | [Running arex](docs/operations.md) | endpoints, filtered scrapes, logging, shutdown, poll pacing |
 | [PromQL and alerting](docs/promql.md) | queries worth having, and rules that fire on real problems |
 | [`charts/arex`](charts/arex) | the Helm chart itself, with the reasoning in `values.yaml` |
+| [`monitoring/`](monitoring/) | alerting rules, for Prometheus, prometheus-operator and VictoriaMetrics |
 
 ## Quick start
 

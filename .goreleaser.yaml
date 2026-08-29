@@ -43,6 +43,8 @@ archives:
         dst: THIRD_PARTY_NOTICES
       - src: deploy/*
         dst: deploy
+      - src: monitoring/*
+        dst: monitoring
 
 checksum:
   name_template: checksums.txt

@@ -1,0 +1,242 @@
+# Alerting rules for arex, in the format every Prometheus-compatible rule
+# evaluator reads.
+#
+# This file is the source. monitoring/prometheusrule.yaml and monitoring/vmrule.yaml
+# are generated from it by hack/gen-monitoring.sh; see monitoring/README.md for
+# which one your setup wants.
+#
+# Thresholds are a starting point, not a recommendation. What counts as too many
+# interface errors depends on the link, and what counts as slow depends on the
+# poll interval.
+
+groups:
+  # arex itself. If these fire, the switch data is not to be trusted, whatever
+  # the switch rules below say.
+  - name: arex
+    rules:
+      - alert: ArexAbsent
+        # No job matcher: arex_build_info is exported by every arex, so this
+        # fires whether the exporter is down, was never scraped, or its job was
+        # renamed. That last case is the one a "up == 0" rule misses entirely.
+        expr: absent(arex_build_info)
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "arex is not being scraped"
+          description: >-
+            No arex_build_info series exists, so either arex is down or nothing
+            is scraping it. Every switch metric is absent while this is true.
+
+      - alert: ArexSwitchUnreachable
+        expr: arista_scrape_success == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.switch }}: arex cannot poll it"
+          description: >-
+            The last poll failed. arex serves the previous values until they
+            pass stalenessLimit, after which the switch's metrics disappear.
+
+      - alert: ArexSwitchDataStale
+        # Complements the rule above: a poll can keep succeeding while one
+        # command stops returning, which shows up as age rather than failure.
+        expr: arista_scrape_age_seconds > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.switch }}: data is {{ $value | humanizeDuration }} old"
+
+      - alert: ArexCommandFailing
+        expr: arista_command_success == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.switch }}: eAPI command {{ $labels.command }} is failing"
+          description: >-
+            One command is rejected while others succeed, so only the metrics it
+            feeds are affected. Usually a role that does not permit it, or a
+            platform that does not support it.
+
+      - alert: ArexCredentialRejected
+        # A rotation would show outcome="rotated". "unchanged" means arex
+        # re-read the file after a rejection and found the same password, so the
+        # credential is wrong rather than stale.
+        expr: increase(arista_credential_reloads_total{outcome="unchanged"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.switch }}: the configured password is being rejected"
+
+      - alert: ArexCredentialUnreadable
+        expr: increase(arista_credential_reloads_total{outcome="failed"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.switch }}: the password file cannot be read"
+          description: >-
+            Check the mount and its permissions. arex keeps using the last good
+            password, so this is a warning about the next rotation, not an
+            outage yet.
+
+  # The switches.
+  - name: arista
+    rules:
+      - alert: SwitchInterfaceDown
+        expr: arista_interface_link_up == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.switch }} {{ $labels.interface }}: link down"
+
+      - alert: SwitchInterfaceFlapping
+        expr: rate(arista_interface_link_status_changes_total[15m]) * 900 > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.switch }} {{ $labels.interface }}: flapping"
+
+      - alert: SwitchInterfaceErrors
+        expr: rate(arista_interface_in_errors_total[15m]) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.switch }} {{ $labels.interface }}: receiving errors"
+
+      - alert: SwitchLinkFCSErrors
+        # Interface counters, not FEC: these refresh on every poll, whereas the
+        # PHY's FEC registers were static for 107 days on a switch under test.
+        expr: rate(arista_interface_in_errors_detail_total{cause="fcsErrors"}[15m]) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.switch }} {{ $labels.interface }}: FCS errors"
+          description: >-
+            Frames are arriving corrupted. Usually the fibre, the connector or
+            the optic at one end.
+
+      - alert: SwitchLinkMacFault
+        expr: arista_phy_mac_local_fault == 1 or arista_phy_mac_remote_fault == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.switch }} {{ $labels.interface }}: MAC fault"
+
+      - alert: SwitchLinkHighBER
+        expr: arista_phy_pcs_high_ber == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.switch }} {{ $labels.interface }}: PCS reports a high bit error rate"
+
+      - alert: SwitchOpticRxPowerLow
+        # Gated on link_up: a populated but dark cage sits at the -30 dBm floor
+        # for ever, well below its own low alarm, and would alert permanently.
+        expr: |
+          arista_transceiver_rx_power_dbm
+            < on(switch, interface) group_left
+              arista_transceiver_rx_power_threshold_dbm{level="low_warn"}
+          and on(switch, interface) arista_interface_link_up == 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.switch }} {{ $labels.interface }}: receive power below the optic's low warning"
+          description: >-
+            Compared against this optic's own threshold rather than a fixed
+            number, since acceptable power depends on the part and the link.
+
+      - alert: SwitchOpticTemperatureHigh
+        expr: |
+          arista_transceiver_temperature_celsius
+            > on(switch, interface) group_left
+              arista_transceiver_temperature_threshold_celsius{level="high_warn"}
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.switch }} {{ $labels.interface }}: optic above its high temperature warning"
+
+      - alert: SwitchOpticFECUncorrected
+        # delta(), not "> 0": the gauge persists after a repair, so the obvious
+        # version never clears. FEC is a weak alerting source in general -- see
+        # docs/metrics.md.
+        expr: |
+          delta(arista_phy_fec_uncorrected_codewords[1h]) > 0
+          and on(switch, interface) arista_interface_link_up == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.switch }} {{ $labels.interface }}: uncorrected FEC codewords increased"
+
+      - alert: SwitchBGPPeerDown
+        expr: arista_bgp_peer_up == 0 and arista_bgp_peer_under_maintenance == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.switch }}: BGP peer {{ $labels.peer }} is down"
+
+      - alert: SwitchTemperatureAlert
+        expr: arista_temperature_alert == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.switch }}: temperature alert on {{ $labels.sensor }}"
+
+      - alert: SwitchTemperatureNearOverheat
+        expr: |
+          arista_temperature_celsius
+            > on(switch, sensor) arista_temperature_overheat_threshold_celsius * 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.switch }}: {{ $labels.sensor }} within 10% of its overheat threshold"
+
+      - alert: SwitchFanDown
+        expr: arista_fan_ok == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.switch }}: fan {{ $labels.fan }} is not OK"
+
+      - alert: SwitchPSUDown
+        expr: arista_psu_ok == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.switch }}: PSU {{ $labels.psu }} is not OK"
+
+      - alert: SwitchPSUHighLoad
+        expr: arista_psu_output_power_watts / arista_psu_capacity_watts > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.switch }}: PSU {{ $labels.psu }} above 80% of capacity"
+
+      - alert: SwitchMemoryLow
+        expr: arista_memory_available_bytes / arista_memory_total_bytes < 0.1
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.switch }}: less than 10% of memory available"
+          description: >-
+            Available, not free. Low free memory is normal; low available is not.
