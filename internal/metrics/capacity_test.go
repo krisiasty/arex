@@ -14,12 +14,20 @@ import (
 	"github.com/krisiasty/arex/internal/collector"
 )
 
+// The two captures: a loaded frontend leaf and a spine that forwards for the
+// same fabric but learns almost nothing itself.
+const (
+	leafCapture  = "show_hardware_capacity.json"
+	spineCapture = "show_hardware_capacity_spine.json"
+)
+
 // capacityFixture is the raw capture, with each row left exactly as EOS wrote
 // it -- rows are carried as RawMessage so a field arex does not parse still
 // survives into whatever the test feeds back.
-func capacityFixture(t *testing.T) []json.RawMessage {
+func capacityFixture(t *testing.T, name string) []json.RawMessage {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "..", "testdata", "show_hardware_capacity.json"))
+	//nolint:gosec // a fixture name chosen by the test, not input
+	raw, err := os.ReadFile(filepath.Join("..", "..", "testdata", name))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +65,7 @@ func renderCapacityRows(t *testing.T, rows []json.RawMessage) string {
 // switches each began with a different one. Anything that depends on the order
 // is depending on luck, so reversing the array must change nothing.
 func TestCapacityRowOrderDoesNotMatter(t *testing.T) {
-	rows := capacityFixture(t)
+	rows := capacityFixture(t, leafCapture)
 	reversed := slices.Clone(rows)
 	slices.Reverse(reversed)
 
@@ -96,7 +104,7 @@ func capacityLines(out string) []string {
 // separate series, and a collision would fail the whole scrape rather than one
 // metric.
 func TestCapacityIsKeyedByTableFeatureAndChip(t *testing.T) {
-	out := renderCapacityRows(t, capacityFixture(t))
+	out := renderCapacityRows(t, capacityFixture(t, leafCapture))
 
 	for _, chip := range []string{`chip="Linecard0/0"`, `chip=""`} {
 		got := sample(out, "arista_hardware_capacity_used",
@@ -112,7 +120,7 @@ func TestCapacityIsKeyedByTableFeatureAndChip(t *testing.T) {
 // tables use it for a different resource entirely, with its own limit. So the
 // row is exported as EOS reports it and nothing is derived from the parts.
 func TestCapacityRollupRowsAreNotDerived(t *testing.T) {
-	out := renderCapacityRows(t, capacityFixture(t))
+	out := renderCapacityRows(t, capacityFixture(t, leafCapture))
 
 	if got := sample(out, "arista_hardware_capacity_used", `table="NextHop"`, `feature=""`); got != "280" {
 		t.Errorf("NextHop rollup used = %q, want 280 as reported, not the 281 its features sum to", got)
@@ -131,7 +139,7 @@ func TestCapacityRollupRowsAreNotDerived(t *testing.T) {
 // used 0 against a limit of 147455 but only 147208 free, because V4Hosts took
 // the difference. limit - used would report 147455 and overstate the headroom.
 func TestCapacityFreeIsThePoolNotTheRow(t *testing.T) {
-	out := renderCapacityRows(t, capacityFixture(t))
+	out := renderCapacityRows(t, capacityFixture(t, leafCapture))
 	const v6 = `feature="V6Hosts"`
 
 	used := sample(out, "arista_hardware_capacity_used", `table="Host"`, v6)
@@ -146,7 +154,7 @@ func TestCapacityFreeIsThePoolNotTheRow(t *testing.T) {
 // The watermark is the peak since boot, and it is what makes a slow poll
 // interval safe: a spike between two polls still shows up here.
 func TestCapacityHighWatermarkOutlivesTheSpike(t *testing.T) {
-	out := renderCapacityRows(t, capacityFixture(t))
+	out := renderCapacityRows(t, capacityFixture(t, leafCapture))
 	const head = `feature="MmuReplHead"`
 
 	used := sample(out, "arista_hardware_capacity_used", `table="MMU_MCAST"`, head, `chip=""`)
@@ -160,7 +168,7 @@ func TestCapacityHighWatermarkOutlivesTheSpike(t *testing.T) {
 // between switches, so it cannot be documented instead of exported. Only rows
 // that have any get a series.
 func TestCapacityInfoCarriesSharedFeatures(t *testing.T) {
-	out := renderCapacityRows(t, capacityFixture(t))
+	out := renderCapacityRows(t, capacityFixture(t, leafCapture))
 
 	if got := sample(out, "arista_hardware_capacity_info", `table="IFP"`, `feature="Slice-1"`); got != "1" {
 		t.Errorf("IFP/Slice-1 info = %q, want 1", got)
@@ -180,7 +188,7 @@ func TestCapacityInfoCarriesSharedFeatures(t *testing.T) {
 // reports 0. Exporting it would hand people a series that reads zero for
 // everything below one percent, when used/limit is right there.
 func TestCapacityDoesNotExportEOSPercentageOrCommitted(t *testing.T) {
-	out := renderCapacityRows(t, capacityFixture(t))
+	out := renderCapacityRows(t, capacityFixture(t, leafCapture))
 
 	for _, name := range []string{
 		"arista_hardware_capacity_used_percent",
@@ -205,7 +213,7 @@ func TestCapacityDoesNotExportEOSPercentageOrCommitted(t *testing.T) {
 // slice fails even though the aggregate has room. IFP is 7% overall and 37% in
 // two of its slices.
 func TestCapacityExportsSlicesNotJustTheAggregate(t *testing.T) {
-	out := renderCapacityRows(t, capacityFixture(t))
+	out := renderCapacityRows(t, capacityFixture(t, leafCapture))
 
 	for _, c := range []struct{ feature, used, limit string }{
 		{"", "707", "9216"},
@@ -219,5 +227,71 @@ func TestCapacityExportsSlicesNotJustTheAggregate(t *testing.T) {
 		if got := sample(out, "arista_hardware_capacity_limit", `table="IFP"`, f); got != c.limit {
 			t.Errorf("IFP/%q limit = %q, want %s", c.feature, got, c.limit)
 		}
+	}
+}
+
+// The empty-feature NextHop row is short of its features' sum on both
+// captures -- 280 against 281 on the leaf, 51 against 52 on the spine. One
+// capture would look like a glitch; two switches make it the way EOS counts,
+// and the reason arex reports the row rather than adding up the parts.
+func TestCapacityNextHopRollupIsShortOnBothSwitches(t *testing.T) {
+	for _, c := range []struct {
+		capture string
+		rollup  string
+		parts   []string
+	}{
+		{leafCapture, "280", []string{"279", "1", "1"}},
+		{spineCapture, "51", []string{"51", "1", "0"}},
+	} {
+		out := renderCapacityRows(t, capacityFixture(t, c.capture))
+
+		if got := sample(out, "arista_hardware_capacity_used", `table="NextHop"`, `feature=""`); got != c.rollup {
+			t.Errorf("%s: NextHop rollup = %q, want %s", c.capture, got, c.rollup)
+		}
+		sum := 0.0
+		for i, feature := range []string{"Unicast", "VxLan", "V4Mroutes"} {
+			got := sample(out, "arista_hardware_capacity_used", `table="NextHop"`, `feature="`+feature+`"`)
+			if got != c.parts[i] {
+				t.Errorf("%s: NextHop/%s = %q, want %s", c.capture, feature, got, c.parts[i])
+			}
+			v, _ := strconv.ParseFloat(got, 64)
+			sum += v
+		}
+		want, _ := strconv.ParseFloat(c.rollup, 64)
+		if sum != want+1 {
+			t.Errorf("%s: features sum to %v against a rollup of %v; the captures no longer "+
+				"show the discrepancy this test exists for", c.capture, sum, want)
+		}
+	}
+}
+
+// The spine has learned no MAC addresses at all. An empty table is not a
+// missing one -- "this table exists and holds nothing" is the answer, and
+// omitting the series would leave a gap indistinguishable from a switch that
+// does not have the table.
+func TestCapacityEmptyTableStillReportsItsLimit(t *testing.T) {
+	out := renderCapacityRows(t, capacityFixture(t, spineCapture))
+
+	for _, feature := range []string{"", "L2"} {
+		f := `feature="` + feature + `"`
+		if got := sample(out, "arista_hardware_capacity_used", `table="MAC"`, f); got != "0" {
+			t.Errorf("MAC/%q used = %q, want 0", feature, got)
+		}
+		if got := sample(out, "arista_hardware_capacity_limit", `table="MAC"`, f); got != "163840" {
+			t.Errorf("MAC/%q limit = %q, want 163840", feature, got)
+		}
+	}
+}
+
+// The watermark is above the present value on LPM here, not just on the leaf's
+// MMU_MCAST. Whatever briefly added a route is gone, and this is the only
+// series that still says it happened.
+func TestCapacityWatermarkOutlivesTheSpikeOnMoreThanOneTable(t *testing.T) {
+	out := renderCapacityRows(t, capacityFixture(t, spineCapture))
+
+	used := sample(out, "arista_hardware_capacity_used", `table="LPM"`, `feature="V4Routes"`)
+	peak := sample(out, "arista_hardware_capacity_high_watermark", `table="LPM"`, `feature="V4Routes"`)
+	if used != "6" || peak != "7" {
+		t.Errorf("LPM/V4Routes used=%q peak=%q, want 6 / 7", used, peak)
 	}
 }

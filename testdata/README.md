@@ -88,6 +88,17 @@ Preserved because the tests turn on them:
 The row order is EOS's own and means nothing: captures from three switches each began with a different row. A
 test reverses the array and asserts the output is unchanged.
 
+`show_hardware_capacity_spine.json` is the same command from a spine in the same fabric, kept for the shapes the
+leaf cannot show:
+
+- `MAC` is entirely zero. The spine forwards for the fabric without learning addresses itself, so this is a table
+  that exists and holds nothing -- which a test distinguishes from a table that is absent.
+- `LPM/V4Routes` has `highWatermark` 7 against `used` 6, so the watermark being above the present value is not a
+  quirk of one table on one switch.
+- `NextHop` reports a rollup of 51 where its features sum to 52, the same off-by-one as the leaf's 280 against
+  281. One capture would look like a glitch; two make it the way EOS counts.
+- Its rows arrive in a third distinct order.
+
 ## Synthetic additions
 
 Everything is real capture except the following, which cover cases the sampled switch could not
