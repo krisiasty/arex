@@ -187,8 +187,10 @@ A poll that collects nothing is logged at `ERROR` under `collection failed`, wit
 switch in `switch`. The cause names what happened and what to check, rather than repeating the Go error:
 
 ```json
-{"time":"2026-08-29T11:59:56.120Z","level":"ERROR","msg":"collection failed","switch":"sw146-frontend-leaf-1",
- "detail":"no response from 10.0.0.1 within 10s: check routing and firewall rules to TCP 443, and that the switch is reachable from this host"}
+{"time":"2026-08-29T11:59:56.120Z","level":"ERROR","msg":"collection failed",
+ "switch":"sw146-frontend-leaf-1",
+ "detail":"no response from 10.0.0.1 within 10s: check routing and firewall rules to TCP 443,
+ and that the switch is reachable from this host"}
 ```
 
 | Cause | Usually means |
