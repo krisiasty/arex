@@ -434,3 +434,5 @@ jobs:
 
       - name: publish charts
         run: ./hack/publish-charts.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
