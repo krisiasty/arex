@@ -20,8 +20,16 @@ type Config struct {
 	ListenAddress  string   `json:"listenAddress"`  // default ":9100"
 	PollInterval   duration `json:"pollInterval"`   // default 30s
 	ScrapeTimeout  duration `json:"scrapeTimeout"`  // default 10s
-	TLSSkipVerify  bool     `json:"tlsSkipVerify"`  // default false (Go zero value; no default applied)
 	StalenessLimit duration `json:"stalenessLimit"` // default 3x pollInterval
+
+	// TLSSkipVerify is not a setting. It was global once and is per-switch
+	// now, and it is accepted here only so that a config still setting it can
+	// be told where it went: the decoder rejects unknown fields, so removing
+	// it outright would produce `unknown field "tlsSkipVerify"` -- true, and
+	// no help to whoever has to fix the file. A pointer so that setting it to
+	// false is caught too, which is the case most worth catching: it would
+	// otherwise read as "verification is on" while doing nothing at all.
+	TLSSkipVerify *bool `json:"tlsSkipVerify"`
 
 	// Debug logs one record per eAPI request. Configurable as well as a flag
 	// so a deployment can be verbose without changing how it is invoked --
@@ -85,6 +93,12 @@ type SwitchConfig struct {
 	// Falls back to Host if empty.
 	Name string `json:"name"`
 
+	// TLSSkipVerify disables verification of this switch's certificate.
+	// Per-switch rather than global: skipping verification is a decision
+	// about one switch's certificate, and a fleet-wide default made it easy
+	// to add a switch that quietly inherited it.
+	TLSSkipVerify bool `json:"tlsSkipVerify"`
+
 	// CAFile is a PEM bundle to verify this switch's certificate against.
 	// Use it once the switch serves a certificate with correct subject
 	// alternative names.
@@ -113,10 +127,9 @@ type SwitchConfig struct {
 }
 
 // TLSOptions returns how this switch's certificate should be verified.
-// Per-switch settings take precedence over the global tlsSkipVerify.
-func (s SwitchConfig) TLSOptions(globalSkipVerify bool) eapi.TLSOptions {
+func (s SwitchConfig) TLSOptions() eapi.TLSOptions {
 	return eapi.TLSOptions{
-		SkipVerify:       globalSkipVerify,
+		SkipVerify:       s.TLSSkipVerify,
 		CAFile:           s.CAFile,
 		PinnedCertSHA256: s.PinnedCertSHA256,
 	}
@@ -241,6 +254,14 @@ func (c *Config) applyDefaults() {
 }
 
 func (c *Config) validate() error {
+	// Checked before anything else so a config written against the old shape
+	// is told what changed, rather than failing later on a switch that looks
+	// like it has no verification method when the file plainly sets one.
+	if c.TLSSkipVerify != nil {
+		return errors.New("config: tlsSkipVerify is per-switch now, not global: " +
+			"set it on each switch entry that needs it. It was a fleet-wide default, which made " +
+			"it easy to add a switch that inherited it without anyone deciding to")
+	}
 	if len(c.Switches) == 0 {
 		return errors.New("config: no switches defined")
 	}
@@ -296,14 +317,16 @@ func (c *Config) validate() error {
 			return fmt.Errorf("config: switch[%d] (%s) sets both caFile and pinnedCertSha256; pick one",
 				i, sw.Label())
 		}
-		if sw.CAFile != "" || sw.PinnedCertSHA256 != "" {
-			continue // an explicit verification method was chosen
+		if sw.TLSSkipVerify && (sw.CAFile != "" || sw.PinnedCertSHA256 != "") {
+			return fmt.Errorf("config: switch[%d] (%s) sets tlsSkipVerify alongside a way to verify "+
+				"its certificate; pick one", i, sw.Label())
 		}
-		if !c.TLSSkipVerify {
-			return fmt.Errorf("config: switch[%d] (%s) has no way to verify TLS: set caFile, "+
-				"pinnedCertSha256, or tlsSkipVerify. A stock EOS switch serves a certificate with "+
-				"no subject alternative names, which cannot be verified by hostname; see README", i, sw.Label())
+		if sw.CAFile != "" || sw.PinnedCertSHA256 != "" || sw.TLSSkipVerify {
+			continue // an explicit choice was made
 		}
+		return fmt.Errorf("config: switch[%d] (%s) has no way to verify TLS: set caFile, "+
+			"pinnedCertSha256, or tlsSkipVerify on it. A stock EOS switch serves a certificate with "+
+			"no subject alternative names, which cannot be verified by hostname; see README", i, sw.Label())
 	}
 	return nil
 }

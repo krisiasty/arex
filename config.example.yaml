@@ -100,9 +100,10 @@ switches:
         enabled: false
 
   # A switch with its own account: an inline password wins over passwordFile.
+  # Skipping verification is a per-switch decision, so it is stated here on the
+  # switch it applies to rather than once for the fleet.
   - host: https://192.0.2.13
     username: prometheus
     password: a-switch-with-its-own-account
     name: leaf2
-
-tlsSkipVerify: true
+    tlsSkipVerify: true

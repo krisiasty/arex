@@ -51,10 +51,10 @@ of them. The classes below are in scope:
 These are documented, deliberate, and opt-in. Reporting them is welcome as an
 issue, not as an advisory:
 
-- `tlsSkipVerify: true` not verifying switch certificates. It exists because a
-  stock EOS certificate has no subject alternative names and cannot be verified
-  by hostname; arex refuses to start without an explicit choice, and
-  [TLS](docs/tls.md) explains the alternatives.
+- `tlsSkipVerify: true` on a switch not verifying that switch's certificate. It
+  exists because a stock EOS certificate has no subject alternative names and
+  cannot be verified by hostname; arex refuses to start without an explicit
+  choice per switch, and [TLS](docs/tls.md) explains the alternatives.
 - Metrics being served over plain HTTP without authentication by default. Both
   are available and off unless configured — see
   [securing the endpoint](docs/operations.md#securing-the-endpoint).

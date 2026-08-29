@@ -48,8 +48,8 @@ show management api http-commands
 
 Expect `Enabled: Yes`, `HTTPS server: running`, `VRFs: management`, and the management interface listed under
 `URLs`. Note the reported `SSL Profile` — a stock switch uses `ARISTA_DEFAULT_SELF_SIGNED_PROFILE`, whose
-certificate no client can verify, so set [`tlsSkipVerify`](configuration.md) to `true` unless you have installed a
-certificate signed by a CA that arex trusts.
+certificate no client can verify, so set [`tlsSkipVerify`](configuration.md) to `true` on that switch unless you
+have installed a certificate signed by a CA that arex trusts.
 
 Then verify eAPI answers from wherever arex will run. This is the same request arex issues:
 

@@ -35,8 +35,8 @@ func writeRaw(t *testing.T, body string) string {
 
 // A TLS verification choice is mandatory, so the smallest valid config
 // includes one.
-const minimal = `{"tlsSkipVerify":true,"switches":[
-	{"host":"https://192.0.2.1","username":"u","password":"p"}]}`
+const minimal = `{"switches":[
+	{"tlsSkipVerify":true,"host":"https://192.0.2.1","username":"u","password":"p"}]}`
 
 func TestDefaultsApplied(t *testing.T) {
 	cfg, err := Load(write(t, minimal))
@@ -89,6 +89,74 @@ func TestPerSwitchTLSOptionsSatisfyValidation(t *testing.T) {
 	}
 }
 
+// tlsSkipVerify was global once. A config that still sets it there must say
+// where it went: DisallowUnknownFields would otherwise report an unknown
+// field, which is true and useless.
+func TestGlobalTLSSkipVerifyIsRejected(t *testing.T) {
+	for name, body := range map[string]string{
+		"true": `{"tlsSkipVerify":true,"switches":[
+			{"host":"https://192.0.2.1","username":"u","password":"p","tlsSkipVerify":true}]}`,
+		// Rejected even when false: the key no longer does anything, and
+		// ignoring it would leave someone believing verification was on.
+		"false": `{"tlsSkipVerify":false,"switches":[
+			{"host":"https://192.0.2.1","username":"u","password":"p","tlsSkipVerify":true}]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := Load(write(t, body))
+			if err == nil {
+				t.Fatal("a global tlsSkipVerify must be rejected")
+			}
+			for _, want := range []string{"tlsSkipVerify", "per-switch"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("error should mention %q: %v", want, err)
+				}
+			}
+			if strings.Contains(err.Error(), "unknown field") {
+				t.Errorf("error should explain the move, not report an unknown field: %v", err)
+			}
+		})
+	}
+}
+
+// Skipping verification for one switch says nothing about the others.
+func TestPerSwitchTLSSkipVerifyIsIndependent(t *testing.T) {
+	cfg, err := Load(write(t, `{"switches":[
+		{"host":"https://192.0.2.1","username":"u","password":"p","tlsSkipVerify":true},
+		{"host":"https://192.0.2.2","username":"u","password":"p","caFile":"/etc/arex/ca.pem"}]}`))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := cfg.Switches[0].TLSOptions(); !got.SkipVerify {
+		t.Errorf("switch[0] should skip verification: %+v", got)
+	}
+	if got := cfg.Switches[1].TLSOptions(); got.SkipVerify {
+		t.Errorf("switch[1] must not inherit switch[0]'s tlsSkipVerify: %+v", got)
+	}
+}
+
+// Skipping and verifying are contradictory instructions for one switch. While
+// tlsSkipVerify was global this combination was meaningful -- the per-switch
+// method overrode the fleet default -- but per-switch it can only be a
+// mistake, and silently preferring one would hide it.
+func TestTLSSkipVerifyWithAVerificationMethodIsRejected(t *testing.T) {
+	for name, body := range map[string]string{
+		"caFile": `{"switches":[{"host":"https://192.0.2.1","username":"u","password":"p",
+			"tlsSkipVerify":true,"caFile":"/etc/arex/ca.pem"}]}`,
+		"pin": `{"switches":[{"host":"https://192.0.2.1","username":"u","password":"p",
+			"tlsSkipVerify":true,"pinnedCertSha256":"AB:CD"}]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := Load(write(t, body))
+			if err == nil {
+				t.Fatalf("tlsSkipVerify with %s must be rejected", name)
+			}
+			if !strings.Contains(err.Error(), "tlsSkipVerify") {
+				t.Errorf("error should name tlsSkipVerify: %v", err)
+			}
+		})
+	}
+}
+
 func TestCAFileAndPinTogetherIsRejected(t *testing.T) {
 	_, err := Load(write(t, `{"switches":[{"host":"https://192.0.2.1","username":"u","password":"p",
 		"caFile":"/etc/arex/ca.pem","pinnedCertSha256":"abcd"}]}`))
@@ -100,22 +168,25 @@ func TestCAFileAndPinTogetherIsRejected(t *testing.T) {
 	}
 }
 
-// Per-switch settings win: one switch can be pinned while another is skipped.
-func TestTLSOptionsPreferPerSwitchSettings(t *testing.T) {
-	sw := SwitchConfig{Host: "h", PinnedCertSHA256: "abcd"}
-	opts := sw.TLSOptions(true)
-	if opts.PinnedCertSHA256 != "abcd" {
-		t.Errorf("pin not carried through: %+v", opts)
+// TLSOptions carries each switch's own choice, and nothing else: there is no
+// fleet-wide setting left for it to fall back to.
+func TestTLSOptionsReflectOneSwitchOnly(t *testing.T) {
+	pinned := SwitchConfig{Host: "h", PinnedCertSHA256: "abcd"}.TLSOptions()
+	if pinned.PinnedCertSHA256 != "abcd" {
+		t.Errorf("pin not carried through: %+v", pinned)
 	}
-	plain := SwitchConfig{Host: "h"}.TLSOptions(true)
-	if !plain.SkipVerify {
-		t.Error("global skipVerify should apply when no per-switch option is set")
+	if pinned.SkipVerify {
+		t.Errorf("a pinned switch must not skip verification: %+v", pinned)
+	}
+	skipped := SwitchConfig{Host: "h", TLSSkipVerify: true}.TLSOptions()
+	if !skipped.SkipVerify {
+		t.Errorf("tlsSkipVerify not carried through: %+v", skipped)
 	}
 }
 
 func TestStalenessLimitTracksPollInterval(t *testing.T) {
-	cfg, err := Load(write(t, `{"tlsSkipVerify":true,"pollInterval":"1m","switches":[
-		{"host":"https://192.0.2.1","username":"u","password":"p"}]}`))
+	cfg, err := Load(write(t, `{"pollInterval":"1m","switches":[
+		{"tlsSkipVerify":true,"host":"https://192.0.2.1","username":"u","password":"p"}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,8 +196,8 @@ func TestStalenessLimitTracksPollInterval(t *testing.T) {
 }
 
 func TestDurationStringsParse(t *testing.T) {
-	cfg, err := Load(write(t, `{"tlsSkipVerify":true,"pollInterval":"45s","scrapeTimeout":"2500ms","switches":[
-		{"host":"https://192.0.2.1","username":"u","password":"p"}]}`))
+	cfg, err := Load(write(t, `{"pollInterval":"45s","scrapeTimeout":"2500ms","switches":[
+		{"tlsSkipVerify":true,"host":"https://192.0.2.1","username":"u","password":"p"}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,8 +210,8 @@ func TestDurationStringsParse(t *testing.T) {
 }
 
 func TestInvalidDurationIsRejected(t *testing.T) {
-	_, err := Load(write(t, `{"tlsSkipVerify":true,"pollInterval":"30","switches":[
-		{"host":"https://192.0.2.1","username":"u","password":"p"}]}`))
+	_, err := Load(write(t, `{"pollInterval":"30","switches":[
+		{"tlsSkipVerify":true,"host":"https://192.0.2.1","username":"u","password":"p"}]}`))
 	if err == nil {
 		t.Fatal("a bare number is not a Go duration; want an error")
 	}
@@ -152,9 +223,9 @@ func TestInvalidDurationIsRejected(t *testing.T) {
 func TestValidationRejectsIncompleteSwitches(t *testing.T) {
 	for _, tc := range []struct{ name, body, want string }{
 		{"no switches", `{"switches":[]}`, "no switches"},
-		{"missing host", `{"tlsSkipVerify":true,"switches":[{"username":"u","password":"p"}]}`, "missing host"},
-		{"missing username", `{"tlsSkipVerify":true,"switches":[{"host":"h","password":"p"}]}`, "missing username"},
-		{"no credential", `{"tlsSkipVerify":true,"switches":[{"host":"h","username":"u"}]}`, "has no credential"},
+		{"missing host", `{"switches":[{"username":"u","password":"p"}]}`, "missing host"},
+		{"missing username", `{"switches":[{"tlsSkipVerify":true,"host":"h","password":"p"}]}`, "missing username"},
+		{"no credential", `{"switches":[{"tlsSkipVerify":true,"host":"h","username":"u"}]}`, "has no credential"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := Load(write(t, tc.body))
@@ -182,8 +253,8 @@ func TestLabelFallsBackToHost(t *testing.T) {
 // debug is off unless asked for, and readable from the config so a deployment
 // can turn it on without changing how it is invoked.
 func TestDebugDefaultsOffAndParses(t *testing.T) {
-	base := `{"tlsSkipVerify":true,%s"collect":{"interfaces":{"enabled":true}},
-		"switches":[{"host":"https://192.0.2.1","username":"u","password":"p"}]}`
+	base := `{%s"collect":{"interfaces":{"enabled":true}},
+		"switches":[{"tlsSkipVerify":true,"host":"https://192.0.2.1","username":"u","password":"p"}]}`
 
 	off, err := Load(writeRaw(t, strings.Replace(base, "%s", "", 1)))
 	if err != nil {

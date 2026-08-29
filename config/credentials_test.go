@@ -19,8 +19,8 @@ func writeSecret(t *testing.T, body string, mode os.FileMode) string {
 
 // switchCfg renders a config with one switch carrying the given extra fields.
 func switchCfg(fields string) string {
-	return `{"tlsSkipVerify":true,"collect":{"interfaces":{"enabled":true}},
-		"switches":[{"host":"https://192.0.2.1","username":"u",` + fields + `"name":"sw1"}]}`
+	return `{"collect":{"interfaces":{"enabled":true}},
+		"switches":[{"tlsSkipVerify":true,"host":"https://192.0.2.1","username":"u",` + fields + `"name":"sw1"}]}`
 }
 
 func TestPasswordFileIsAccepted(t *testing.T) {
@@ -38,10 +38,10 @@ func TestPasswordFileIsAccepted(t *testing.T) {
 // once instead of repeated for every switch.
 func TestTopLevelPasswordFileAppliesToSwitches(t *testing.T) {
 	p := writeSecret(t, "hunter2", 0o400)
-	cfg, err := Load(writeRaw(t, `{"tlsSkipVerify":true,"passwordFile":"`+p+`",
+	cfg, err := Load(writeRaw(t, `{"passwordFile":"`+p+`",
 		"collect":{"interfaces":{"enabled":true}},
-		"switches":[{"host":"https://192.0.2.1","username":"u","name":"a"},
-		            {"host":"https://192.0.2.2","username":"u","name":"b"}]}`))
+		"switches":[{"tlsSkipVerify":true,"host":"https://192.0.2.1","username":"u","name":"a"},
+		            {"tlsSkipVerify":true,"host":"https://192.0.2.2","username":"u","name":"b"}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,10 +56,10 @@ func TestTopLevelPasswordFileAppliesToSwitches(t *testing.T) {
 func TestPerSwitchOverridesTheFleetDefault(t *testing.T) {
 	fleet := writeSecret(t, "fleet", 0o400)
 	own := writeSecret(t, "own", 0o400)
-	cfg, err := Load(writeRaw(t, `{"tlsSkipVerify":true,"passwordFile":"`+fleet+`",
+	cfg, err := Load(writeRaw(t, `{"passwordFile":"`+fleet+`",
 		"collect":{"interfaces":{"enabled":true}},
-		"switches":[{"host":"https://192.0.2.1","username":"u","name":"a"},
-		            {"host":"https://192.0.2.2","username":"u","name":"b",
+		"switches":[{"tlsSkipVerify":true,"host":"https://192.0.2.1","username":"u","name":"a"},
+		            {"tlsSkipVerify":true,"host":"https://192.0.2.2","username":"u","name":"b",
 		             "passwordFile":"`+own+`"}]}`))
 	if err != nil {
 		t.Fatal(err)
@@ -75,9 +75,9 @@ func TestPerSwitchOverridesTheFleetDefault(t *testing.T) {
 
 func TestInlinePasswordWinsOverTheFleetFile(t *testing.T) {
 	fleet := writeSecret(t, "fleet", 0o400)
-	cfg, err := Load(writeRaw(t, `{"tlsSkipVerify":true,"passwordFile":"`+fleet+`",
+	cfg, err := Load(writeRaw(t, `{"passwordFile":"`+fleet+`",
 		"collect":{"interfaces":{"enabled":true}},
-		"switches":[{"host":"https://192.0.2.1","username":"u","name":"a","password":"inline"}]}`))
+		"switches":[{"tlsSkipVerify":true,"host":"https://192.0.2.1","username":"u","name":"a","password":"inline"}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}
