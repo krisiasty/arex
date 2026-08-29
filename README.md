@@ -64,6 +64,14 @@ Container images are published for `linux/amd64` and `linux/arm64`:
 docker pull ghcr.io/krisiasty/arex:v0.2.0
 ```
 
+Every release archive has an SPDX SBOM beside it, covered by the same
+`checksums.txt`. The images carry an SBOM and SLSA provenance as attestations
+instead of files:
+
+```bash
+docker buildx imagetools inspect ghcr.io/krisiasty/arex:latest --format "{{ json .SBOM }}"
+```
+
 ## Flags
 
 | Flag | Description |

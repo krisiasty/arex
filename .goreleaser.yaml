@@ -46,6 +46,20 @@ archives:
       - src: monitoring/*
         dst: monitoring
 
+# One SBOM per archive, listing what went into the binary inside it.
+#
+# The container images already carry an SPDX SBOM and SLSA provenance: BuildKit
+# attaches both to a multi-platform push. The archives carried nothing, so
+# anyone auditing the binary had to rebuild it to find out what was in it.
+#
+# syft's default output is SPDX JSON, which is what the image attestation uses
+# too, so both halves of a release answer the same question the same way.
+sboms:
+  - id: archives
+    artifacts: archive
+    documents:
+      - "{{ .ArtifactName }}.sbom.json"
+
 checksum:
   name_template: checksums.txt
 
