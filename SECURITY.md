@@ -80,8 +80,11 @@ So a report need not re-cover this ground:
   systemd credentials or a Kubernetes secret and rotated without a restart.
 - The config, the eAPI decoders and the metric renderer are fuzzed, and the
   decoders run on the poll goroutines where a panic would be fatal.
-- Released binaries carry their dependencies' licences and notices; the
-  container image runs as a non-root UID on a digest-pinned distroless base,
+- Released binaries carry their dependencies' licences and notices, and an SPDX
+  SBOM listing every module compiled in, covered by the same `checksums.txt`.
+  The images carry an SBOM and SLSA provenance as attestations, attached at
+  build time.
+- The container image runs as a non-root UID on a digest-pinned distroless base,
   with no shell and nothing writable.
 
 ## Scope

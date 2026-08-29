@@ -13,6 +13,7 @@ version: 2
 #   actionlint     1.7.12    check.yaml
 #   govulncheck    v1.7.0    check.yaml, run via go run
 #   go-licenses    v2.0.1    hack/gen-notices.sh
+#   syft           v1.51.1   release.yaml, via anchore/sbom-action
 #
 # Those are bumped by hand. That is the trade for a pinned toolchain: the
 # pinning has to be maintained, or it becomes staleness with extra steps.

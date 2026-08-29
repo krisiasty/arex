@@ -18,7 +18,13 @@ sudo install -o root -g root -m 0755 arex /usr/local/bin/arex
 arex -licenses | head -1
 ```
 
-The tarball also carries `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES` and the `deploy/` examples used below.
+The tarball also carries `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES`, and the `deploy/` and `monitoring/`
+examples used below.
+
+Each archive has an SPDX SBOM beside it on the release page —
+`arex_v0.3.0_linux_amd64.tar.gz.sbom.json` — listing every module compiled into
+that binary with its version. `checksums.txt` covers the archives **and** the
+SBOMs, so the `sha256sum --check` above verifies both.
 
 ## 2. Prepare the switch
 
