@@ -64,6 +64,8 @@ collect:
     enabled: true
   ntp:
     enabled: true
+  capacity:
+    enabled: true
   interfaces:
     enabled: true
   bgp:

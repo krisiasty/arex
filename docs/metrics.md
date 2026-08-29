@@ -183,6 +183,51 @@ is missing" is not a question these metrics can answer. `arista_ntp_synchronised
 `arista_ntp_peer_last_received_timestamp_seconds` is omitted for a peer that has never answered: EOS reports
 `-2208988800` there, the NTP epoch of 1900-01-01 in Unix seconds, which is a sentinel rather than a time.
 
+## Hardware tables
+
+From `show hardware capacity`, polled every five minutes by default. This is the blind spot with no substitute:
+when a forwarding table fills, entries are dropped rather than queued, and nothing else arex collects would say
+why traffic stopped landing.
+
+| Metric | Type | Description |
+| --- | --- | --- |
+| `arista_hardware_capacity_used` | gauge | Entries used |
+| `arista_hardware_capacity_free` | gauge | Entries free in the shared pool — see below |
+| `arista_hardware_capacity_limit` | gauge | Entries the table can hold |
+| `arista_hardware_capacity_high_watermark` | gauge | Peak used since boot |
+| `arista_hardware_capacity_info` | gauge | `shared_features`: what is consuming this row |
+
+Series carry `table`, `feature` and `chip`. All three are needed: a table appears once per feature, and
+`MMU_MCAST` appears both against a chip and with none.
+
+Utilisation is `used / limit`. EOS also reports a `usedPercent`, which arex does not export — it is truncated to a
+whole number, so a table at 0.978% reports `0` and everything below one percent looks idle.
+
+### Alert on the row, not the table
+
+The tightest row is what fails first. On a real leaf `IFP` sits at 7% overall while two of its twelve TCAM slices
+are at 37%, and an ACL that does not fit in a slice is rejected however much room the aggregate has. So the
+shipped rule evaluates every row independently rather than aggregating by `table`.
+
+### A row with an empty feature is not reliably a total
+
+For most tables it is: `EFP`, `IFP`, `VFP`, `MAC`, `Host`, `LPM` and `MPLS` all report a `feature=""` row equal to
+the sum of their feature rows. Three do not — `NextHop` reports 280 where its features sum to 281, and
+`OverlayEcmp` and `UnderlayEcmp` use the empty-feature row for a *different resource* with its own limit, members
+against groups. Nothing here is derived from anything else for that reason; every row is exported as EOS reports
+it.
+
+### `free` is the pool's, not the row's
+
+`used + free` does not equal `limit` on 15 of 75 rows, because features of one table share a pool. `Host/V6Hosts`
+reports `used: 0` against a limit of 147455 with only 147208 free — the difference went to `V4Hosts`. So `free` is
+the honest headroom for a shared pool and `limit - used` overstates it.
+
+### Row order means nothing
+
+EOS returns the rows in no stable order; captures from three switches each began with a different one. Nothing in
+arex depends on the ordering, and a test asserts that reversing the array produces identical output.
+
 ## Interfaces
 
 | Metric | Type | Description |

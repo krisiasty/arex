@@ -296,3 +296,55 @@ func (n ShowNTPAssociations) SyncSource() (NTPPeer, bool) {
 	}
 	return NTPPeer{}, false
 }
+
+// ShowHardwareCapacity maps the output of "show hardware capacity".
+//
+// Tables arrives in no particular order -- captures from three switches each
+// began with a different row -- so nothing may depend on its ordering.
+type ShowHardwareCapacity struct {
+	Tables []HardwareCapacity `json:"tables"`
+}
+
+// HardwareCapacity is one row of the hardware capacity report.
+//
+// Table alone does not identify a row: a table appears once per feature, and
+// some appear both against a chip and with none. Table, Feature and Chip
+// together are unique.
+//
+// A row with an empty Feature is usually the table's total, but not reliably:
+// NextHop reports one that is short of its features' sum, and the two Ecmp
+// tables use it for a separate resource with its own MaxLimit. Nothing here is
+// derived from anything else for that reason.
+type HardwareCapacity struct {
+	Table   string `json:"table"`
+	Feature string `json:"feature"`
+	Chip    string `json:"chip"`
+
+	Used int `json:"used"`
+
+	// Free is what remains in the pool the whole table shares, not in this
+	// row. Host/V6Hosts reports Used 0 against a MaxLimit of 147455 with only
+	// 147208 free, the difference having gone to V4Hosts -- so MaxLimit - Used
+	// overstates the headroom and Free is the number to believe.
+	Free int `json:"free"`
+
+	MaxLimit int `json:"maxLimit"`
+
+	// HighWatermark is the peak since boot. It is what makes a slow poll
+	// interval safe: a spike between two polls is still visible here.
+	HighWatermark int `json:"highWatermark"`
+
+	// UsedPercent is EOS's own utilisation, truncated to a whole number, so
+	// anything below one percent reports zero. Parsed but not exported --
+	// Used/MaxLimit says the same thing without throwing the resolution away.
+	UsedPercent int `json:"usedPercent"`
+
+	// Committed is zero in every row of every capture so far, and what it
+	// counts is unclear, so it is parsed but not exported.
+	Committed int `json:"committed"`
+
+	// SharedFeatures names what is consuming this row. The assignment differs
+	// between switches -- one leaf's VXLAN slice is another's EVPN slice -- so
+	// it is a per-switch label rather than something documentable.
+	SharedFeatures []string `json:"sharedFeatures"`
+}

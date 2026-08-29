@@ -109,7 +109,7 @@ func TestDebugRecordIsStructured(t *testing.T) {
 	}
 }
 
-// A full batch is counted, not listed: on ten commands it would be the same
+// A full batch is counted, not listed: on eleven commands it would be the same
 // list on every record, thousands of times a day.
 func TestDebugOmitsCommandListForLargeBatches(t *testing.T) {
 	buf, logger := captureLog(t)

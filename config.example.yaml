@@ -56,6 +56,8 @@ collect:
     enabled: true
   ntp:
     enabled: true
+  capacity:
+    enabled: true
   interfaces:
     enabled: true
   bgp:
@@ -92,6 +94,8 @@ switches:
       cooling:
         enabled: true
       ntp:
+        enabled: true
+      capacity:
         enabled: true
       interfaces:
         enabled: true
