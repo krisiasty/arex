@@ -142,7 +142,7 @@ func TestPerSwitchOverrideCarriesIntervals(t *testing.T) {
 	}
 }
 
-// The error names the offending key. A config listing nine groups is not
+// The error names the offending key. A config listing ten groups is not
 // helped by being told that "true" is wrong somewhere in it.
 func TestErrorNamesTheOffendingKey(t *testing.T) {
 	for _, entry := range []string{
@@ -164,5 +164,17 @@ func TestNTPDefaultsToAMinute(t *testing.T) {
 
 	if got := mods["ntp"].Interval; got != time.Minute {
 		t.Errorf("ntp interval = %v, want 1m", got)
+	}
+}
+
+// Hardware table usage moves slowly, and where it does not -- MAC learning --
+// highWatermark records the peak between polls, so a slower interval still sees
+// a spike rather than sampling past it.
+func TestCapacityDefaultsToFiveMinutes(t *testing.T) {
+	cfg := loadCollect(t, `{"capacity":{"enabled":true}}`)
+	mods := cfg.Switches[0].EffectiveCollect(cfg.Collect, cfg.PollInterval.Duration)
+
+	if got := mods["capacity"].Interval; got != 5*time.Minute {
+		t.Errorf("capacity interval = %v, want 5m", got)
 	}
 }

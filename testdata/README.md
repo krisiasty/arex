@@ -64,6 +64,41 @@ Deliberately preserved in the degraded capture, because the tests exist for them
 The synchronised capture lists one peer while the degraded one lists two, so `peers` cannot be assumed to hold
 every configured server.
 
+## show hardware capacity
+
+Nothing in this capture identifies anything, so it is stored exactly as the switch printed it. It comes from the
+most loaded of three switches sampled -- real MAC, host and next-hop counts rather than a lab-idle table of zeros,
+which would pass a test with the field names wrong and prove nothing.
+
+Preserved because the tests turn on them:
+
+- `MMU_MCAST/MmuReplHead` appears twice, once with `chip: "Linecard0/0"` and once with `chip: ""`, carrying
+  identical values. Table alone is not a key; table, feature and chip together are.
+- `NextHop` reports a `feature: ""` row of 280 where its feature rows sum to 281, and `OverlayEcmp` and
+  `UnderlayEcmp` use their empty-feature row for a different resource with its own `maxLimit`. An empty feature
+  cannot be assumed to be the table's total.
+- `Host/V6Hosts` has `used: 0` and `free: 147208` against a `maxLimit` of 147455. `free` belongs to the pool the
+  table shares, so `used + free != maxLimit` on 15 of the 75 rows.
+- `MMU_MCAST/MmuReplHead` has `highWatermark` 856 against `used` 641, the only rows in the capture where the peak
+  is meaningfully above the present value.
+- `IFP` sits at 707 of 9216 while `Slice-1` and `Slice-2` are at 287 of 768. The aggregate is not what runs out.
+- `usedPercent` is kept as EOS wrote it -- `0` for a row at 0.978% -- because a test asserts arex exports the
+  ratio instead.
+
+The row order is EOS's own and means nothing: captures from three switches each began with a different row. A
+test reverses the array and asserts the output is unchanged.
+
+`show_hardware_capacity_spine.json` is the same command from a spine in the same fabric, kept for the shapes the
+leaf cannot show:
+
+- `MAC` is entirely zero. The spine forwards for the fabric without learning addresses itself, so this is a table
+  that exists and holds nothing -- which a test distinguishes from a table that is absent.
+- `LPM/V4Routes` has `highWatermark` 7 against `used` 6, so the watermark being above the present value is not a
+  quirk of one table on one switch.
+- `NextHop` reports a rollup of 51 where its features sum to 52, the same off-by-one as the leaf's 280 against
+  281. One capture would look like a glitch; two make it the way EOS counts.
+- Its rows arrive in a third distinct order.
+
 ## Synthetic additions
 
 Everything is real capture except the following, which cover cases the sampled switch could not

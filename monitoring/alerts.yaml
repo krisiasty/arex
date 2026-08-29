@@ -270,3 +270,22 @@ groups:
           severity: warning
         annotations:
           summary: "{{ $labels.switch }}: clock is more than 100ms from its NTP source"
+
+      - alert: SwitchHardwareTableFilling
+        # Deliberately unaggregated. The tightest row is what fails first: an
+        # ACL that does not fit in one TCAM slice is rejected even though the
+        # aggregate table has plenty of room, and on a real leaf the aggregate
+        # sits at 7% while two of its slices are at 37%.
+        #
+        # The limit guard keeps a table reporting a zero limit -- none seen so
+        # far, but the division is the whole rule -- from firing on +Inf.
+        expr: |
+          arista_hardware_capacity_used / arista_hardware_capacity_limit > 0.8
+          and arista_hardware_capacity_limit > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.switch }}: hardware table {{ $labels.table }} {{ $labels.feature }} is over 80% full"
+          description: >-
+            Forwarding entries are dropped, not queued, once a table is full.

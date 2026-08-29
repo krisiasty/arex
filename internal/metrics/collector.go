@@ -4,6 +4,7 @@ package metrics
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -212,6 +213,9 @@ func (c *Collector) collectSwitch(ch chan<- prometheus.Metric, sw *collector.Swi
 	}
 	if c.wants("ntp") && fresh(collector.CmdNTPAssociations) {
 		collectNTP(ch, label, sw.NTP)
+	}
+	if c.wants("capacity") && fresh(collector.CmdHardwareCapacity) {
+		collectCapacity(ch, label, sw.Capacity)
 	}
 	if c.wants("interfaces") && fresh(collector.CmdInterfaces) {
 		c.collectInterfaces(ch, label, sw.Interfaces)
@@ -445,6 +449,31 @@ func (c *Collector) collectInterfaces(ch chan<- prometheus.Metric, label string,
 		setTime(ch, "arista_interface_last_counter_clear_timestamp_seconds", c.LastClear, label, name)
 		setTime(ch, "arista_interface_counter_refresh_timestamp_seconds", c.CounterRefreshTime, label, name)
 		setTime(ch, "arista_interface_last_status_change_timestamp_seconds", iface.LastStatusChangeTimestamp, label, name)
+	}
+}
+
+// collectCapacity emits the hardware table usage report.
+//
+// Every row goes out as EOS reports it. A row with an empty feature is usually
+// the table's total, but NextHop's is short of its features' sum and the Ecmp
+// tables use it for a separate resource with its own limit, so deriving one row
+// from another would be wrong for exactly the tables where it mattered.
+//
+// usedPercent and committed are deliberately not emitted; see their fields.
+func collectCapacity(ch chan<- prometheus.Metric, label string, h eapi.ShowHardwareCapacity) {
+	for _, r := range h.Tables {
+		set(ch, "arista_hardware_capacity_used", float64(r.Used), label, r.Table, r.Feature, r.Chip)
+		set(ch, "arista_hardware_capacity_free", float64(r.Free), label, r.Table, r.Feature, r.Chip)
+		set(ch, "arista_hardware_capacity_limit", float64(r.MaxLimit), label, r.Table, r.Feature, r.Chip)
+		set(ch, "arista_hardware_capacity_high_watermark", float64(r.HighWatermark),
+			label, r.Table, r.Feature, r.Chip)
+
+		// Most rows share nothing, and a series whose only label is empty
+		// answers no question worth the cardinality.
+		if len(r.SharedFeatures) > 0 {
+			set(ch, "arista_hardware_capacity_info", 1,
+				label, r.Table, r.Feature, r.Chip, strings.Join(r.SharedFeatures, ","))
+		}
 	}
 }
 

@@ -38,9 +38,12 @@ type ModuleConfig struct {
 // localise a problem once you know there is one, while its error counters sit
 // unchanged for months. ntp is bounded by ntpd itself: it polls its own
 // upstream every 64 seconds at the fastest, so anything quicker re-reads
-// numbers that cannot have moved.
+// numbers that cannot have moved. capacity is slow-moving too, and its
+// highWatermark records the peak between polls, so a longer interval still
+// sees a spike a plain gauge would have missed.
 var defaultModuleInterval = map[string]time.Duration{
 	"ntp":         time.Minute,
+	"capacity":    5 * time.Minute,
 	"transceiver": 5 * time.Minute,
 	"phy":         15 * time.Minute,
 }
@@ -51,7 +54,7 @@ type CollectSet map[string]ModuleConfig
 // UnmarshalJSON decodes the entries itself so an error can name the key that
 // caused it. encoding/json does not add field context to errors returned by a
 // value's own UnmarshalJSON, and "collect entry true is wrong" is no help in a
-// block listing nine groups.
+// block listing ten groups.
 func (c *CollectSet) UnmarshalJSON(b []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(b, &raw); err != nil {

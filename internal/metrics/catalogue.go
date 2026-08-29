@@ -25,6 +25,8 @@ var (
 	lIfaceInfo   = []string{"switch", "interface", "description", "membership", "mtu"}
 	lIfaceCast   = []string{"switch", "interface", "cast"}
 	lIfaceCause  = []string{"switch", "interface", "cause"}
+	lCapacity    = []string{"switch", "table", "feature", "chip"}
+	lCapacityInf = []string{"switch", "table", "feature", "chip", "shared_features"}
 	lNTPPeer     = []string{"switch", "peer"}
 	lNTPPeerInfo = []string{"switch", "peer", "refid", "peer_type"}
 	lPeer        = []string{"switch", "vrf", "peer", "asn"}
@@ -93,6 +95,11 @@ var metricDefs = []metricDef{
 	{"arista_fan_speed_configured_percent", "gauge", "Configured fan speed as a percentage", lFan},
 	{"arista_fan_speed_max_rpm", "gauge", "Fan maximum speed in RPM", lFan},
 	{"arista_fan_speed_stable", "gauge", "1 if fan speed has stabilised", lFan},
+	{"arista_hardware_capacity_free", "gauge", "Entries free in the pool this table shares; not limit minus used, which overstates a shared pool", lCapacity},
+	{"arista_hardware_capacity_high_watermark", "gauge", "Peak entries used since boot, so a spike between polls is still visible", lCapacity},
+	{"arista_hardware_capacity_info", "gauge", "What is consuming this row, as EOS's shared feature list. Always 1", lCapacityInf},
+	{"arista_hardware_capacity_limit", "gauge", "Entries this table can hold", lCapacity},
+	{"arista_hardware_capacity_used", "gauge", "Entries used", lCapacity},
 	{"arista_info", "gauge", "Switch identity labels. Always 1", lInfo},
 	{"arista_interface_counter_refresh_timestamp_seconds", "gauge", "Unix timestamp counters were last refreshed by EOS", lIface},
 	{"arista_interface_in_discards_total", "counter", "Inbound discards", lIface},
