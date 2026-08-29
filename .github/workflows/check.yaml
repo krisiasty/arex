@@ -54,6 +54,14 @@ jobs:
           git diff --exit-code -- internal/legal/THIRD_PARTY_NOTICES
           git ls-files --error-unmatch internal/legal/THIRD_PARTY_NOTICES
 
+      # The per-consumer rule files are generated from monitoring/alerts.yaml.
+      # Editing one of them directly would work until the next regeneration
+      # silently reverted it.
+      - name: monitoring rules are current
+        run: |
+          ./hack/gen-monitoring.sh
+          git diff --exit-code -- monitoring/
+
       - name: shellcheck
         run: shellcheck hack/*.sh
 
