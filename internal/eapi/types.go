@@ -1,5 +1,10 @@
 package eapi
 
+import (
+	"maps"
+	"slices"
+)
+
 // ShowVersion maps the output of "show version".
 type ShowVersion struct {
 	MfgName          string  `json:"mfgName"`
@@ -224,4 +229,70 @@ type BGPPeer struct {
 	PrefixAdvertised int     `json:"prefixAdvertised"`
 	UnderMaintenance bool    `json:"underMaintenance"`
 	UpDownTime       float64 `json:"upDownTime"`
+}
+
+// ShowNTPAssociations maps the output of "show ntp associations".
+//
+// Peers is keyed by server address. It tracks ntpd's associations rather than
+// the running configuration, so a configured server is not guaranteed to have
+// an entry — which is why synchronisation is judged by the presence of a
+// selected peer and not by counting entries here.
+type ShowNTPAssociations struct {
+	Peers map[string]NTPPeer `json:"peers"`
+}
+
+// NTPPeer is one NTP association.
+//
+// Delay, Offset and Jitter are milliseconds, as ntpq reports them. They are
+// only meaningful for a peer that has actually answered: a server that has
+// never responded reports all three as zero, which reads exactly like a
+// perfectly disciplined clock.
+type NTPPeer struct {
+	// Condition is ntpd's tally code: "sys.peer" for the source the clock is
+	// being steered to, "candidate", "reject" and so on for the rest.
+	Condition    string `json:"condition"`
+	PeerIPAddr   string `json:"peerIpAddr"`
+	RefID        string `json:"refid"`
+	StratumLevel int    `json:"stratumLevel"` // 16 means the peer is itself unsynchronised
+	PeerType     string `json:"peerType"`
+
+	// LastReceived is -2208988800 -- the NTP epoch of 1900-01-01, in Unix
+	// seconds -- for a peer that has never answered.
+	LastReceived float64 `json:"lastReceived"`
+	PollInterval int     `json:"pollInterval"` // seconds
+
+	// ReachabilityHistory is ntpd's reach register as eight booleans, one per
+	// recent poll. Whether index 0 is the oldest or the newest is not
+	// something EOS documents, so only the count is used.
+	ReachabilityHistory []bool `json:"reachabilityHistory"`
+
+	Delay  float64 `json:"delay"`
+	Offset float64 `json:"offset"`
+	Jitter float64 `json:"jitter"`
+}
+
+// Selected reports whether the clock is being steered to this peer.
+func (p NTPPeer) Selected() bool { return p.Condition == "sys.peer" }
+
+// ReachableSamples counts the successful polls in the reachability register.
+func (p NTPPeer) ReachableSamples() int {
+	n := 0
+	for _, ok := range p.ReachabilityHistory {
+		if ok {
+			n++
+		}
+	}
+	return n
+}
+
+// SyncSource returns the peer the clock is being steered to, if any. Its
+// absence is what "unsynchronised" means: ntpd elects exactly one sys.peer,
+// and reports none while it has no source it trusts.
+func (n ShowNTPAssociations) SyncSource() (NTPPeer, bool) {
+	for _, addr := range slices.Sorted(maps.Keys(n.Peers)) {
+		if p := n.Peers[addr]; p.Selected() {
+			return p, true
+		}
+	}
+	return NTPPeer{}, false
 }

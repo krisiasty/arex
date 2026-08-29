@@ -13,6 +13,7 @@ Identifiers were replaced consistently across every file. Shapes were not change
 | chassis serial | `ABC1234567X` |
 | MAC addresses | `00:1c:73:00:00:0N` |
 | management address | `192.0.2.33` |
+| NTP servers | `192.0.2.36`, `192.0.2.37` |
 | underlay peers | `198.51.100.10`, `198.51.100.11` |
 | transit peers | `203.0.113.164`, `203.0.113.168` |
 | transit ASN | `64500` |
@@ -36,6 +37,32 @@ Deliberately preserved because tests depend on them:
   same optic reports it unpadded in `show_interfaces_transceiver_detail.json`.
 - `lowFrequncyPeakingFilter` keeps EOS's spelling of "Frequncy".
 - `pidDriverStats` keeps `1.3618325534300776e-232`.
+
+## The two NTP captures
+
+`show ntp associations` is captured twice, because the interesting failures are only visible in the degraded one.
+
+- `show_ntp_associations_synced.json` — one peer, `condition: sys.peer`, reach register full.
+- `show_ntp_associations.json` — the same switch minutes later, having lost sync, plus a second configured server
+  that has never answered. This is the primary fixture: the golden exposition is rendered from it.
+
+Deliberately preserved in the degraded capture, because the tests exist for them:
+
+- `lastReceived: -2208988800.0` on the peer that never answered. That is the NTP epoch, 1900-01-01, in Unix
+  seconds — EOS's "never", not a time. Exported literally it is a timestamp 126 years old.
+- `delay: 0.0` and `offset: 0.0` on that same peer. A server that has never exchanged a packet reports a perfect
+  zero offset, which is indistinguishable from a flawlessly disciplined clock and is why the headline offset
+  series is emitted only for the selected peer.
+- `stratumLevel: 16` and `refid: ".INIT."`, NTP's sentinels for "unsynchronised" and "no packet has ever
+  returned".
+- `jitter: 0.000119` on a peer with no measurements at all, against `jitter: 0.0` on the one that has some. The
+  values are not ordered the way intuition suggests.
+- The reach register `[false × 7, true]`, a peer with exactly one recent success. Only the count is exported, so
+  the test does not depend on whether index 0 is the oldest sample or the newest — which these captures do not
+  settle.
+
+The synchronised capture lists one peer while the degraded one lists two, so `peers` cannot be assumed to hold
+every configured server.
 
 ## Synthetic additions
 

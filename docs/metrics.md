@@ -133,6 +133,56 @@ reports a short window, and consecutive samples on an idle switch have been obse
 Sensor series carry `sensor`, `description` and `position` labels; `position` is `inlet`, `outlet` or `other`.
 Thresholds come from the sensor itself, so alerts need no hardcoded limits.
 
+## Clock
+
+From `show ntp associations`, polled every minute by default. `show ntp status` is not issued: everything it
+reports beyond a bare `synchronised`/`unsynchronised` string disappears from the JSON the moment the switch is
+unsynchronised, and the same state is derivable here from the selected peer.
+
+This matters more than it looks. Every timestamp arex exports — boot time, last counter clear, last link
+transition, DOM refresh, PSU and fan boot times — is dated by the switch's own clock. If that clock drifts, those
+timestamps quietly become wrong, and no other metric reports it.
+
+| Metric | Type | Description |
+| --- | --- | --- |
+| `arista_ntp_synchronised` | gauge | 1 if the switch has selected an NTP source |
+| `arista_ntp_offset_seconds` | gauge | Offset from the selected source — **alert on this** |
+| `arista_ntp_peer_info` | gauge | `refid` and `peer_type` labels |
+| `arista_ntp_peer_selected` | gauge | 1 if the clock is being steered to this peer |
+| `arista_ntp_peer_offset_seconds` | gauge | Offset this peer reports |
+| `arista_ntp_peer_delay_seconds` | gauge | Round-trip delay to the peer |
+| `arista_ntp_peer_jitter_seconds` | gauge | Dispersion of recent offset measurements |
+| `arista_ntp_peer_stratum` | gauge | Stratum the peer reports; 16 means the peer is itself unsynchronised |
+| `arista_ntp_peer_poll_interval_seconds` | gauge | How often the switch polls this peer |
+| `arista_ntp_peer_reachable_samples` | gauge | Successful polls in the last 8 attempts, 0–8 |
+| `arista_ntp_peer_last_received_timestamp_seconds` | gauge | Last reply from this peer |
+
+Per-peer series carry a `peer` label. EOS reports delay, offset and jitter in milliseconds; arex converts them to
+seconds.
+
+### Why the offset series has no peer label
+
+`arista_ntp_offset_seconds` is the offset of the selected peer only, and it is absent entirely while the switch is
+unsynchronised. That is deliberate, and it is the one thing to understand about this module.
+
+A server that has never answered reports `offset: 0.0`, `delay: 0.0` and a stratum of 16 — its offset is not a
+measurement, it is a placeholder. So a rule of the form `abs(arista_ntp_peer_offset_seconds) > 0.1` reads a
+completely dead NTP server as the healthiest clock in the fleet. Alert on `arista_ntp_offset_seconds`, which only
+exists when there is something real to measure, and use `arista_ntp_synchronised == 0` to catch its absence.
+
+The per-peer offsets are still exported, because watching a peer's offset settle is how you tell a recovering
+server from a dead one. Gate any rule on them with `arista_ntp_peer_reachable_samples` or
+`arista_ntp_peer_selected`.
+
+### Peers come and go
+
+`peers` reflects ntpd's associations, not the running configuration. A configured server is not guaranteed to have
+an entry, so the disappearance of a peer's series is not by itself evidence of anything — and "a configured server
+is missing" is not a question these metrics can answer. `arista_ntp_synchronised` is the reliable signal.
+
+`arista_ntp_peer_last_received_timestamp_seconds` is omitted for a peer that has never answered: EOS reports
+`-2208988800` there, the NTP epoch of 1900-01-01 in Unix seconds, which is a sentinel rather than a time.
+
 ## Interfaces
 
 | Metric | Type | Description |

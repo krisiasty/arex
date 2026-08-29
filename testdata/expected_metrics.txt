@@ -52,6 +52,7 @@ arista_command_success{command="show interfaces",switch="sw1"} 1
 arista_command_success{command="show interfaces phy detail",switch="sw1"} 1
 arista_command_success{command="show interfaces transceiver detail",switch="sw1"} 1
 arista_command_success{command="show ip bgp summary vrf all",switch="sw1"} 1
+arista_command_success{command="show ntp associations",switch="sw1"} 1
 arista_command_success{command="show processes top once",switch="sw1"} 1
 arista_command_success{command="show system environment cooling",switch="sw1"} 1
 arista_command_success{command="show system environment power",switch="sw1"} 1
@@ -306,6 +307,44 @@ arista_memory_total_bytes{switch="sw1"} 1.6671453184e+10
 # HELP arista_memory_used_bytes Memory in use
 # TYPE arista_memory_used_bytes gauge
 arista_memory_used_bytes{switch="sw1"} 3.686059008e+09
+# HELP arista_ntp_peer_delay_seconds Round-trip delay to the NTP peer
+# TYPE arista_ntp_peer_delay_seconds gauge
+arista_ntp_peer_delay_seconds{peer="192.0.2.36",switch="sw1"} 0.00032375199999999996
+arista_ntp_peer_delay_seconds{peer="192.0.2.37",switch="sw1"} 0
+# HELP arista_ntp_peer_info NTP peer reference id and association type. Always 1
+# TYPE arista_ntp_peer_info gauge
+arista_ntp_peer_info{peer="192.0.2.36",peer_type="unicast",refid="GPS",switch="sw1"} 1
+arista_ntp_peer_info{peer="192.0.2.37",peer_type="unicast",refid=".INIT.",switch="sw1"} 1
+# HELP arista_ntp_peer_jitter_seconds Dispersion of recent offset measurements for the NTP peer
+# TYPE arista_ntp_peer_jitter_seconds gauge
+arista_ntp_peer_jitter_seconds{peer="192.0.2.36",switch="sw1"} 0
+arista_ntp_peer_jitter_seconds{peer="192.0.2.37",switch="sw1"} 1.1900000000000001e-07
+# HELP arista_ntp_peer_last_received_timestamp_seconds Unix timestamp of the last reply from the NTP peer; absent if it has never answered
+# TYPE arista_ntp_peer_last_received_timestamp_seconds gauge
+arista_ntp_peer_last_received_timestamp_seconds{peer="192.0.2.36",switch="sw1"} 1.7880268024444194e+09
+# HELP arista_ntp_peer_offset_seconds Clock offset the NTP peer reports; only meaningful where the peer is reachable
+# TYPE arista_ntp_peer_offset_seconds gauge
+arista_ntp_peer_offset_seconds{peer="192.0.2.36",switch="sw1"} 0.00014905299999999998
+arista_ntp_peer_offset_seconds{peer="192.0.2.37",switch="sw1"} 0
+# HELP arista_ntp_peer_poll_interval_seconds How often the switch polls this NTP peer; ntpd shortens it while hunting for a source
+# TYPE arista_ntp_peer_poll_interval_seconds gauge
+arista_ntp_peer_poll_interval_seconds{peer="192.0.2.36",switch="sw1"} 64
+arista_ntp_peer_poll_interval_seconds{peer="192.0.2.37",switch="sw1"} 64
+# HELP arista_ntp_peer_reachable_samples Successful polls in the last 8 attempts on this NTP peer
+# TYPE arista_ntp_peer_reachable_samples gauge
+arista_ntp_peer_reachable_samples{peer="192.0.2.36",switch="sw1"} 1
+arista_ntp_peer_reachable_samples{peer="192.0.2.37",switch="sw1"} 0
+# HELP arista_ntp_peer_selected 1 if the clock is being steered to this NTP peer
+# TYPE arista_ntp_peer_selected gauge
+arista_ntp_peer_selected{peer="192.0.2.36",switch="sw1"} 0
+arista_ntp_peer_selected{peer="192.0.2.37",switch="sw1"} 0
+# HELP arista_ntp_peer_stratum Stratum the NTP peer reports; 16 means the peer is itself unsynchronised
+# TYPE arista_ntp_peer_stratum gauge
+arista_ntp_peer_stratum{peer="192.0.2.36",switch="sw1"} 1
+arista_ntp_peer_stratum{peer="192.0.2.37",switch="sw1"} 16
+# HELP arista_ntp_synchronised 1 if the switch has selected an NTP source; every timestamp it reports is dated by this clock
+# TYPE arista_ntp_synchronised gauge
+arista_ntp_synchronised{switch="sw1"} 0
 # HELP arista_phy_fec_alignment_lock 1 if FEC alignment lock is achieved; absent on links without FEC
 # TYPE arista_phy_fec_alignment_lock gauge
 arista_phy_fec_alignment_lock{interface="Ethernet29/1",phy="line",switch="sw1"} 1

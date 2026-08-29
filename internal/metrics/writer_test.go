@@ -30,6 +30,7 @@ var fixtureFile = map[string]string{
 	"show system environment temperature": "show_system_environment_temperature.json",
 	"show system environment power":       "show_system_environment_power.json",
 	"show system environment cooling":     "show_system_environment_cooling.json",
+	"show ntp associations":               "show_ntp_associations.json",
 	"show interfaces":                     "show_interfaces.json",
 	"show ip bgp summary vrf all":         "show_ip_bgp_summary_vrf_all.json",
 	"show interfaces transceiver detail":  "show_interfaces_transceiver_detail.json",

@@ -80,6 +80,7 @@ type SwitchData struct {
 	EnvTemp    eapi.ShowEnvironmentTemp
 	EnvPower   eapi.ShowEnvironmentPower
 	EnvCooling eapi.ShowEnvironmentCooling
+	NTP        eapi.ShowNTPAssociations
 	Interfaces eapi.ShowInterfaces
 	BGPSummary eapi.ShowBGPSummary
 	Optics     eapi.ShowTransceiverDetail
@@ -230,6 +231,7 @@ type snapshot struct {
 	envTemp    eapi.ShowEnvironmentTemp
 	envPower   eapi.ShowEnvironmentPower
 	envCooling eapi.ShowEnvironmentCooling
+	ntp        eapi.ShowNTPAssociations
 	interfaces eapi.ShowInterfaces
 	bgp        eapi.ShowBGPSummary
 	optics     eapi.ShowTransceiverDetail
@@ -259,15 +261,16 @@ type cmdSpec struct {
 // The CLI commands arex issues. Exported so the writer can decide, per
 // command, whether that command's data is still fresh enough to publish.
 const (
-	CmdVersion      = "show version"
-	CmdProcessesTop = "show processes top once"
-	CmdEnvTemp      = "show system environment temperature"
-	CmdEnvPower     = "show system environment power"
-	CmdEnvCooling   = "show system environment cooling"
-	CmdInterfaces   = "show interfaces"
-	CmdBGPSummary   = "show ip bgp summary vrf all"
-	CmdTransceivers = "show interfaces transceiver detail"
-	CmdPhy          = "show interfaces phy detail"
+	CmdVersion         = "show version"
+	CmdProcessesTop    = "show processes top once"
+	CmdEnvTemp         = "show system environment temperature"
+	CmdEnvPower        = "show system environment power"
+	CmdEnvCooling      = "show system environment cooling"
+	CmdNTPAssociations = "show ntp associations" //nolint:gosec // G101 matches the "pass" inside "NTPAssociations"
+	CmdInterfaces      = "show interfaces"
+	CmdBGPSummary      = "show ip bgp summary vrf all"
+	CmdTransceivers    = "show interfaces transceiver detail"
+	CmdPhy             = "show interfaces phy detail"
 )
 
 // versionCommand is collected unconditionally: arista_info is the identity
@@ -302,6 +305,11 @@ var optionalCommands = map[string]cmdSpec{
 		into:  func(s *snapshot) any { return &s.envCooling },
 		apply: func(s *snapshot, d *SwitchData) { d.EnvCooling = s.envCooling },
 	},
+	"ntp": {
+		name: CmdNTPAssociations, cli: CmdNTPAssociations,
+		into:  func(s *snapshot) any { return &s.ntp },
+		apply: func(s *snapshot, d *SwitchData) { d.NTP = s.ntp },
+	},
 	"interfaces": {
 		name: CmdInterfaces, cli: CmdInterfaces,
 		into:  func(s *snapshot) any { return &s.interfaces },
@@ -327,7 +335,7 @@ var optionalCommands = map[string]cmdSpec{
 // commandOrder fixes the sequence commands are issued in, so /metrics output
 // and log lines are stable rather than following Go map iteration.
 var commandOrder = []string{
-	"processes", "temperature", "power", "cooling",
+	"processes", "temperature", "power", "cooling", "ntp",
 	"interfaces", "bgp", "transceiver", "phy",
 }
 

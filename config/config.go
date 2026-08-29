@@ -361,7 +361,7 @@ const ReservedTarget = "internal"
 // it is always collected, being the identity metric everything else joins
 // against.
 var CollectKeys = []string{
-	"processes", "temperature", "power", "cooling",
+	"processes", "temperature", "power", "cooling", "ntp",
 	"interfaces", "bgp", "transceiver", "phy",
 }
 

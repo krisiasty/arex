@@ -245,3 +245,33 @@ spec:
             summary: "{{ $labels.switch }}: less than 10% of memory available"
             description: >-
               Available, not free. Low free memory is normal; low available is not.
+  
+        - alert: SwitchClockUnsynchronised
+          # Every timestamp arex exports -- boot time, last counter clear, last
+          # link transition -- is dated by this clock. When it is not being
+          # disciplined, those timestamps quietly stop meaning anything, and
+          # nothing else reports it.
+          #
+          # 15m because ntpd re-elects its source routinely and a brief gap is
+          # not actionable; a quarter of an hour without one is.
+          expr: arista_ntp_synchronised == 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.switch }}: clock is not synchronised to any NTP source"
+  
+        - alert: SwitchClockOffsetHigh
+          # Deliberately on the unlabelled series rather than the per-peer one:
+          # arista_ntp_peer_offset_seconds is 0.0 for a server that has never
+          # answered, so a rule on it reads a dead peer as a flawless clock.
+          # arista_ntp_offset_seconds exists only while a source is selected.
+          #
+          # 100ms is far above a healthy LAN, where the measured offset sits
+          # around a quarter of a millisecond.
+          expr: abs(arista_ntp_offset_seconds) > 0.1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.switch }}: clock is more than 100ms from its NTP source"

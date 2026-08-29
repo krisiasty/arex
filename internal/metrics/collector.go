@@ -138,8 +138,10 @@ func setBool(ch chan<- prometheus.Metric, name string, b bool, labelValues ...st
 	set(ch, name, v, labelValues...)
 }
 
-// setTime emits an epoch, skipping the zero EOS uses for "never". A zero
-// would read as 1970 and fire every age-based alert at once.
+// setTime emits an epoch, skipping the values EOS uses for "never": zero in
+// most output, and -2208988800 -- the NTP epoch of 1900-01-01 -- for an NTP
+// peer that has never answered. Either would read as a real timestamp decades
+// in the past and fire every age-based alert at once.
 func setTime(ch chan<- prometheus.Metric, name string, epoch float64, labelValues ...string) {
 	if epoch <= 0 {
 		return
@@ -207,6 +209,9 @@ func (c *Collector) collectSwitch(ch chan<- prometheus.Metric, sw *collector.Swi
 	}
 	if c.wants("cooling") && fresh(collector.CmdEnvCooling) {
 		collectCooling(ch, label, sw.EnvCooling)
+	}
+	if c.wants("ntp") && fresh(collector.CmdNTPAssociations) {
+		collectNTP(ch, label, sw.NTP)
 	}
 	if c.wants("interfaces") && fresh(collector.CmdInterfaces) {
 		c.collectInterfaces(ch, label, sw.Interfaces)
@@ -440,6 +445,40 @@ func (c *Collector) collectInterfaces(ch chan<- prometheus.Metric, label string,
 		setTime(ch, "arista_interface_last_counter_clear_timestamp_seconds", c.LastClear, label, name)
 		setTime(ch, "arista_interface_counter_refresh_timestamp_seconds", c.CounterRefreshTime, label, name)
 		setTime(ch, "arista_interface_last_status_change_timestamp_seconds", iface.LastStatusChangeTimestamp, label, name)
+	}
+}
+
+// msToSeconds converts the millisecond timings EOS reports for NTP into the
+// base units Prometheus expects.
+func msToSeconds(ms float64) float64 { return ms / 1000 }
+
+// collectNTP emits NTP association state.
+//
+// arista_ntp_offset_seconds is emitted only while a source is selected, which
+// is the whole point of having it: a peer that has never answered reports an
+// offset of 0.0, indistinguishable from a flawlessly disciplined clock. The
+// per-peer offsets are emitted regardless, because suppressing them would hide
+// a peer's recovery, but an alert on those has to be gated on
+// arista_ntp_peer_reachable_samples or arista_ntp_peer_selected.
+func collectNTP(ch chan<- prometheus.Metric, label string, n eapi.ShowNTPAssociations) {
+	sel, synced := n.SyncSource()
+	setBool(ch, "arista_ntp_synchronised", synced, label)
+	if synced {
+		set(ch, "arista_ntp_offset_seconds", msToSeconds(sel.Offset), label)
+	}
+
+	for peer, p := range n.Peers {
+		set(ch, "arista_ntp_peer_info", 1, label, peer, p.RefID, p.PeerType)
+		setBool(ch, "arista_ntp_peer_selected", p.Selected(), label, peer)
+		set(ch, "arista_ntp_peer_stratum", float64(p.StratumLevel), label, peer)
+		set(ch, "arista_ntp_peer_poll_interval_seconds", float64(p.PollInterval), label, peer)
+		set(ch, "arista_ntp_peer_reachable_samples", float64(p.ReachableSamples()), label, peer)
+
+		set(ch, "arista_ntp_peer_offset_seconds", msToSeconds(p.Offset), label, peer)
+		set(ch, "arista_ntp_peer_delay_seconds", msToSeconds(p.Delay), label, peer)
+		set(ch, "arista_ntp_peer_jitter_seconds", msToSeconds(p.Jitter), label, peer)
+
+		setTime(ch, "arista_ntp_peer_last_received_timestamp_seconds", p.LastReceived, label, peer)
 	}
 }
 
