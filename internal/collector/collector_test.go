@@ -149,6 +149,29 @@ func TestTransportFailureIsAScrapeError(t *testing.T) {
 	}
 }
 
+// The recorded error is the cause on its own. It is logged under the message
+// "collection failed" and served from the status page under a field that
+// already says which switch failed, so prefixing it here produced
+// "collection failed: collection failed: ..." in the log line.
+func TestScrapeErrorDoesNotRepeatItself(t *testing.T) {
+	f := newFake()
+	f.allErr = errors.New("10.0.0.1 refused the connection on TCP 443")
+
+	data := &SwitchData{Label: "sw1"}
+	Collect(f, data)
+
+	data.RLock()
+	defer data.RUnlock()
+	if got := data.ScrapeErr.Error(); got != f.allErr.Error() {
+		t.Errorf("ScrapeErr = %q, want %q", got, f.allErr)
+	}
+	for name, err := range data.CommandErrors {
+		if err.Error() != f.allErr.Error() {
+			t.Errorf("CommandErrors[%s] = %q, want %q", name, err, f.allErr)
+		}
+	}
+}
+
 // A malformed body for one command must not discard the others either.
 func TestUnparseableCommandIsIsolated(t *testing.T) {
 	f := newFake()

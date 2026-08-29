@@ -242,7 +242,7 @@ func (c *Client) attempt(cmds []string) ([]json.RawMessage, error) {
 	if err != nil {
 		rl.err = err
 		outcome = OutcomeTransportError
-		return nil, fmt.Errorf("http request: %w", err)
+		return nil, transportError(err, c.httpClient.Timeout)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
