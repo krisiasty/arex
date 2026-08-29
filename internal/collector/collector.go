@@ -433,7 +433,7 @@ func collect(client Runner, data *SwitchData, specs []cmdSpec, now time.Time) {
 	if err != nil && !worthRetryingIndividually(err) {
 		// The switch is unreachable or refusing us outright. Retrying each
 		// command would multiply the timeout by the command count for nothing.
-		setError(data, specs, fmt.Errorf("collection failed: %w", err))
+		setError(data, specs, err)
 		return
 	}
 	if err != nil {
@@ -478,7 +478,7 @@ func collect(client Runner, data *SwitchData, specs []cmdSpec, now time.Time) {
 		if reason == nil {
 			reason = errors.New("no command returned usable output")
 		}
-		setError(data, specs, fmt.Errorf("collection failed: %w", reason))
+		setError(data, specs, reason)
 		return
 	}
 

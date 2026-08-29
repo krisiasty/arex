@@ -181,6 +181,33 @@ could not be parsed by anything downstream, and the per-request output is only w
  "go_version":"go1.27.0","switches":3,"poll_interval":"30s","staleness_limit":"90s","debug":false}
 ```
 
+### When a switch cannot be reached
+
+A poll that collects nothing is logged at `ERROR` under `collection failed`, with the cause in `detail` and the
+switch in `switch`. The cause names what happened and what to check, rather than repeating the Go error:
+
+```json
+{"time":"2026-08-29T11:59:56.120Z","level":"ERROR","msg":"collection failed",
+ "switch":"sw146-frontend-leaf-1",
+ "detail":"no response from 10.0.0.1 within 10s: check routing and firewall rules to TCP 443,
+ and that the switch is reachable from this host"}
+```
+
+| Cause | Usually means |
+| --- | --- |
+| `no response from <host> within <timeout>` | Packets are being dropped — a firewall, an ACL, or no return path. A refusal would be immediate. |
+| `<host> refused the connection on TCP <port>` | Reached the switch, nothing listening. Check `management api http-commands` is enabled in the management VRF. |
+| `no route to <host>` | Routing on this host, or the management VRF has no path. |
+| `cannot resolve "<name>"` | DNS. Configuring the switch by address avoids the dependency. |
+| `<host> presented a certificate we do not trust` | Set `caFile` to the signing CA, or `pinnedCertSha256` to the certificate. See [TLS](tls.md). |
+| `the certificate presented by <host> has expired` | Renew the switch's eAPI certificate. |
+| `the certificate presented by <host> is for a different name` | The certificate does not cover the name used to connect. |
+| `<host> closed the connection before responding` | The switch accepted the request and then dropped it. |
+| `<host> closed the connection it was holding open` | A keep-alive connection was closed between polls. Harmless once; if it repeats, look for an idle timeout. |
+
+The underlying Go error is kept but not printed — `-debug` logs it verbatim alongside the request, which is where
+to look when a message is not enough.
+
 ## Shutdown
 
 arex stops cleanly on `SIGINT` or `SIGTERM`: pollers stop, and the HTTP server is given up to five seconds to
