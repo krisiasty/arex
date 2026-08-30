@@ -1,0 +1,101 @@
+{
+    "interfaces": {
+        "Vxlan1": {
+            "name": "Vxlan1",
+            "forwardingModel": "bridged",
+            "lineProtocolStatus": "up",
+            "interfaceStatus": "connected",
+            "hardware": "vxlan",
+            "interfaceAddress": [],
+            "description": "",
+            "bandwidth": 0,
+            "mtu": 0,
+            "l3MtuConfigured": false,
+            "l2Mru": 0,
+            "vniInDottedNotation": false,
+            "srcIpIntf": "Loopback0",
+            "srcIpAddr": "192.0.2.201",
+            "udpPort": 4789,
+            "secUdpPort": 4790,
+            "mcastGrpDecap": "",
+            "vlanToVniMap": {
+                "205": {
+                    "vni": 20205,
+                    "source": ""
+                },
+                "206": {
+                    "vni": 20206,
+                    "source": ""
+                },
+                "3901": {
+                    "vni": 6000101,
+                    "source": "evpn"
+                }
+            },
+            "vlanToVtepList": {
+                "205": {
+                    "remoteVtepAddr": [
+                        "192.0.2.202"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "206": {
+                    "remoteVtepAddr": [
+                        "192.0.2.202"
+                    ],
+                    "remoteVtepAddr6": []
+                }
+            },
+            "staticFloodlists": false,
+            "replicationMode": "headendVcs",
+            "vlanToLearnRestrict": {
+                "205": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "206": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "3901": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                }
+            },
+            "vrfToVniMap": {
+                "TENANT_STORAGE": 6000101
+            },
+            "decapVniToVrfMap": {},
+            "dataPathLearningMode": false,
+            "controllerClientMode": false,
+            "controllerControlPlane": true,
+            "vccImportVlan": "",
+            "vccArpProxy": false,
+            "vccNdProxy": false,
+            "vxlanArpProxy": false,
+            "vxlanNdProxy": false,
+            "arpReplyRelayMode": false,
+            "arpLocalAddress": false,
+            "portDot1qVniMapping": false,
+            "mlagSharedRouterMacAddr": "00:00:00:00:00:00",
+            "vtepAddrMask": "255.255.255.255",
+            "use32BitVni": false,
+            "vtepToVtepBridging": false,
+            "vtepSetForSourcePruning": [],
+            "vtepSourcePruningAll": false,
+            "decapFilterMode": "filterEnabled",
+            "decapFilterIntf": [],
+            "decapRouteAll": false,
+            "mcastRouting": false,
+            "vxlanEncapsulation": "ipv4",
+            "vArpVtepSrcIpIntf": "",
+            "floodLearnedAll": false,
+            "vtepToSecProfileTotal": 0,
+            "bfdPrefixList": "",
+            "remoteVxlanDomain": false,
+            "tcpMssV4": 0,
+            "tcpMssV6": 0,
+            "vxlanMacDrop": false
+        }
+    }
+}

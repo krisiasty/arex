@@ -193,8 +193,8 @@ func TestCAFileVerifiesAProperCert(t *testing.T) {
 
 	caPath := filepath.Join(t.TempDir(), "ca.pem")
 	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
-	if err := os.WriteFile(caPath, pemBytes, 0o600); err != nil {
-		t.Fatal(err)
+	if werr := os.WriteFile(caPath, pemBytes, 0o600); werr != nil {
+		t.Fatal(werr)
 	}
 
 	// httptest serves on 127.0.0.1; the cert names localhost.

@@ -250,6 +250,18 @@ func TestLabelFallsBackToHost(t *testing.T) {
 	}
 }
 
+func TestFabricParsesPerSwitch(t *testing.T) {
+	cfg, err := Load(write(t, `{"switches":[
+		{"tlsSkipVerify":true,"host":"https://192.0.2.1","username":"u","password":"p",
+		 "fabric":"fabric-a"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Switches[0].Fabric; got != "fabric-a" {
+		t.Errorf("Fabric = %q, want fabric-a", got)
+	}
+}
+
 // debug is off unless asked for, and readable from the config so a deployment
 // can turn it on without changing how it is invoked.
 func TestDebugDefaultsOffAndParses(t *testing.T) {

@@ -1,0 +1,630 @@
+{
+    "interfaces": {
+        "Vxlan1": {
+            "name": "Vxlan1",
+            "forwardingModel": "bridged",
+            "lineProtocolStatus": "up",
+            "interfaceStatus": "connected",
+            "hardware": "vxlan",
+            "interfaceAddress": [],
+            "description": "",
+            "bandwidth": 0,
+            "mtu": 0,
+            "l3MtuConfigured": false,
+            "l2Mru": 0,
+            "vniInDottedNotation": false,
+            "srcIpIntf": "Loopback0",
+            "srcIpAddr": "192.0.2.102",
+            "udpPort": 4789,
+            "secUdpPort": 4790,
+            "mcastGrpDecap": "",
+            "vlanToVniMap": {
+                "201": {
+                    "vni": 20201,
+                    "source": ""
+                },
+                "202": {
+                    "vni": 20202,
+                    "source": ""
+                },
+                "203": {
+                    "vni": 20203,
+                    "source": ""
+                },
+                "204": {
+                    "vni": 20204,
+                    "source": ""
+                },
+                "207": {
+                    "vni": 20207,
+                    "source": ""
+                },
+                "208": {
+                    "vni": 20208,
+                    "source": ""
+                },
+                "209": {
+                    "vni": 20209,
+                    "source": ""
+                },
+                "210": {
+                    "vni": 20210,
+                    "source": ""
+                },
+                "211": {
+                    "vni": 20211,
+                    "source": ""
+                },
+                "212": {
+                    "vni": 20212,
+                    "source": ""
+                },
+                "318": {
+                    "vni": 20213,
+                    "source": ""
+                },
+                "214": {
+                    "vni": 20214,
+                    "source": ""
+                },
+                "215": {
+                    "vni": 20215,
+                    "source": ""
+                },
+                "216": {
+                    "vni": 20216,
+                    "source": ""
+                },
+                "217": {
+                    "vni": 20217,
+                    "source": ""
+                },
+                "226": {
+                    "vni": 20226,
+                    "source": ""
+                },
+                "299": {
+                    "vni": 20299,
+                    "source": ""
+                },
+                "315": {
+                    "vni": 20315,
+                    "source": ""
+                },
+                "352": {
+                    "vni": 20352,
+                    "source": ""
+                },
+                "353": {
+                    "vni": 20353,
+                    "source": ""
+                },
+                "354": {
+                    "vni": 20354,
+                    "source": ""
+                },
+                "1600": {
+                    "vni": 21600,
+                    "source": ""
+                },
+                "1601": {
+                    "vni": 21601,
+                    "source": ""
+                },
+                "1602": {
+                    "vni": 21602,
+                    "source": ""
+                },
+                "1603": {
+                    "vni": 21603,
+                    "source": ""
+                },
+                "1604": {
+                    "vni": 21604,
+                    "source": ""
+                },
+                "1606": {
+                    "vni": 21606,
+                    "source": ""
+                },
+                "1608": {
+                    "vni": 21608,
+                    "source": ""
+                },
+                "1609": {
+                    "vni": 21609,
+                    "source": ""
+                },
+                "1611": {
+                    "vni": 21611,
+                    "source": ""
+                },
+                "1612": {
+                    "vni": 21612,
+                    "source": ""
+                },
+                "1614": {
+                    "vni": 21614,
+                    "source": ""
+                },
+                "1620": {
+                    "vni": 21620,
+                    "source": ""
+                },
+                "1621": {
+                    "vni": 21621,
+                    "source": ""
+                },
+                "1622": {
+                    "vni": 21622,
+                    "source": ""
+                },
+                "1623": {
+                    "vni": 21623,
+                    "source": ""
+                },
+                "1624": {
+                    "vni": 21624,
+                    "source": ""
+                },
+                "3901": {
+                    "vni": 6000001,
+                    "source": "evpn"
+                },
+                "3902": {
+                    "vni": 6000002,
+                    "source": "evpn"
+                },
+                "3903": {
+                    "vni": 6000003,
+                    "source": "evpn"
+                },
+                "3904": {
+                    "vni": 6000004,
+                    "source": "evpn"
+                },
+                "3905": {
+                    "vni": 6000005,
+                    "source": "evpn"
+                },
+                "3906": {
+                    "vni": 6000006,
+                    "source": "evpn"
+                }
+            },
+            "vlanToVtepList": {
+                "202": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "203": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "204": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "207": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "208": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "209": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "210": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "211": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "212": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "318": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "214": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "215": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "216": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "217": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "226": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "299": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "315": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "352": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "353": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "354": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "1600": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "1601": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "1602": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "1603": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "1604": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "1606": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "1608": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "1609": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "1611": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "1612": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "1614": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "1620": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "1621": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "1622": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "1623": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                },
+                "1624": {
+                    "remoteVtepAddr": [
+                        "192.0.2.101"
+                    ],
+                    "remoteVtepAddr6": []
+                }
+            },
+            "staticFloodlists": false,
+            "replicationMode": "headendVcs",
+            "vlanToLearnRestrict": {
+                "201": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "202": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "203": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "204": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "207": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "208": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "209": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "210": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "211": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "212": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "318": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "214": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "215": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "216": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "217": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "226": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "299": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "315": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "352": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "353": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "354": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "1600": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "1601": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "1602": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "1603": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "1604": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "1606": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "1608": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "1609": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "1611": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "1612": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "1614": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "1620": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "1621": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "1622": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "1623": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "1624": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "3901": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "3902": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "3903": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "3904": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "3905": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                },
+                "3906": {
+                    "learnFrom": "learnFromAny",
+                    "prefixList": []
+                }
+            },
+            "vrfToVniMap": {
+                "TENANT_LAB_PRIVATE": 6000005,
+                "TENANT_LAB_PUBLIC": 6000006,
+                "TENANT_PROD_PRIVATE": 6000002,
+                "TRANSIT": 6000003,
+                "TENANT_PROD_PUBLIC": 6000004,
+                "TENANT_TEST": 6000001
+            },
+            "decapVniToVrfMap": {},
+            "dataPathLearningMode": false,
+            "controllerClientMode": false,
+            "controllerControlPlane": true,
+            "vccImportVlan": "",
+            "vccArpProxy": false,
+            "vccNdProxy": false,
+            "vxlanArpProxy": false,
+            "vxlanNdProxy": false,
+            "arpReplyRelayMode": false,
+            "arpLocalAddress": false,
+            "portDot1qVniMapping": false,
+            "mlagSharedRouterMacAddr": "00:00:00:00:00:00",
+            "vtepAddrMask": "255.255.255.255",
+            "use32BitVni": false,
+            "vtepToVtepBridging": false,
+            "vtepSetForSourcePruning": [],
+            "vtepSourcePruningAll": false,
+            "decapFilterMode": "filterEnabled",
+            "decapFilterIntf": [],
+            "decapRouteAll": false,
+            "mcastRouting": false,
+            "vxlanEncapsulation": "ipv4",
+            "vArpVtepSrcIpIntf": "",
+            "floodLearnedAll": false,
+            "vtepToSecProfileTotal": 0,
+            "bfdPrefixList": "",
+            "remoteVxlanDomain": false,
+            "tcpMssV4": 0,
+            "tcpMssV6": 0,
+            "vxlanMacDrop": false
+        }
+    }
+}

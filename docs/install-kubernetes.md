@@ -42,6 +42,8 @@ config:
   pollInterval: 30s
   stalenessLimit: 90s
 
+  # Both switches below are BGP/EVPN leaves with Vxlan1 and ESI multihoming.
+  # Leave each topology-dependent group disabled on switches that do not run it.
   collect:
     processes:
       enabled: true
@@ -54,6 +56,12 @@ config:
     ntp:
       enabled: true
     capacity:
+      enabled: true
+    vxlan:
+      enabled: true
+    evpn:
+      enabled: true
+    esi:
       enabled: true
     interfaces:
       enabled: true
@@ -70,10 +78,12 @@ config:
     - host: https://10.10.0.11
       username: prometheus
       name: leaf1
+      fabric: fabric-a
       pinnedCertSha256: "A1:B2:..."
     - host: https://10.10.0.12
       username: prometheus
       name: leaf2
+      fabric: fabric-a
       pinnedCertSha256: "C3:D4:..."
 
 serviceMonitor:

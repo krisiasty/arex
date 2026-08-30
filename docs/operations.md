@@ -148,8 +148,9 @@ Both reject mistakes rather than returning an empty body:
 
 ```console
 $ curl 'localhost:9100/metrics?target=leaf-1&module=nope'
-unknown module "nope": expected one of bgp, capacity, cooling, interfaces, ntp,
-phy, power, processes, temperature, transceiver, version
+unknown module "nope": expected one of bgp, capacity, cooling, esi, evpn,
+interfaces, ntp, phy, power, processes, temperature, transceiver, version,
+vxlan
 
 $ curl 'localhost:9100/metrics?target=leaf-1&interface=Ethernet99/9'
 no interface "Ethernet99/9" in the last poll of switch "leaf-1"

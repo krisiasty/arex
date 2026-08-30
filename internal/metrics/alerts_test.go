@@ -46,6 +46,30 @@ func TestAlertRulesOnlyReferenceRealMetrics(t *testing.T) {
 	}
 }
 
+// Planned maintenance must not page. The EVPN summary carries the same
+// maintenance flag as IPv4 BGP, so the shipped alert must gate on it too.
+func TestEVPNPeerDownExcludesMaintenance(t *testing.T) {
+	body, err := os.ReadFile("../../monitoring/alerts.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = "arista_bgp_evpn_peer_up == 0 and arista_bgp_evpn_peer_under_maintenance == 0"
+	if !strings.Contains(string(body), want) {
+		t.Errorf("SwitchEVPNPeerDown must exclude planned maintenance with %q", want)
+	}
+}
+
+func TestESINoDesignatedForwarderIsScopedToFabricAndEVPNInstance(t *testing.T) {
+	body, err := os.ReadFile("../../monitoring/alerts.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = "max by (fabric, esi, evpn_instance) (arista_evpn_esi_designated_forwarder_elected) == 0"
+	if !strings.Contains(string(body), want) {
+		t.Errorf("SwitchESINoDesignatedForwarder must aggregate by fabric, ESI and EVPN instance with %q", want)
+	}
+}
+
 // The labels the annotations interpolate have to exist on the metric being
 // alerted on, or the summary renders an empty string where a switch name
 // should be.

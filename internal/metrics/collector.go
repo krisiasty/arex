@@ -223,6 +223,28 @@ func (c *Collector) collectSwitch(ch chan<- prometheus.Metric, sw *collector.Swi
 	if c.wants("bgp") && fresh(collector.CmdBGPSummary) {
 		collectBGP(ch, label, sw.BGPSummary)
 	}
+	if c.wants("vxlan") {
+		if fresh(collector.CmdVXLANVTEP) {
+			collectVXLANVTEPs(ch, label, sw.VXLANVTEP)
+		}
+		if fresh(collector.CmdVXLANInterface) {
+			collectVXLANInterface(ch, label, sw.VXLANInterface)
+		}
+		if fresh(collector.CmdVXLANAddressCount) {
+			collectVXLANAddresses(ch, label, sw.VXLANAddresses)
+		}
+	}
+	if c.wants("evpn") {
+		if fresh(collector.CmdBGPEVPNSummary) {
+			collectEVPNPeers(ch, label, sw.EVPNSummary)
+		}
+		if fresh(collector.CmdBGPEVPNRouteCount) {
+			collectEVPNRoutes(ch, label, sw.EVPNRoutes)
+		}
+	}
+	if c.wants("esi") && fresh(collector.CmdBGPEVPNInstance) {
+		collectEVPNSegments(ch, label, sw.Fabric, sw.EVPNInstance)
+	}
 	if c.wants("transceiver") && fresh(collector.CmdTransceivers) {
 		c.collectTransceivers(ch, label, sw.Optics)
 	}
@@ -473,6 +495,116 @@ func collectCapacity(ch chan<- prometheus.Metric, label string, h eapi.ShowHardw
 		if len(r.SharedFeatures) > 0 {
 			set(ch, "arista_hardware_capacity_info", 1,
 				label, r.Table, r.Feature, r.Chip, strings.Join(r.SharedFeatures, ","))
+		}
+	}
+}
+
+// collectVXLANVTEPs emits the remote VTEPs this switch knows about.
+//
+// A count as well as one series per VTEP: EOS reports only the VTEPs it knows,
+// so a VTEP leaving the fabric removes its series rather than setting it to
+// zero, and absence is not something a threshold can be written against.
+func collectVXLANVTEPs(ch chan<- prometheus.Metric, label string, v eapi.ShowVXLANVTEP) {
+	for iface, i := range v.Interfaces {
+		set(ch, "arista_vxlan_remote_vtep_count", float64(len(i.VTEPs)), label, iface)
+		for _, vtep := range i.VTEPs {
+			var kinds []string
+			for _, t := range v.VTEPTunnelTypes[vtep].TunnelTypes {
+				kinds = append(kinds, t.TunnelType)
+			}
+			set(ch, "arista_vxlan_remote_vtep_info", 1, label, iface, vtep, strings.Join(kinds, ","))
+		}
+	}
+}
+
+// collectVXLANInterface emits the VXLAN interface's own state and its bindings.
+func collectVXLANInterface(ch chan<- prometheus.Metric, label string, v eapi.ShowInterfaceVXLAN) {
+	for name, i := range v.Interfaces {
+		setBool(ch, "arista_vxlan_interface_up", i.LineProtocolStatus == "up", label, name)
+		set(ch, "arista_vxlan_interface_info", 1, label, name,
+			i.SourceInterface, i.SourceAddress, i.ReplicationMode, i.Encapsulation)
+
+		for vlan, m := range i.VLANToVNIMap {
+			set(ch, "arista_vxlan_vni_info", 1, label, name, vlan, strconv.FormatUint(uint64(m.VNI), 10), m.Source)
+		}
+		for vrf, vni := range i.VRFToVNIMap {
+			set(ch, "arista_vxlan_vrf_vni_info", 1, label, name, vrf, strconv.FormatUint(uint64(vni), 10))
+		}
+		// Only the IPv4 flood list is counted: every capture so far has an
+		// empty IPv6 one, so a combined count would be indistinguishable from
+		// the v4 count and quietly wrong if that ever changed.
+		for vlan, l := range i.VLANToVTEPMap {
+			set(ch, "arista_vxlan_vlan_flood_vteps", float64(len(l.IPv4)), label, name, vlan)
+		}
+	}
+}
+
+// collectVXLANAddresses emits overlay MAC scale per remote VTEP.
+func collectVXLANAddresses(ch chan<- prometheus.Metric, label string, v eapi.ShowVXLANAddressTableCount) {
+	for vtep, n := range v.VTEPCounts {
+		set(ch, "arista_vxlan_remote_mac_count", float64(n), label, vtep)
+	}
+}
+
+// collectEVPNPeers emits the EVPN address-family sessions.
+//
+// Separate series from arista_bgp_peer_*, not extra labels on them: the same
+// neighbour usually carries both an IPv4 unicast and an EVPN session, and
+// either can fail while the other stays up. Folding them together would let a
+// healthy underlay session mask a dead overlay one.
+func collectEVPNPeers(ch chan<- prometheus.Metric, label string, e eapi.ShowBGPEVPNSummary) {
+	for vrf, v := range e.Vrfs {
+		for peer, p := range v.Peers {
+			set(ch, "arista_bgp_evpn_peer_info", 1, label, vrf, peer, p.Asn, p.Description)
+			setBool(ch, "arista_bgp_evpn_peer_up", p.PeerState == "Established", label, vrf, peer, p.Asn)
+			setBool(ch, "arista_bgp_evpn_peer_under_maintenance", p.UnderMaintenance, label, vrf, peer, p.Asn)
+			set(ch, "arista_bgp_evpn_peer_prefixes_received", float64(p.PrefixReceived), label, vrf, peer, p.Asn)
+			set(ch, "arista_bgp_evpn_peer_prefixes_accepted", float64(p.PrefixAccepted), label, vrf, peer, p.Asn)
+			set(ch, "arista_bgp_evpn_peer_prefixes_advertised", float64(p.PrefixAdvertised), label, vrf, peer, p.Asn)
+			setTime(ch, "arista_bgp_evpn_peer_state_change_timestamp_seconds", p.UpDownTime, label, vrf, peer, p.Asn)
+		}
+	}
+}
+
+// collectEVPNRoutes emits the route-type totals.
+func collectEVPNRoutes(ch chan<- prometheus.Metric, label string, r eapi.ShowBGPEVPNRouteTypeCount) {
+	for _, t := range []struct {
+		name string
+		n    uint64
+	}{
+		{"auto_discovery", r.AutoDiscovery},
+		{"mac_ip", r.MACIP},
+		{"imet", r.IMET},
+		{"ethernet_segment", r.EthernetSegment},
+		{"ip_prefix_ipv4", r.IPPrefixIPv4},
+		{"ip_prefix_ipv6", r.IPPrefixIPv6},
+	} {
+		set(ch, "arista_bgp_evpn_routes", float64(t.n), label, t.name)
+	}
+}
+
+// collectEVPNSegments emits ESI multihoming state.
+//
+// Keyed by bundle and segment together, never by segment alone: DF election
+// runs per VLAN-aware bundle, so one ESI legitimately has a different forwarder
+// in each bundle it belongs to, and collapsing them would report one bundle's
+// answer as the whole truth.
+//
+// arista_evpn_esi_up is this switch's own view. When one leaf of a multihomed
+// pair loses its link the survivor still reports the segment up, correctly, so
+// forwarding_peers is the series that shows a segment running on one leg from
+// either side.
+func collectEVPNSegments(ch chan<- prometheus.Metric, label, fabric string, e eapi.ShowBGPEVPNInstance) {
+	for name, inst := range e.Instances {
+		for esi, seg := range inst.EthernetSegments {
+			setBool(ch, "arista_evpn_esi_up", seg.Up(), label, fabric, name, esi)
+			setBool(ch, "arista_evpn_esi_designated_forwarder",
+				seg.DesignatedForwarder(inst.LocalVTEP), label, fabric, name, esi)
+			setBool(ch, "arista_evpn_esi_designated_forwarder_elected",
+				seg.HasDesignatedForwarder(), label, fabric, name, esi)
+			set(ch, "arista_evpn_esi_forwarding_peers", float64(len(seg.ForwardingPeers)),
+				label, fabric, name, esi)
+			set(ch, "arista_evpn_esi_info", 1, label, fabric, name, esi, seg.Interface, seg.RedundancyMode)
 		}
 	}
 }

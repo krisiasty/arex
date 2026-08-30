@@ -36,7 +36,8 @@ file or replacing it with an inline `password`.
 ## Choosing what to collect
 
 Collection is **opt-in**. `show version` is always issued — it provides `arista_info`, which everything else joins
-against — and every other command group must be enabled explicitly:
+against — and every other command group must be enabled explicitly. A safe fleet-wide starting point keeps the
+topology-dependent groups disabled:
 
 ```json
 "collect": {
@@ -46,12 +47,28 @@ against — and every other command group must be enabled explicitly:
   "cooling":     { "enabled": true },
   "ntp":         { "enabled": true },
   "capacity":    { "enabled": true },
+  "vxlan":       { "enabled": false },
+  "evpn":        { "enabled": false },
+  "esi":         { "enabled": false },
   "interfaces":  { "enabled": true },
-  "bgp":         { "enabled": true },
+  "bgp":         { "enabled": false },
   "transceiver": { "enabled": true, "interval": "5m" },
   "phy":         { "enabled": true, "interval": "15m" }
 }
 ```
+
+Enable the role-specific groups only where the corresponding feature runs:
+
+| Group | Enable on |
+| --- | --- |
+| `bgp` | Switches running BGP |
+| `evpn` | Switches running the EVPN address family, including route-reflector spines |
+| `vxlan` | Switches where `Vxlan1` exists |
+| `esi` | Switches terminating ESI multihoming, normally leaves rather than route reflectors |
+
+This is more than avoiding empty output. `show interface vxlan 1` is rejected when `Vxlan1` does not exist, so
+enabling `vxlan` fleet-wide creates a permanently failing command on spines without a VXLAN interface. Unsupported
+commands are isolated from the rest of a poll and reported by `arista_command_success`, but should not be scheduled.
 
 Every group is an object with a required `enabled` and an optional `interval`. `enabled` is required for the same
 reason the `collect` block itself is: an absent value would have to mean something, and either meaning is a guess
@@ -63,7 +80,8 @@ silently change what an existing deployment gathers. An unknown key is also an e
 disable a group, and so is an unknown field inside a group's object.
 
 A switch may carry its own `collect`, which **replaces** the top-level set rather than merging with it — what you
-see in a switch's block is exactly what it collects, including its intervals.
+see in a switch's block is exactly what it collects, including its intervals. A role-specific block therefore has
+to repeat every fleet-wide group that switch should keep collecting, not only the groups it wants to add.
 
 This is the main lever on cost. Measured on a 32-port leaf, one poll of everything is roughly 654 kB and occupies
 eAPI for 1.4 seconds; three commands account for 88% of it, at about 30% each:
@@ -92,6 +110,8 @@ Each group has a default interval, which an explicit `interval` overrides:
 | --- | --- | --- |
 | `interfaces` | `pollInterval` | Error counters and link state are the fastest-moving signals arex collects, and the primary detection source. |
 | `bgp` | `pollInterval` | Session state changes in seconds. |
+| `vxlan`, `evpn` | `pollInterval` | Together 8 kB; VTEP and session state change as fast as the underlay does. |
+| `esi` | `15m` | 19 kB and growing with every multihomed host — 71% of the overlay payload. A forwarder change follows a link or session failure the faster modules already report. |
 | `processes`, `temperature`, `power`, `cooling` | `pollInterval` | Cheap — every non-interface command together is 12% of a poll. |
 | `ntp` | `1m` | ntpd polls its own upstream every 64 seconds at the fastest, so anything quicker re-reads unchanged numbers. |
 | `capacity` | `5m` | Table usage moves slowly, and `highWatermark` records the peak between polls, so a spike is not sampled past. |
@@ -241,6 +261,7 @@ Per-switch fields:
 | `password` | eAPI password, inline. See [Credentials](#credentials) |
 | `passwordFile` | File to read the password from, instead of `password` |
 | `name` | Value for the `switch` label on every metric. Optional, falls back to `host` |
+| `fabric` | Value for the `fabric` label on ESI metrics. Set consistently per EVPN fabric when one arex monitors more than one; optional for a single fabric |
 | `collect` | Overrides the top-level collect set for this switch, wholesale |
 | `interfaceScope` | Interface argument for the three interface commands, passed verbatim |
 | `caFile` | PEM bundle to verify this switch's certificate against. See [TLS](tls.md) |
@@ -252,6 +273,11 @@ something arex will decide for you. Setting more than one is rejected.
 
 Point `host` at the switch's management address — on a typical switch that address lives in the `management` VRF.
 Keep `name` unique across switches: two entries sharing one label collapse into a single metric series.
+
+`fabric` is not discovered from EOS. Set the same value on every switch participating in one EVPN fabric and a
+different value on switches in another. The shipped ESI designated-forwarder alert aggregates by `fabric`, `esi`,
+and `evpn_instance`, preventing an identically numbered segment in one fabric from masking a failed election in
+another. Leaving it empty is safe when one arex instance monitors only one EVPN fabric.
 
 There is no VRF setting in arex's own config. It runs off-box, so the VRF is purely a switch-side concern, handled
 by the `vrf management` stanza in [switch configuration](switch-configuration.md).

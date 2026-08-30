@@ -77,7 +77,7 @@ would swallow it. It covers the `show` commands that dump configuration, which `
 `show tech-support` in particular embeds the running configuration. The privilege level already refuses all three,
 so this is redundant today; it is here so the role remains safe on its own if the privilege level ever changes.
 
-This role has been verified under enforcement. With command authorization enabled, all eleven commands arex issues
+This role has been verified under enforcement. With command authorization enabled, all seventeen commands arex issues
 are permitted, and everything else — including `enable` — is refused:
 
 ```text

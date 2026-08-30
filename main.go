@@ -277,6 +277,7 @@ func run(cfgPath string, debugFlag, debugSet bool) error {
 		if debug {
 			opts = append(opts, withDebug(sw.Label(), logger))
 		}
+		//nolint:govet // shadow: per-iteration, and assigning the outer err would leak between switches
 		client, err := newClient(sw, cfg, opts...)
 		if err != nil {
 			return err

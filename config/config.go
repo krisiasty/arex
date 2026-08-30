@@ -93,6 +93,11 @@ type SwitchConfig struct {
 	// Falls back to Host if empty.
 	Name string `json:"name"`
 
+	// Fabric identifies the EVPN fabric this switch belongs to. It is emitted
+	// on ESI metrics so fabric-wide elections are not aggregated across
+	// independent fabrics. Empty is suitable when arex monitors one fabric.
+	Fabric string `json:"fabric"`
+
 	// TLSSkipVerify disables verification of this switch's certificate.
 	// Per-switch rather than global: skipping verification is a decision
 	// about one switch's certificate, and a fleet-wide default made it easy
@@ -212,8 +217,8 @@ func Load(path string) (*Config, error) {
 	}
 
 	var tree any
-	if err := yaml.Unmarshal(body, &tree); err != nil {
-		return nil, fmt.Errorf("parse config: %w", err)
+	if uerr := yaml.Unmarshal(body, &tree); uerr != nil {
+		return nil, fmt.Errorf("parse config: %w", uerr)
 	}
 	asJSON, err := json.Marshal(tree)
 	if err != nil {
@@ -362,7 +367,7 @@ const ReservedTarget = "internal"
 // against.
 var CollectKeys = []string{
 	"processes", "temperature", "power", "cooling", "ntp", "capacity",
-	"interfaces", "bgp", "transceiver", "phy",
+	"interfaces", "bgp", "vxlan", "evpn", "esi", "transceiver", "phy",
 }
 
 // EffectiveCollect resolves which optional groups this switch collects.

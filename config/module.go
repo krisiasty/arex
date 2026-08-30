@@ -40,10 +40,14 @@ type ModuleConfig struct {
 // upstream every 64 seconds at the fastest, so anything quicker re-reads
 // numbers that cannot have moved. capacity is slow-moving too, and its
 // highWatermark records the peak between polls, so a longer interval still
-// sees a spike a plain gauge would have missed.
+// sees a spike a plain gauge would have missed. esi is by far the largest
+// overlay command -- 71% of the overlay payload, growing with every multihomed
+// host -- and the slowest-moving: a designated-forwarder change is a
+// consequence of a link or session failure the faster modules already report.
 var defaultModuleInterval = map[string]time.Duration{
 	"ntp":         time.Minute,
 	"capacity":    5 * time.Minute,
+	"esi":         15 * time.Minute,
 	"transceiver": 5 * time.Minute,
 	"phy":         15 * time.Minute,
 }
@@ -54,7 +58,7 @@ type CollectSet map[string]ModuleConfig
 // UnmarshalJSON decodes the entries itself so an error can name the key that
 // caused it. encoding/json does not add field context to errors returned by a
 // value's own UnmarshalJSON, and "collect entry true is wrong" is no help in a
-// block listing ten groups.
+// block listing thirteen groups.
 func (c *CollectSet) UnmarshalJSON(b []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(b, &raw); err != nil {

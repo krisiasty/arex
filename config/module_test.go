@@ -142,7 +142,7 @@ func TestPerSwitchOverrideCarriesIntervals(t *testing.T) {
 	}
 }
 
-// The error names the offending key. A config listing ten groups is not
+// The error names the offending key. A config listing thirteen groups is not
 // helped by being told that "true" is wrong somewhere in it.
 func TestErrorNamesTheOffendingKey(t *testing.T) {
 	for _, entry := range []string{

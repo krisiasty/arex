@@ -32,6 +32,12 @@ var fixtureFile = map[string]string{
 	"show system environment cooling":     "show_system_environment_cooling.json",
 	"show ntp associations":               "show_ntp_associations.json",
 	"show hardware capacity":              "show_hardware_capacity.json",
+	"show vxlan vtep":                     "show_vxlan_vtep_fabric_a_leaf_1.json",
+	"show interface vxlan 1":              "show_interface_vxlan_1_fabric_a_leaf_1.json",
+	"show vxlan address-table count":      "show_vxlan_address_table_count_fabric_a_leaf_1.json",
+	"show bgp evpn summary":               "show_bgp_evpn_summary_fabric_a_leaf_1.json",
+	"show bgp evpn route-type count":      "show_bgp_evpn_route_type_count_fabric_a_leaf_1.json",
+	"show bgp evpn instance":              "show_bgp_evpn_instance_fabric_a_leaf_1.json",
 	"show interfaces":                     "show_interfaces.json",
 	"show ip bgp summary vrf all":         "show_ip_bgp_summary_vrf_all.json",
 	"show interfaces transceiver detail":  "show_interfaces_transceiver_detail.json",
@@ -61,7 +67,7 @@ func (f fixtureRunner) Run(cmds []string) ([]json.RawMessage, error) {
 func render(t *testing.T, mutate func(*collector.SwitchData)) string {
 	t.Helper()
 	store, err := collector.NewStore([]config.SwitchConfig{
-		{Host: "https://192.0.2.33", Username: "u", Password: "p", Name: "sw1"},
+		{Host: "https://192.0.2.33", Username: "u", Password: "p", Name: "sw1", Fabric: "fabric-a"},
 	}, collectAll(), 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
@@ -419,9 +425,13 @@ func TestCommandSuccessMetricPerCommand(t *testing.T) {
 	if got := sample(out, "arista_command_success", `command="show version"`); got != "1" {
 		t.Errorf("command success = %q, want 1", got)
 	}
-	// render enables every group, so one series per optional command plus
-	// show version, which is always collected.
-	want := len(config.CollectKeys) + 1
+	// render enables every group, so one series per command those groups name,
+	// plus show version, which is always collected. Not one per group: the
+	// overlay keys each name several commands.
+	want := 1
+	for _, cmds := range collector.CommandsPerKey() {
+		want += len(cmds)
+	}
 	if n := strings.Count(out, "arista_command_success{"); n != want {
 		t.Errorf("%d arista_command_success series, want %d", n, want)
 	}

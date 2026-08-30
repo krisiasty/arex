@@ -58,10 +58,20 @@ collect:
     enabled: true
   capacity:
     enabled: true
+  # Overlay groups are role-specific. Enable vxlan only where Vxlan1 exists,
+  # evpn only where the EVPN address family runs, and esi only on switches
+  # terminating ESI multihoming.
+  vxlan:
+    enabled: false
+  evpn:
+    enabled: false
+  esi:
+    enabled: false
   interfaces:
     enabled: true
+  # Enable only on switches running BGP.
   bgp:
-    enabled: true
+    enabled: false
   transceiver:
     enabled: true
     interval: 5m
@@ -72,16 +82,24 @@ collect:
 switches:
   # A stock EOS switch serves a certificate with no subject alternative names,
   # so it can only be verified by pinning. See the TLS section of the README.
+  # This spine inherits the conservative global collect set. A route reflector
+  # would use a per-switch block to enable bgp and evpn, while leaving vxlan and
+  # esi disabled.
   - host: https://192.0.2.11
     username: prometheus
     name: spine1
     pinnedCertSha256: "A1:B2:C3:D4:E5:F6:07:18:29:3A:4B:5C:6D:7E:8F:90:A1:B2:C3:D4:E5:F6:07:18:29:3A:4B:5C:6D:7E:8F:90"
 
   # Once the switch serves a certificate with correct SANs, verify against its
-  # CA instead. A per-switch collect block replaces the top-level one wholesale.
+  # CA instead. This leaf runs BGP, EVPN, Vxlan1 and ESI multihoming, so its
+  # per-switch collect block enables them explicitly. The block replaces the
+  # top-level one wholesale.
   - host: https://192.0.2.12
     username: prometheus
     name: leaf1
+    # Required when one arex instance monitors more than one independent EVPN
+    # fabric. Use the same value on every switch in this fabric.
+    fabric: fabric-a
     caFile: /etc/arex/switch-ca.pem
     interfaceScope: Ethernet1/1-4,Ethernet2/1-4,Ethernet29/1-4
     collect:
@@ -97,10 +115,16 @@ switches:
         enabled: true
       capacity:
         enabled: true
+      vxlan:
+        enabled: true
+      evpn:
+        enabled: true
+      esi:
+        enabled: true
       interfaces:
         enabled: true
       bgp:
-        enabled: false
+        enabled: true
       transceiver:
         enabled: true
         interval: 1m
