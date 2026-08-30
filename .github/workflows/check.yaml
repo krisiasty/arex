@@ -1,8 +1,14 @@
 name: ci
 
+# push is main-only on purpose. With both triggers open to every branch, a push
+# to a branch that already had a pull request ran the whole workflow twice on
+# the same commit -- 34 of August's 93 runs were exact duplicates of a run that
+# had started three seconds earlier. A branch gets its coverage from the
+# pull_request trigger; main gets it from push, which is also what gates the
+# chart publish below.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
     branches: ["**"]
   schedule:
@@ -11,6 +17,13 @@ on:
 
 permissions:
   contents: read
+
+# Pushing twice in a minute used to leave the first run grinding to a verdict
+# nobody would read. Superseded runs on a branch are cancelled; main is never
+# cancelled, because its run is what publishes the chart.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 # Every external action is pinned to a full commit SHA rather than a tag,
 # because a tag is movable: whoever can push one can change what runs here, and
@@ -71,17 +84,6 @@ jobs:
       - name: go test
         run: go test -race ./...
 
-      # The seed corpora run as ordinary tests above. This is a short live fuzz
-      # of the three paths where arbitrary input reaches arex: the config file,
-      # the eAPI decoders on the poll goroutines, and label rendering. Short
-      # because it runs on every push -- it is a regression net, not a campaign.
-      - name: fuzz the input paths
-        run: |
-          set -euo pipefail
-          go test ./config/ -run FuzzLoad -fuzz FuzzLoad -fuzztime 30s
-          go test ./internal/collector/ -run FuzzCollect -fuzz FuzzCollect -fuzztime 30s
-          go test ./internal/metrics/ -run FuzzRender -fuzz FuzzRender -fuzztime 30s
-
       - name: golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
@@ -137,6 +139,83 @@ jobs:
 
       - name: go vet
         run: go vet ./...
+
+  # Live fuzzing of the three paths where arbitrary input reaches arex: the
+  # config file, the eAPI decoders on the poll goroutines, and label rendering.
+  #
+  # Weekly rather than per-push, and the distinction that makes that safe is
+  # between finding a crash and remembering it. Every crash ever found is
+  # committed under testdata/fuzz and replayed by `go test` in the check job
+  # above, so regressions are still caught on every commit. Only the discovery
+  # of new inputs moves here -- and it gets better at it, because 2m per target
+  # weekly explores considerably further than the 30s burst a push could afford.
+  fuzz:
+    name: fuzz
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: setup go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Each target runs even if an earlier one failed, and the step fails at
+      # the end: a crash in the config parser must not cost the decoders and
+      # the renderer their whole week of fuzzing.
+      - name: fuzz the input paths
+        run: |
+          set -uo pipefail
+          rc=0
+          fuzz() {
+            pkg=$1
+            target=$2
+            # `go test -fuzz` treats a target that matches nothing as success --
+            # it prints "no fuzz tests to fuzz" and exits 0. Renaming a target
+            # would therefore leave this job green while fuzzing nothing, and
+            # weekly means nobody would notice for a long time.
+            #
+            # The listing is captured rather than piped into grep: `grep -q`
+            # exits at the first match, and the SIGPIPE that sends to `go test`
+            # would, under pipefail, fail this check for every target that does
+            # exist.
+            listed=$(go test "${pkg}" -list "${target}" 2>&1) || {
+              printf '%s\n' "${listed}"
+              echo "::error::listing the fuzz tests in ${pkg} failed"
+              rc=1
+              return
+            }
+            if ! grep -qx "${target}" <<<"${listed}"; then
+              echo "::error::${target} is not a fuzz test in ${pkg}"
+              rc=1
+              return
+            fi
+            go test "${pkg}" -run "${target}" -fuzz "${target}" -fuzztime 2m || rc=1
+          }
+          fuzz ./config/             FuzzLoad
+          fuzz ./internal/collector/ FuzzCollect
+          fuzz ./internal/metrics/   FuzzRender
+          exit "${rc}"
+
+      # go test writes a failing input to the package's testdata/fuzz directory.
+      # On a scheduled run there is nobody watching and nothing to commit it, so
+      # without this the crashing input dies with the runner and only the log
+      # survives -- and the log is not a reproducer. Downloaded and committed,
+      # the file becomes a permanent regression test.
+      - name: keep the crashing input
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-crashers
+          path: "**/testdata/fuzz/**"
+          if-no-files-found: warn
+          retention-days: 90
 
   # The chart is checked separately: it needs helm rather than Go, and a
   # template that renders locally but was never committed would otherwise only
