@@ -88,3 +88,87 @@ func TestBGPEVPNInstanceFixture(t *testing.T) {
 		t.Errorf("spine instances = %d, want 0", len(spine.Instances))
 	}
 }
+
+// A segment whose local link is down, captured from both sides of a real
+// multihomed pair while one leg was shut.
+//
+// The two views disagree, and that disagreement is the point: the leaf that
+// lost the link reports the segment down with no forwarder, while its peer
+// reports it up because its own link is fine. Only ForwardingPeers shows,
+// from either side, that the segment is running on one leg.
+func TestEthernetSegmentDownOnOneLeg(t *testing.T) {
+	const (
+		esi   = "0000:0000:0000:0000:1002"
+		bundl = "VLAN-aware bundle TENANT_PROD_PRIVATE"
+	)
+
+	var down ShowBGPEVPNInstance
+	load(t, "show_bgp_evpn_instance_fabric_a_leaf_1.json", &down)
+	lost := down.Instances[bundl].EthernetSegments[esi]
+
+	if lost.Up() {
+		t.Errorf("state = %q, want down on the leaf that lost the link", lost.State)
+	}
+	// EOS swaps dFElectionAlgorithm for dFElectionState here. Decoding the
+	// wrong one silently drops the only field that says why there is no DF.
+	if lost.DFElectionState != "pending" || lost.DFElectionAlgorithm != "" {
+		t.Errorf("election algorithm/state = %q/%q, want \"\"/pending",
+			lost.DFElectionAlgorithm, lost.DFElectionState)
+	}
+	if lost.HasDesignatedForwarder() {
+		t.Errorf("dFPeer = %q, want no forwarder elected", lost.DFPeer.IP)
+	}
+	if len(lost.ForwardingPeers) != 0 || len(lost.NonDFPeers) != 0 {
+		t.Errorf("peers = %d forwarding / %d non-DF, want none", len(lost.ForwardingPeers), len(lost.NonDFPeers))
+	}
+
+	var survivor ShowBGPEVPNInstance
+	load(t, "show_bgp_evpn_instance_fabric_a_leaf_2.json", &survivor)
+	kept := survivor.Instances[bundl].EthernetSegments[esi]
+
+	if !kept.Up() {
+		t.Errorf("survivor state = %q, want up: its own link is fine", kept.State)
+	}
+	if !kept.DesignatedForwarder("192.0.2.102") {
+		t.Errorf("survivor dFPeer = %q, want itself after re-election", kept.DFPeer.IP)
+	}
+	if len(kept.ForwardingPeers) != 1 {
+		t.Errorf("survivor forwarding peers = %d, want 1: the redundancy is gone",
+			len(kept.ForwardingPeers))
+	}
+
+	// The healthy segments in the same capture, for contrast.
+	healthy := down.Instances[bundl].EthernetSegments["0000:0000:0000:0000:1001"]
+	if !healthy.Up() || healthy.DFElectionAlgorithm != "modulus" ||
+		!healthy.DesignatedForwarder("192.0.2.101") || len(healthy.ForwardingPeers) != 2 {
+		t.Errorf("healthy segment = %#v", healthy)
+	}
+}
+
+// DF election runs per VLAN-aware bundle, so one ESI can have different
+// forwarders in different bundles. Keying a metric by ESI alone would report
+// one bundle's answer as the whole truth.
+func TestDesignatedForwarderVariesByBundle(t *testing.T) {
+	var got ShowBGPEVPNInstance
+	load(t, "show_bgp_evpn_instance_fabric_a_leaf_1.json", &got)
+
+	seen := map[string]map[string]bool{}
+	for _, inst := range got.Instances {
+		for esi, seg := range inst.EthernetSegments {
+			if seen[esi] == nil {
+				seen[esi] = map[string]bool{}
+			}
+			seen[esi][seg.DFPeer.IP] = true
+		}
+	}
+	split := 0
+	for _, peers := range seen {
+		if len(peers) > 1 {
+			split++
+		}
+	}
+	if split == 0 {
+		t.Error("no ESI has a different DF in different bundles; the fixture no longer " +
+			"covers per-bundle election, and a per-ESI metric key would look correct")
+	}
+}

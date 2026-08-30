@@ -49,17 +49,10 @@
                     ],
                     "dFElectionAlgorithm": "modulus",
                     "dFPeer": {
-                        "ip": "192.0.2.101"
+                        "ip": "192.0.2.102"
                     },
-                    "nonDFPeers": [
-                        {
-                            "ip": "192.0.2.102"
-                        }
-                    ],
+                    "nonDFPeers": [],
                     "forwardingPeers": [
-                        {
-                            "ip": "192.0.2.101"
-                        },
                         {
                             "ip": "192.0.2.102"
                         }

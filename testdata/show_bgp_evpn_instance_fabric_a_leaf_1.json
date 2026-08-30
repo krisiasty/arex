@@ -42,28 +42,17 @@
                 "0000:0000:0000:0000:1002": {
                     "intf": "Port-Channel112",
                     "redundancyMode": "allActive",
-                    "state": "up",
+                    "state": "down",
                     "importRT": "00:00:00:00:10:02",
                     "importRTs": [
                         "00:00:00:00:10:02"
                     ],
-                    "dFElectionAlgorithm": "modulus",
+                    "dFElectionState": "pending",
                     "dFPeer": {
-                        "ip": "192.0.2.101"
+                        "ip": ""
                     },
-                    "nonDFPeers": [
-                        {
-                            "ip": "192.0.2.102"
-                        }
-                    ],
-                    "forwardingPeers": [
-                        {
-                            "ip": "192.0.2.101"
-                        },
-                        {
-                            "ip": "192.0.2.102"
-                        }
-                    ]
+                    "nonDFPeers": [],
+                    "forwardingPeers": []
                 },
                 "0000:0000:0000:0000:1003": {
                     "intf": "Port-Channel123",

@@ -166,11 +166,30 @@ replaced with a busy synthetic table. The Fabric A leaves each report one remote
 entries, while the spine and both Fabric B leaves return an empty `vtepCounts` object.
 
 The paired `show_bgp_evpn_instance_fabric_a_leaf_*.json` fixtures each contain four VLAN-aware
-bundles, 38 unique Ethernet segments, and 59 bundle-to-segment entries. Every captured segment is
-up and uses modulus DF election. DF ownership is complementary: leaf 1 elects itself for 43 entries
-and its peer for 16, while leaf 2 elects itself for 16 and its peer for 43. Bundle and VRF names,
-RDs, route targets, ESIs, Port-Channel identifiers, and peer addresses are synthetic. Repeated
-segments and interfaces retain the same replacement within and across both fixtures.
+bundles, 38 unique Ethernet segments, and 59 bundle-to-segment entries. DF ownership is
+complementary: leaf 1 elects itself for most entries and its peer for the rest, and leaf 2 the
+reverse. Bundle and VRF names, RDs, route targets, ESIs, Port-Channel identifiers, and peer
+addresses are synthetic. Repeated segments and interfaces retain the same replacement within and
+across both fixtures.
+
+One segment, `0000:0000:0000:0000:1002` on `Port-Channel112` in `TENANT_PROD_PRIVATE`, is down.
+Its shape was copied field for field from a real capture of these same two switches taken while
+one leg of a multihomed link was shut, so only the identifiers are synthetic. It is the one case
+the healthy fleet cannot show, and it carries three things the rest of the capture does not:
+
+- `dFElectionAlgorithm` is **replaced by** `dFElectionState: "pending"`. The two keys are mutually
+  exclusive -- across 118 captured segment entries every one had exactly one of them -- so a
+  decoder that knows only the algorithm silently drops the field that says why there is no
+  forwarder.
+- `dFPeer` carries an **empty** `ip` rather than being absent or null, which is what makes "no DF
+  elected" representable at all.
+- `nonDFPeers` and `forwardingPeers` are empty arrays, not null.
+
+The two leaves disagree about it, and that is faithful to the capture. Leaf 1, which lost the
+link, reports the segment down. Leaf 2 reports it **up** -- its own link is fine -- but with
+`forwardingPeers` down to one entry and itself newly elected DF. A rule watching only `state`
+would see nothing wrong from leaf 2; `forwardingPeers` is what shows the segment is running on one
+leg from either side.
 
 `show_bgp_evpn_instance_fabric_a_spine_1.json` preserves the empty `bgpEvpnInstances` object
 returned by a route-reflector spine that does not terminate EVPN instances locally.

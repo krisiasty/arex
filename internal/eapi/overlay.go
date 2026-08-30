@@ -102,14 +102,47 @@ type BGPEVPNInstance struct {
 }
 
 // EthernetSegment is one ESI's state and designated-forwarder election.
+//
+// DFElectionAlgorithm and DFElectionState are mutually exclusive: EOS reports
+// the algorithm once an election has settled and the state while it has not.
+// Across 118 segment entries captured from a pair of leaves, every one carried
+// exactly one of the two.
 type EthernetSegment struct {
-	Interface           string       `json:"intf"`
-	RedundancyMode      string       `json:"redundancyMode"`
-	State               string       `json:"state"`
-	DFElectionAlgorithm string       `json:"dFElectionAlgorithm"`
-	DFPeer              EVPNPeerIP   `json:"dFPeer"`
-	NonDFPeers          []EVPNPeerIP `json:"nonDFPeers"`
-	ForwardingPeers     []EVPNPeerIP `json:"forwardingPeers"`
+	Interface      string `json:"intf"`
+	RedundancyMode string `json:"redundancyMode"`
+	State          string `json:"state"`
+
+	DFElectionAlgorithm string `json:"dFElectionAlgorithm"`
+
+	// DFElectionState is why there is no forwarder -- "pending" on a segment
+	// whose local link is down. Present only when DFElectionAlgorithm is not.
+	DFElectionState string `json:"dFElectionState"`
+
+	// DFPeer carries an empty IP when no forwarder is elected, rather than
+	// being absent or null.
+	DFPeer          EVPNPeerIP   `json:"dFPeer"`
+	NonDFPeers      []EVPNPeerIP `json:"nonDFPeers"`
+	ForwardingPeers []EVPNPeerIP `json:"forwardingPeers"`
+}
+
+// Up reports whether this switch's own link into the segment is up.
+//
+// It is not a fabric-wide verdict: when one leaf of a multihomed pair loses its
+// link, the survivor still reports the segment up, correctly, because its own
+// link is fine. ForwardingPeers is what shows the segment lost a path.
+func (s EthernetSegment) Up() bool { return s.State == "up" }
+
+// HasDesignatedForwarder reports whether an election has produced a forwarder.
+// Checked explicitly rather than relying on the empty IP failing to match a
+// local VTEP address, which would be right by accident.
+func (s EthernetSegment) HasDesignatedForwarder() bool { return s.DFPeer.IP != "" }
+
+// DesignatedForwarder reports whether localVTEP is the elected forwarder for
+// this segment. DF election runs per VLAN-aware bundle, so the same ESI can
+// have a different forwarder in each instance it belongs to -- that is the
+// modulus algorithm spreading the role, not a fault.
+func (s EthernetSegment) DesignatedForwarder(localVTEP string) bool {
+	return s.HasDesignatedForwarder() && s.DFPeer.IP == localVTEP
 }
 
 // EVPNPeerIP is the common peer object used by ESI election lists.
