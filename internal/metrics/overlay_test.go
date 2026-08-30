@@ -3,6 +3,8 @@ package metrics
 import (
 	"strings"
 	"testing"
+
+	"github.com/krisiasty/arex/internal/collector"
 )
 
 const (
@@ -83,6 +85,27 @@ func TestEVPNPeersAreSeparateFromIPv4Peers(t *testing.T) {
 	}
 	if got := sample(out, "arista_bgp_evpn_peer_prefixes_received", `peer="198.51.100.101"`); got != "653" {
 		t.Errorf("evpn prefixes received = %q, want 653", got)
+	}
+}
+
+// Maintenance is exported separately so alerting can distinguish a planned
+// drain from an unexpected session failure, as the IPv4 BGP series already do.
+func TestEVPNPeerMaintenanceIsExported(t *testing.T) {
+	out := render(t, func(sd *collector.SwitchData) {
+		vrf := sd.EVPNSummary.Vrfs["default"]
+		peer := vrf.Peers["198.51.100.101"]
+		peer.PeerState = "Idle"
+		peer.UnderMaintenance = true
+		vrf.Peers["198.51.100.101"] = peer
+		sd.EVPNSummary.Vrfs["default"] = vrf
+	})
+
+	if got := sample(out, "arista_bgp_evpn_peer_under_maintenance",
+		`peer="198.51.100.101"`); got != "1" {
+		t.Errorf("evpn peer under maintenance = %q, want 1", got)
+	}
+	if got := sample(out, "arista_bgp_evpn_peer_up", `peer="198.51.100.101"`); got != "0" {
+		t.Errorf("evpn peer up = %q, want 0 while the maintained session is down", got)
 	}
 }
 

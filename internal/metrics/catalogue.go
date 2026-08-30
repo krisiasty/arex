@@ -77,6 +77,7 @@ var metricDefs = []metricDef{
 	{"arista_bgp_evpn_peer_prefixes_advertised", "gauge", "EVPN routes advertised to the peer", lPeer},
 	{"arista_bgp_evpn_peer_prefixes_received", "gauge", "EVPN routes received from the peer", lPeer},
 	{"arista_bgp_evpn_peer_state_change_timestamp_seconds", "gauge", "Unix timestamp the EVPN session last changed state", lPeer},
+	{"arista_bgp_evpn_peer_under_maintenance", "gauge", "1 if the EVPN peer is under maintenance", lPeer},
 	{"arista_bgp_evpn_peer_up", "gauge", "1 if the EVPN peering is Established; distinct from the IPv4 unicast session to the same neighbour", lPeer},
 	{"arista_bgp_evpn_routes", "gauge", "EVPN path entries by route type. Paths, not unique routes: one route learned from two peers counts twice", lEvpnRoute},
 	{"arista_bgp_peer_info", "gauge", "BGP peer description labels. Always 1", lPeerInfo},

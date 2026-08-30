@@ -557,6 +557,7 @@ func collectEVPNPeers(ch chan<- prometheus.Metric, label string, e eapi.ShowBGPE
 		for peer, p := range v.Peers {
 			set(ch, "arista_bgp_evpn_peer_info", 1, label, vrf, peer, p.Asn, p.Description)
 			setBool(ch, "arista_bgp_evpn_peer_up", p.PeerState == "Established", label, vrf, peer, p.Asn)
+			setBool(ch, "arista_bgp_evpn_peer_under_maintenance", p.UnderMaintenance, label, vrf, peer, p.Asn)
 			set(ch, "arista_bgp_evpn_peer_prefixes_received", float64(p.PrefixReceived), label, vrf, peer, p.Asn)
 			set(ch, "arista_bgp_evpn_peer_prefixes_accepted", float64(p.PrefixAccepted), label, vrf, peer, p.Asn)
 			set(ch, "arista_bgp_evpn_peer_prefixes_advertised", float64(p.PrefixAdvertised), label, vrf, peer, p.Asn)

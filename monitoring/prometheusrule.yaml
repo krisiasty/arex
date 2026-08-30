@@ -32,7 +32,7 @@ spec:
             description: >-
               No arex_build_info series exists, so either arex is down or nothing
               is scraping it. Every switch metric is absent while this is true.
-  
+
         - alert: ArexSwitchUnreachable
           expr: arista_scrape_success == 0
           for: 5m
@@ -43,7 +43,7 @@ spec:
             description: >-
               The last poll failed. arex serves the previous values until they
               pass stalenessLimit, after which the switch's metrics disappear.
-  
+
         - alert: ArexSwitchDataStale
           # Complements the rule above: a poll can keep succeeding while one
           # command stops returning, which shows up as age rather than failure.
@@ -53,7 +53,7 @@ spec:
             severity: warning
           annotations:
             summary: "{{ $labels.switch }}: data is {{ $value | humanizeDuration }} old"
-  
+
         - alert: ArexCommandFailing
           expr: arista_command_success == 0
           for: 15m
@@ -65,7 +65,7 @@ spec:
               One command is rejected while others succeed, so only the metrics it
               feeds are affected. Usually a role that does not permit it, or a
               platform that does not support it.
-  
+
         - alert: ArexCredentialRejected
           # A rotation would show outcome="rotated". "unchanged" means arex
           # re-read the file after a rejection and found the same password, so the
@@ -76,7 +76,7 @@ spec:
             severity: critical
           annotations:
             summary: "{{ $labels.switch }}: the configured password is being rejected"
-  
+
         - alert: ArexCredentialUnreadable
           expr: increase(arista_credential_reloads_total{outcome="failed"}[15m]) > 0
           for: 5m
@@ -88,7 +88,7 @@ spec:
               Check the mount and its permissions. arex keeps using the last good
               password, so this is a warning about the next rotation, not an
               outage yet.
-  
+
     # The switches.
     - name: arista
       rules:
@@ -99,7 +99,7 @@ spec:
             severity: warning
           annotations:
             summary: "{{ $labels.switch }} {{ $labels.interface }}: link down"
-  
+
         - alert: SwitchInterfaceFlapping
           expr: rate(arista_interface_link_status_changes_total[15m]) * 900 > 3
           for: 5m
@@ -107,7 +107,7 @@ spec:
             severity: warning
           annotations:
             summary: "{{ $labels.switch }} {{ $labels.interface }}: flapping"
-  
+
         - alert: SwitchInterfaceErrors
           expr: rate(arista_interface_in_errors_total[15m]) > 0
           for: 10m
@@ -115,7 +115,7 @@ spec:
             severity: warning
           annotations:
             summary: "{{ $labels.switch }} {{ $labels.interface }}: receiving errors"
-  
+
         - alert: SwitchLinkFCSErrors
           # Interface counters, not FEC: these refresh on every poll, whereas the
           # PHY's FEC registers were static for 107 days on a switch under test.
@@ -128,7 +128,7 @@ spec:
             description: >-
               Frames are arriving corrupted. Usually the fibre, the connector or
               the optic at one end.
-  
+
         - alert: SwitchLinkMacFault
           expr: arista_phy_mac_local_fault == 1 or arista_phy_mac_remote_fault == 1
           for: 5m
@@ -136,7 +136,7 @@ spec:
             severity: critical
           annotations:
             summary: "{{ $labels.switch }} {{ $labels.interface }}: MAC fault"
-  
+
         - alert: SwitchLinkHighBER
           expr: arista_phy_pcs_high_ber == 1
           for: 5m
@@ -144,7 +144,7 @@ spec:
             severity: critical
           annotations:
             summary: "{{ $labels.switch }} {{ $labels.interface }}: PCS reports a high bit error rate"
-  
+
         - alert: SwitchOpticRxPowerLow
           # Gated on link_up: a populated but dark cage sits at the -30 dBm floor
           # for ever, well below its own low alarm, and would alert permanently.
@@ -161,7 +161,7 @@ spec:
             description: >-
               Compared against this optic's own threshold rather than a fixed
               number, since acceptable power depends on the part and the link.
-  
+
         - alert: SwitchOpticTemperatureHigh
           expr: |
             arista_transceiver_temperature_celsius
@@ -172,7 +172,7 @@ spec:
             severity: warning
           annotations:
             summary: "{{ $labels.switch }} {{ $labels.interface }}: optic above its high temperature warning"
-  
+
         - alert: SwitchOpticFECUncorrected
           # delta(), not "> 0": the gauge persists after a repair, so the obvious
           # version never clears. FEC is a weak alerting source in general -- see
@@ -185,7 +185,7 @@ spec:
             severity: warning
           annotations:
             summary: "{{ $labels.switch }} {{ $labels.interface }}: uncorrected FEC codewords increased"
-  
+
         - alert: SwitchBGPPeerDown
           expr: arista_bgp_peer_up == 0 and arista_bgp_peer_under_maintenance == 0
           for: 2m
@@ -193,7 +193,7 @@ spec:
             severity: critical
           annotations:
             summary: "{{ $labels.switch }}: BGP peer {{ $labels.peer }} is down"
-  
+
         - alert: SwitchTemperatureAlert
           expr: arista_temperature_alert == 1
           for: 1m
@@ -201,7 +201,7 @@ spec:
             severity: critical
           annotations:
             summary: "{{ $labels.switch }}: temperature alert on {{ $labels.sensor }}"
-  
+
         - alert: SwitchTemperatureNearOverheat
           expr: |
             arista_temperature_celsius
@@ -211,7 +211,7 @@ spec:
             severity: warning
           annotations:
             summary: "{{ $labels.switch }}: {{ $labels.sensor }} within 10% of its overheat threshold"
-  
+
         - alert: SwitchFanDown
           expr: arista_fan_ok == 0
           for: 1m
@@ -219,7 +219,7 @@ spec:
             severity: warning
           annotations:
             summary: "{{ $labels.switch }}: fan {{ $labels.fan }} is not OK"
-  
+
         - alert: SwitchPSUDown
           expr: arista_psu_ok == 0
           for: 1m
@@ -227,7 +227,7 @@ spec:
             severity: critical
           annotations:
             summary: "{{ $labels.switch }}: PSU {{ $labels.psu }} is not OK"
-  
+
         - alert: SwitchPSUHighLoad
           expr: arista_psu_output_power_watts / arista_psu_capacity_watts > 0.8
           for: 5m
@@ -235,7 +235,7 @@ spec:
             severity: warning
           annotations:
             summary: "{{ $labels.switch }}: PSU {{ $labels.psu }} above 80% of capacity"
-  
+
         - alert: SwitchMemoryLow
           expr: arista_memory_available_bytes / arista_memory_total_bytes < 0.1
           for: 15m
@@ -245,7 +245,7 @@ spec:
             summary: "{{ $labels.switch }}: less than 10% of memory available"
             description: >-
               Available, not free. Low free memory is normal; low available is not.
-  
+
         - alert: SwitchClockUnsynchronised
           # Every timestamp arex exports -- boot time, last counter clear, last
           # link transition -- is dated by this clock. When it is not being
@@ -260,7 +260,7 @@ spec:
             severity: warning
           annotations:
             summary: "{{ $labels.switch }}: clock is not synchronised to any NTP source"
-  
+
         - alert: SwitchClockOffsetHigh
           # Deliberately on the unlabelled series rather than the per-peer one:
           # arista_ntp_peer_offset_seconds is 0.0 for a server that has never
@@ -275,7 +275,7 @@ spec:
             severity: warning
           annotations:
             summary: "{{ $labels.switch }}: clock is more than 100ms from its NTP source"
-  
+
         - alert: SwitchHardwareTableFilling
           # Deliberately unaggregated. The tightest row is what fails first: an
           # ACL that does not fit in one TCAM slice is rejected even though the
@@ -294,18 +294,18 @@ spec:
             summary: "{{ $labels.switch }}: hardware table {{ $labels.table }} {{ $labels.feature }} is over 80% full"
             description: >-
               Forwarding entries are dropped, not queued, once a table is full.
-  
+
         - alert: SwitchEVPNPeerDown
           # The EVPN address family, not the IPv4 unicast session to the same
           # neighbour. Either can fail while the other stays up, and a healthy
           # underlay session is exactly what makes a dead overlay one hard to see.
-          expr: arista_bgp_evpn_peer_up == 0
+          expr: arista_bgp_evpn_peer_up == 0 and arista_bgp_evpn_peer_under_maintenance == 0
           for: 2m
           labels:
             severity: critical
           annotations:
             summary: "{{ $labels.switch }}: EVPN peering with {{ $labels.peer }} is down"
-  
+
         - alert: SwitchESISinglyAttached
           # Watches forwarding peers rather than state, because state is each
           # switch's own view: when one leaf of a multihomed pair loses its link,
@@ -319,7 +319,7 @@ spec:
             summary: "{{ $labels.switch }}: ethernet segment {{ $labels.esi }} is down to {{ $value }} forwarding peer(s)"
             description: >-
               The segment still forwards, on one leg. The next failure takes it down.
-  
+
         - alert: SwitchESINoDesignatedForwarder
           # Aggregated across the fabric: one leaf reporting 0 is normal, it just
           # means its peer holds the role. No leaf reporting 1 means broadcast and
@@ -331,7 +331,7 @@ spec:
             severity: critical
           annotations:
             summary: "no designated forwarder elected for ethernet segment {{ $labels.esi }}"
-  
+
         - alert: SwitchVXLANInterfaceDown
           expr: arista_vxlan_interface_up == 0
           for: 2m

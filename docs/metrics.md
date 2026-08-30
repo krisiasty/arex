@@ -261,9 +261,9 @@ threshold can be written against.
 
 ### The control plane
 
-`arista_bgp_evpn_peer_up`, `_prefixes_received` / `_accepted` / `_advertised`,
-`_state_change_timestamp_seconds` and `_info`, all labelled `vrf`, `peer`, `asn` — the same shape
-as the IPv4 series, deliberately.
+`arista_bgp_evpn_peer_up`, `_under_maintenance`, `_prefixes_received` / `_accepted` /
+`_advertised`, `_state_change_timestamp_seconds` and `_info`, all labelled `vrf`, `peer`, `asn` —
+the same shape as the IPv4 series, deliberately.
 
 They are **separate series, not extra labels on `arista_bgp_peer_*`**. The same neighbour normally
 carries both an IPv4 unicast and an EVPN session, and either can fail while the other stays up. A
