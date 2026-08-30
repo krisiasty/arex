@@ -212,8 +212,8 @@ func Load(path string) (*Config, error) {
 	}
 
 	var tree any
-	if err := yaml.Unmarshal(body, &tree); err != nil {
-		return nil, fmt.Errorf("parse config: %w", err)
+	if uerr := yaml.Unmarshal(body, &tree); uerr != nil {
+		return nil, fmt.Errorf("parse config: %w", uerr)
 	}
 	asJSON, err := json.Marshal(tree)
 	if err != nil {
