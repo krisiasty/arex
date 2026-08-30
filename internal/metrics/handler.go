@@ -61,8 +61,8 @@ func TargetIndex(switches []config.SwitchConfig) map[string]string {
 }
 
 func stripScheme(host string) string {
-	if i := strings.Index(host, "://"); i >= 0 {
-		return host[i+3:]
+	if _, after, ok := strings.Cut(host, "://"); ok {
+		return after
 	}
 	return host
 }
