@@ -268,6 +268,10 @@ Per-switch fields:
 | `pinnedCertSha256` | SHA-256 of this switch's leaf certificate. See [TLS](tls.md) |
 | `tlsSkipVerify` | Do not verify this switch's certificate at all. See [TLS](tls.md) |
 
+One arex instance accepts at most 1,000 entries in `switches`. This is a defensive hard limit, not a tested
+capacity: arex has not been tested at this scale. Split large fleets across separate arex instances instead of
+treating the limit as a deployment target.
+
 Exactly one of `caFile`, `pinnedCertSha256`, and `tlsSkipVerify` is required per switch — verification is not
 something arex will decide for you. Setting more than one is rejected.
 

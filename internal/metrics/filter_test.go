@@ -16,7 +16,7 @@ func filterHandler(t *testing.T) http.Handler {
 // families returns the metric names present in a response.
 func families(body string) map[string]bool {
 	out := map[string]bool{}
-	for _, line := range strings.Split(body, "\n") {
+	for line := range strings.SplitSeq(body, "\n") {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
@@ -104,7 +104,7 @@ func TestInterfaceNarrowsToInterfaceFamilies(t *testing.T) {
 		}
 	}
 	// And only the requested interface.
-	for _, line := range strings.Split(body, "\n") {
+	for line := range strings.SplitSeq(body, "\n") {
 		if strings.Contains(line, `interface="`) && !strings.Contains(line, `interface="Ethernet1/1"`) {
 			t.Errorf("other interfaces leaked: %s", line)
 		}

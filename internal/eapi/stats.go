@@ -1,6 +1,7 @@
 package eapi
 
 import (
+	"maps"
 	"sync"
 	"time"
 )
@@ -109,13 +110,9 @@ func (s *Stats) Snapshot() StatsSnapshot {
 		ResponseBytes:   s.respBytes,
 		DurationSeconds: s.duration.Seconds(),
 	}
-	for k, v := range s.requests {
-		out.Requests[k] = v
-	}
+	maps.Copy(out.Requests, s.requests)
 	out.Reloads = make(map[Reload]uint64, len(s.reloads))
-	for k, v := range s.reloads {
-		out.Reloads[k] = v
-	}
+	maps.Copy(out.Reloads, s.reloads)
 	return out
 }
 

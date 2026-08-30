@@ -239,6 +239,32 @@ func TestValidationRejectsIncompleteSwitches(t *testing.T) {
 	}
 }
 
+func TestSwitchLimit(t *testing.T) {
+	switches := make([]SwitchConfig, MaxSwitches)
+	for i := range switches {
+		switches[i] = SwitchConfig{
+			Host:          "https://192.0.2.1",
+			Username:      "u",
+			Password:      "p",
+			TLSSkipVerify: true,
+		}
+	}
+	cfg := Config{Switches: switches, Collect: CollectSet{}}
+	if err := cfg.validate(); err != nil {
+		t.Fatalf("%d switches rejected: %v", MaxSwitches, err)
+	}
+
+	cfg.Switches = append(cfg.Switches, switches[0])
+	err := cfg.validate()
+	if err == nil {
+		t.Fatalf("%d switches accepted", MaxSwitches+1)
+	}
+	want := "1001 switches configured; maximum is 1000 per instance"
+	if !strings.Contains(err.Error(), want) {
+		t.Errorf("error = %v, want mention of %q", err, want)
+	}
+}
+
 func TestLabelFallsBackToHost(t *testing.T) {
 	named := SwitchConfig{Host: "https://192.0.2.1", Name: "spine1"}
 	unnamed := SwitchConfig{Host: "https://192.0.2.2"}

@@ -107,7 +107,7 @@ func gather(t *testing.T, store *collector.Store, stalenessLimit time.Duration) 
 // every given label fragment. Fragments are matched independently, so tests
 // do not depend on label ordering.
 func sample(out, metric string, labelParts ...string) string {
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if !strings.HasPrefix(line, metric+"{") {
 			continue
 		}
@@ -146,7 +146,7 @@ func normalize(out string) string {
 
 func countSamples(out string) int {
 	n := 0
-	for _, l := range strings.Split(out, "\n") {
+	for l := range strings.SplitSeq(out, "\n") {
 		if l != "" && !strings.HasPrefix(l, "#") {
 			n++
 		}
@@ -208,7 +208,7 @@ func TestNeverCollectedEmitsOnlyScrapeMetrics(t *testing.T) {
 	}
 	// Scrape health and arex's own request counters are fine to emit; what
 	// must not appear is any data purporting to describe the switch.
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
@@ -474,13 +474,13 @@ func TestLabelValuesUseOnlyValidEscapes(t *testing.T) {
 func TestEveryMetricHasHelpAndType(t *testing.T) {
 	out := render(t, nil)
 	declared := map[string]bool{}
-	for _, l := range strings.Split(out, "\n") {
+	for l := range strings.SplitSeq(out, "\n") {
 		if strings.HasPrefix(l, "# TYPE ") {
 			declared[strings.Fields(l)[2]] = true
 		}
 	}
 	seen := map[string]bool{}
-	for _, l := range strings.Split(out, "\n") {
+	for l := range strings.SplitSeq(out, "\n") {
 		if l == "" || strings.HasPrefix(l, "#") {
 			continue
 		}
@@ -564,7 +564,7 @@ func TestOutputIsDeterministic(t *testing.T) {
 // Prometheus rejects a scrape containing the same series twice.
 func TestNoDuplicateSeries(t *testing.T) {
 	seen := map[string]int{}
-	for _, line := range strings.Split(render(t, nil), "\n") {
+	for line := range strings.SplitSeq(render(t, nil), "\n") {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
@@ -584,7 +584,7 @@ func TestNoDuplicateSeries(t *testing.T) {
 // A HELP or TYPE line repeated for one metric name is a parse error.
 func TestNoDuplicateHelpOrType(t *testing.T) {
 	help, typ := map[string]int{}, map[string]int{}
-	for _, l := range strings.Split(render(t, nil), "\n") {
+	for l := range strings.SplitSeq(render(t, nil), "\n") {
 		f := strings.Fields(l)
 		if len(f) < 3 || f[0] != "#" {
 			continue
@@ -626,7 +626,7 @@ func TestFECConfigLivesOnAnInfoMetric(t *testing.T) {
 		"arista_phy_fec_uncorrected_codewords",
 		"arista_phy_fec_alignment_lock",
 	} {
-		for _, line := range strings.Split(out, "\n") {
+		for line := range strings.SplitSeq(out, "\n") {
 			if !strings.HasPrefix(line, m+"{") {
 				continue
 			}
@@ -659,7 +659,7 @@ func TestCommandSuccessEmittedForNeverCollectedSwitch(t *testing.T) {
 	if n != len(sd.Commands) {
 		t.Errorf("%d command_success series, want %d", n, len(sd.Commands))
 	}
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if strings.HasPrefix(line, "arista_command_success{") && !strings.HasSuffix(line, " 0") {
 			t.Errorf("every command should report 0 after a total failure: %s", line)
 		}

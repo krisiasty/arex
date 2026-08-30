@@ -31,7 +31,7 @@ const InternalTarget = "internal"
 // switch is ambiguous and is dropped rather than resolved to whichever came
 // last, which would return one switch's metrics under another's identity.
 func TargetIndex(switches []config.SwitchConfig) map[string]string {
-	index := make(map[string]string, len(switches)*3)
+	index := make(map[string]string, len(switches))
 	ambiguous := make(map[string]bool)
 
 	add := func(key, label string) {
@@ -61,8 +61,8 @@ func TargetIndex(switches []config.SwitchConfig) map[string]string {
 }
 
 func stripScheme(host string) string {
-	if i := strings.Index(host, "://"); i >= 0 {
-		return host[i+3:]
+	if _, after, ok := strings.Cut(host, "://"); ok {
+		return after
 	}
 	return host
 }

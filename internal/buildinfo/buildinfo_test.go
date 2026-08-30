@@ -2,8 +2,14 @@ package buildinfo
 
 import (
 	"strings"
+	"sync"
 	"testing"
 )
+
+// reset clears the cache so a test can vary the injected version.
+func reset() {
+	once = sync.Once{}
+}
 
 // -version has to answer the question "which build is this", and every field
 // falls back to a placeholder rather than being empty: an empty value is

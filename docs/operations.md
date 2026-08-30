@@ -24,6 +24,13 @@ a malformed certificate pin and a credential file that has stopped being readabl
 surface as a service that starts and immediately exits. [deploy/arex.service](../deploy/arex.service) runs it as
 `ExecStartPre`, so a bad edit stops the restart instead of taking the exporter down.
 
+## Fleet sizing
+
+One arex instance accepts at most 1,000 switches. The limit prevents an accidentally generated configuration from
+creating unbounded per-switch state, clients, and poller goroutines; it is not a supported-capacity claim. arex has
+not been tested at this scale, and actual capacity depends on switch size, enabled modules, poll duration, and
+metrics cardinality. Split large fleets across multiple arex instances and partition the switch list between them.
+
 ## Endpoints
 
 | Path | Purpose |

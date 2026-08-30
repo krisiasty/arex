@@ -58,8 +58,7 @@ func TestHTTPStatusErrorIsNotACommandError(t *testing.T) {
 	c, _ := NewClient(srv.URL, "u", "p", 5*time.Second, TLSOptions{SkipVerify: true})
 	_, err := c.Run([]string{"show version"})
 
-	var cmdErr *CommandError
-	if errors.As(err, &cmdErr) {
+	if _, ok := errors.AsType[*CommandError](err); ok {
 		t.Error("a 401 must not be a CommandError, or it would trigger per-command retries")
 	}
 }
