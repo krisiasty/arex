@@ -7,6 +7,9 @@
 # intervall, pollIntervall and transciever are deliberate: tests assert that a
 # config error names the misspelled field or key rather than failing
 # anonymously.
+#
+# vccNdProxy and vxlanNdProxy are EOS field names from "show interface vxlan 1".
+# The Nd is IPv6 Neighbor Discovery, not a misspelling of And.
 
 [default]
 extend-ignore-identifiers-re = [
@@ -21,6 +24,8 @@ unparseable = "unparseable"
 intervall = "intervall"
 pollIntervall = "pollIntervall"
 transciever = "transciever"
+vccNdProxy = "vccNdProxy"
+vxlanNdProxy = "vxlanNdProxy"
 Unparseable = "Unparseable"
 unparseable = "unparseable"
 
