@@ -171,3 +171,6 @@ up and uses modulus DF election. DF ownership is complementary: leaf 1 elects it
 and its peer for 16, while leaf 2 elects itself for 16 and its peer for 43. Bundle and VRF names,
 RDs, route targets, ESIs, Port-Channel identifiers, and peer addresses are synthetic. Repeated
 segments and interfaces retain the same replacement within and across both fixtures.
+
+`show_bgp_evpn_instance_fabric_a_spine_1.json` preserves the empty `bgpEvpnInstances` object
+returned by a route-reflector spine that does not terminate EVPN instances locally.
