@@ -429,9 +429,12 @@ func (c *Collector) collectInterfaces(ch chan<- prometheus.Metric, label string,
 			cause string
 			v     uint64
 		}{
-			{"alignmentErrors", d.AlignmentErrors}, {"fcsErrors", d.FcsErrors},
-			{"giantFrames", d.GiantFrames}, {"runtFrames", d.RuntFrames},
-			{"rxPause", d.RxPause}, {"symbolErrors", d.SymbolErrors},
+			{"alignmentErrors", d.AlignmentErrors},
+			{"fcsErrors", d.FcsErrors},
+			{"giantFrames", d.GiantFrames},
+			{"runtFrames", d.RuntFrames},
+			{"rxPause", d.RxPause},
+			{"symbolErrors", d.SymbolErrors},
 		} {
 			set(ch, "arista_interface_in_errors_detail_total", float64(e.v), label, name, e.cause)
 		}
@@ -440,8 +443,10 @@ func (c *Collector) collectInterfaces(ch chan<- prometheus.Metric, label string,
 			cause string
 			v     uint64
 		}{
-			{"collisions", o.Collisions}, {"deferredTransmissions", o.DeferredTransmissions},
-			{"lateCollisions", o.LateCollisions}, {"txPause", o.TxPause},
+			{"collisions", o.Collisions},
+			{"deferredTransmissions", o.DeferredTransmissions},
+			{"lateCollisions", o.LateCollisions},
+			{"txPause", o.TxPause},
 		} {
 			set(ch, "arista_interface_out_errors_detail_total", float64(e.v), label, name, e.cause)
 		}
@@ -534,16 +539,26 @@ var domParams = []struct {
 	key, prefix, unit string
 	reading           func(eapi.Transceiver) float64
 }{
-	{"temperature", "arista_transceiver_temperature", "celsius",
-		func(x eapi.Transceiver) float64 { return x.Temperature }},
-	{"voltage", "arista_transceiver_voltage", "volts",
-		func(x eapi.Transceiver) float64 { return x.Voltage }},
-	{"txBias", "arista_transceiver_tx_bias", "milliamps",
-		func(x eapi.Transceiver) float64 { return x.TxBias }},
-	{"txPower", "arista_transceiver_tx_power", "dbm",
-		func(x eapi.Transceiver) float64 { return x.TxPower }},
-	{"rxPower", "arista_transceiver_rx_power", "dbm",
-		func(x eapi.Transceiver) float64 { return x.RxPower }},
+	{
+		"temperature", "arista_transceiver_temperature", "celsius",
+		func(x eapi.Transceiver) float64 { return x.Temperature },
+	},
+	{
+		"voltage", "arista_transceiver_voltage", "volts",
+		func(x eapi.Transceiver) float64 { return x.Voltage },
+	},
+	{
+		"txBias", "arista_transceiver_tx_bias", "milliamps",
+		func(x eapi.Transceiver) float64 { return x.TxBias },
+	},
+	{
+		"txPower", "arista_transceiver_tx_power", "dbm",
+		func(x eapi.Transceiver) float64 { return x.TxPower },
+	},
+	{
+		"rxPower", "arista_transceiver_rx_power", "dbm",
+		func(x eapi.Transceiver) float64 { return x.RxPower },
+	},
 }
 
 // collectTransceivers emits DOM readings and the optic's own limits.
@@ -572,8 +587,10 @@ func (c *Collector) collectTransceivers(ch chan<- prometheus.Metric, label strin
 				level string
 				v     *float64
 			}{
-				{"high_alarm", th.HighAlarm}, {"high_warn", th.HighWarn},
-				{"low_alarm", th.LowAlarm}, {"low_warn", th.LowWarn},
+				{"high_alarm", th.HighAlarm},
+				{"high_warn", th.HighWarn},
+				{"low_alarm", th.LowAlarm},
+				{"low_warn", th.LowWarn},
 			} {
 				if t.v == nil {
 					continue

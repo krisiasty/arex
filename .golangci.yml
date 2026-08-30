@@ -47,6 +47,10 @@ linters:
     - intrange
 
   settings:
+    govet:
+      enable:
+        - shadow  # an inner err that hides an outer one, whether or not it is read
+
     nolintlint:
       require-explanation: true
       require-specific: true
@@ -70,6 +74,11 @@ issues:
 #   lll (50)          — the long lines are catalogue.go metric definitions,
 #                       where one metric per line is what makes the table
 #                       readable; prose is already wrapped at 200
+#   govet fieldalignment (49) — the eapi structs mirror, field for field, the
+#                       JSON EOS returns, and that correspondence is what makes
+#                       them reviewable against a capture. Reordering them to
+#                       save a few pointer bytes on structs that exist a few
+#                       dozen times per poll is the wrong trade.
 #   gochecknoglobals (42) — the metric catalogue, descs and command specs are
 #                       package-level tables built once and never written
 #   err113 (40)       — fmt.Errorf with a formatted message is the intended
@@ -83,3 +92,7 @@ issues:
 #   ireturn (0)       — clean today, but the Runner interface exists so tests
 #                       can substitute a fake; a constructor returning it later
 #                       would be correct, not a finding
+
+formatters:
+  enable:
+    - gofumpt  # gofmt plus the rules gofmt left out; CI enforces it, so agents see it too

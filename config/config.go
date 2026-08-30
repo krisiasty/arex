@@ -212,7 +212,7 @@ func Load(path string) (*Config, error) {
 	}
 
 	var tree any
-	if err := yaml.Unmarshal(body, &tree); err != nil {
+	if err = yaml.Unmarshal(body, &tree); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 	asJSON, err := json.Marshal(tree)
@@ -371,7 +371,8 @@ var CollectKeys = []string{
 // there is no partial inheritance to reason about: what you see in a
 // switch's block is exactly what it collects.
 func (s SwitchConfig) EffectiveCollect(defaults map[string]ModuleConfig,
-	pollInterval time.Duration) map[string]ModuleConfig {
+	pollInterval time.Duration,
+) map[string]ModuleConfig {
 	src := defaults
 	if s.Collect != nil {
 		src = s.Collect

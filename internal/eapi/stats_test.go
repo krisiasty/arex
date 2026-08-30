@@ -45,9 +45,11 @@ func TestStatsDistinguishOutcomes(t *testing.T) {
 		outcome Outcome
 	}{
 		{"http error", http.StatusUnauthorized, "", OutcomeHTTPError},
-		{"eapi error", http.StatusOK,
+		{
+			"eapi error", http.StatusOK,
 			`{"jsonrpc":"2.0","id":1,"error":{"code":1002,"message":"invalid command"}}`,
-			OutcomeEAPIError},
+			OutcomeEAPIError,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			srv := eapiServer(t, tc.body, tc.status)

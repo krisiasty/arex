@@ -113,7 +113,8 @@ func checkConfig(path string) error {
 // Returns nil when probeAddress is unset, which is the default: one listener
 // serves everything, and the probes are simply exempt from authentication.
 func startProbes(ctx context.Context, cfg *config.Config, checker *health.Checker,
-	logger *slog.Logger) (*http.Server, error) {
+	logger *slog.Logger,
+) (*http.Server, error) {
 	if cfg.ProbeAddress == "" {
 		return nil, nil //nolint:nilnil // no probe listener is a valid outcome
 	}
@@ -277,6 +278,7 @@ func run(cfgPath string, debugFlag, debugSet bool) error {
 		if debug {
 			opts = append(opts, withDebug(sw.Label(), logger))
 		}
+		//nolint:govet // shadow: per-iteration, and assigning the outer err would leak between switches
 		client, err := newClient(sw, cfg, opts...)
 		if err != nil {
 			return err

@@ -193,7 +193,7 @@ func TestCAFileVerifiesAProperCert(t *testing.T) {
 
 	caPath := filepath.Join(t.TempDir(), "ca.pem")
 	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
-	if err := os.WriteFile(caPath, pemBytes, 0o600); err != nil {
+	if err = os.WriteFile(caPath, pemBytes, 0o600); err != nil {
 		t.Fatal(err)
 	}
 

@@ -37,7 +37,8 @@ type Client struct {
 // unusable -- an unreadable CA bundle or a malformed pin -- so the problem
 // surfaces at startup instead of as a per-request error on every poll.
 func NewClient(host, username, password string, timeout time.Duration,
-	tlsOpts TLSOptions, opts ...Option) (*Client, error) {
+	tlsOpts TLSOptions, opts ...Option,
+) (*Client, error) {
 	tlsCfg, err := buildTLSConfig(tlsOpts)
 	if err != nil {
 		return nil, err

@@ -107,7 +107,8 @@ type Store struct {
 // Labels must be unique: two switches sharing one would write into the same
 // SwitchData, producing a single series alternating between two devices.
 func NewStore(switches []config.SwitchConfig, defaults map[string]config.ModuleConfig,
-	pollInterval time.Duration) (*Store, error) {
+	pollInterval time.Duration,
+) (*Store, error) {
 	s := &Store{
 		switches: make(map[string]*SwitchData, len(switches)),
 		order:    make([]string, 0, len(switches)),

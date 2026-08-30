@@ -323,6 +323,7 @@ func TestClientCertificateIsRequired(t *testing.T) {
 
 	get := func(t *testing.T, c *http.Client) (*http.Response, error) {
 		t.Helper()
+		//nolint:govet // shadow: a closure must not write to the enclosing err
 		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -334,6 +335,7 @@ func TestClientCertificateIsRequired(t *testing.T) {
 	bare := &http.Client{Transport: &http.Transport{
 		TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12},
 	}}
+	//nolint:govet // shadow: scoping resp and err to the if is the point
 	if resp, err := get(t, bare); err == nil {
 		_ = resp.Body.Close()
 		t.Error("a client with no certificate should not be served")

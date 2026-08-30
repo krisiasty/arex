@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/krisiasty/arex/internal/secret"
 	"log/slog"
+
+	"github.com/krisiasty/arex/internal/secret"
 
 	"github.com/krisiasty/arex/config"
 	"github.com/krisiasty/arex/internal/eapi"
