@@ -24,6 +24,12 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    # A week between a version being published and Dependabot proposing it. The
+    # window where a compromised or yanked release does its damage is measured
+    # in hours, and nothing here needs a dependency the day it ships. Security
+    # updates ignore cooldown, so this delays convenience, not CVE fixes.
+    cooldown:
+      default-days: 7
     labels:
       - "dependencies"
       - "go"
@@ -41,6 +47,8 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    cooldown:
+      default-days: 7
     labels:
       - "dependencies"
       - "github-actions"
@@ -51,6 +59,12 @@ updates:
   # Both Dockerfiles are pinned by digest, so nothing else would ever pick up a
   # rebuilt base image -- including one rebuilt to carry a security fix. This is
   # what turns the pin from a way of freezing into a way of reviewing.
+  #
+  # No cooldown here: the docker ecosystem does not support the option, and an
+  # unsupported key would invalidate this whole file rather than be ignored. It
+  # would be the wrong thing to want anyway -- a base image digest moves when
+  # the image is rebuilt to carry a fix, which is the update we least want held
+  # back a week.
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
