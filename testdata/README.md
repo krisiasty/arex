@@ -164,3 +164,10 @@ the dual-peer leaves have larger aggregate totals because remote routes can carr
 VXLAN address-table counts remain small so quiet-fabric behavior is represented rather than
 replaced with a busy synthetic table. The Fabric A leaves each report one remote VTEP with four
 entries, while the spine and both Fabric B leaves return an empty `vtepCounts` object.
+
+The paired `show_bgp_evpn_instance_fabric_a_leaf_*.json` fixtures each contain four VLAN-aware
+bundles, 38 unique Ethernet segments, and 59 bundle-to-segment entries. Every captured segment is
+up and uses modulus DF election. DF ownership is complementary: leaf 1 elects itself for 43 entries
+and its peer for 16, while leaf 2 elects itself for 16 and its peer for 43. Bundle and VRF names,
+RDs, route targets, ESIs, Port-Channel identifiers, and peer addresses are synthetic. Repeated
+segments and interfaces retain the same replacement within and across both fixtures.
