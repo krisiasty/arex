@@ -1,0 +1,19 @@
+{
+    "vteps": {},
+    "interfaces": {
+        "Vxlan1": {
+            "vteps": [
+                "192.0.2.201"
+            ]
+        }
+    },
+    "vtepTunnelTypes": {
+        "192.0.2.201": {
+            "tunnelTypes": [
+                {
+                    "tunnelType": "flood"
+                }
+            ]
+        }
+    }
+}

@@ -128,3 +128,18 @@ never both.
 thresholds (`txBias` high alarm is 11.0 on 100GBASE-SR4 but 80.0 on 40GBASE-LRL4), `totalRxPower`
 reporting no threshold values at all, and two dark optics whose `rxPower` sits at the EOS floor
 of -30.0 dBm — below their own low alarm, while transmitting normally.
+
+## EVPN/VXLAN captures
+
+The VXLAN fixtures cover two independent fabrics. Fabric A has two leaf VTEPs learned for both
+unicast and flood traffic plus a spine with no VXLAN interface. Fabric B is a back-to-back leaf
+pair whose VTEPs are learned for flood traffic only.
+
+The matching interface fixtures preserve source and remote VTEP relationships, VLAN-to-VNI maps,
+EVPN-sourced L3 VNIs, flood lists, and the empty IPv6 lists EOS emits. VLAN IDs, VNIs, VRF names,
+VTEP addresses, and the non-standard secondary UDP port are synthetic and consistent within each
+fabric. `Vxlan1`, `Loopback0`, UDP port 4789, the /32 mask, and the all-zero MAC are protocol or
+sentinel values rather than fabric identifiers, so they remain unchanged.
+
+`show_interface_vxlan_1_no_interface.txt` records the spine response when the command is issued
+without a VXLAN interface. The switch prompt is intentionally omitted.
