@@ -238,9 +238,9 @@ Three collect keys, because the parts fail independently and cost wildly differe
 | `evpn` | `show bgp evpn summary`, `show bgp evpn route-type count` | `pollInterval` | 0.7 kB |
 | `esi` | `show bgp evpn instance` | `15m` | **19 kB** |
 
-`show interface vxlan 1` fails outright on a switch with no VXLAN interface, so a spine leaves
-`vxlan` off rather than absorbing a failed command every poll. `evpn` and `esi` are fine on a
-route-reflector spine, which simply reports no instances.
+Enable `vxlan` only where `Vxlan1` exists: `show interface vxlan 1` fails outright without it. Enable
+`evpn` wherever the EVPN address family runs, including route-reflector spines. Enable `esi` only on
+switches terminating ESI multihoming; an EVPN route reflector does not need the empty instance query.
 
 ### The data plane
 
@@ -335,7 +335,8 @@ outbound. `cast` is `unicast`, `multicast` or `broadcast`.
 
 ## BGP
 
-Collected with `vrf all`, so peers in every VRF appear, not just the default one.
+Enable `bgp` only on switches running BGP. It is collected with `vrf all`, so peers in every VRF appear, not just
+the default one.
 
 | Metric | Type | Description |
 | --- | --- | --- |

@@ -87,16 +87,21 @@ config:
       enabled: true
     capacity:
       enabled: true
+    # Topology-dependent groups stay off in the fleet-wide default. Enable
+    # vxlan only where Vxlan1 exists, evpn only where the EVPN address family
+    # runs, and esi only on switches terminating ESI multihoming. A switch's
+    # collect block replaces this one, so repeat every common group it needs.
     vxlan:
-      enabled: true
+      enabled: false
     evpn:
-      enabled: true
+      enabled: false
     esi:
-      enabled: true
+      enabled: false
     interfaces:
       enabled: true
+    # Enable only on switches running BGP.
     bgp:
-      enabled: true
+      enabled: false
     transceiver:
       enabled: true
       interval: 5m

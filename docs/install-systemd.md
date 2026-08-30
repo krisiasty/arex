@@ -53,6 +53,8 @@ stalenessLimit: 90s
 # so it can be named literally.
 passwordFile: /run/credentials/arex.service/switch-password
 
+# Both switches below are BGP/EVPN leaves with Vxlan1 and ESI multihoming.
+# Leave each topology-dependent group disabled on switches that do not run it.
 collect:
   processes:
     enabled: true
