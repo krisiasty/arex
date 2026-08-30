@@ -48,7 +48,7 @@ func FuzzCollect(f *testing.F) {
 	}
 
 	f.Fuzz(func(_ *testing.T, body []byte) {
-		data := newSwitchDataFromSpecs("sw1", commandsFor(collect, "", 30*time.Second))
+		data := newSwitchDataFromSpecs("sw1", "", commandsFor(collect, "", 30*time.Second))
 		// A decode error is the expected outcome for almost every input; it is
 		// recorded per command and is not a failure here. Only a panic is.
 		Collect(rawRunner{body}, data)

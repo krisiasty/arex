@@ -35,8 +35,8 @@ var (
 	lVrfVni      = []string{"switch", "interface", "vrf", "vni"}
 	lVlan        = []string{"switch", "interface", "vlan"}
 	lEvpnRoute   = []string{"switch", "route_type"}
-	lEsi         = []string{"switch", "instance", "esi"}
-	lEsiInfo     = []string{"switch", "instance", "esi", "interface", "redundancy_mode"}
+	lEsi         = []string{"switch", "fabric", "evpn_instance", "esi"}
+	lEsiInfo     = []string{"switch", "fabric", "evpn_instance", "esi", "interface", "redundancy_mode"}
 	lNTPPeer     = []string{"switch", "peer"}
 	lNTPPeerInfo = []string{"switch", "peer", "refid", "peer_type"}
 	lPeer        = []string{"switch", "vrf", "peer", "asn"}

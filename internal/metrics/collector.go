@@ -243,7 +243,7 @@ func (c *Collector) collectSwitch(ch chan<- prometheus.Metric, sw *collector.Swi
 		}
 	}
 	if c.wants("esi") && fresh(collector.CmdBGPEVPNInstance) {
-		collectEVPNSegments(ch, label, sw.EVPNInstance)
+		collectEVPNSegments(ch, label, sw.Fabric, sw.EVPNInstance)
 	}
 	if c.wants("transceiver") && fresh(collector.CmdTransceivers) {
 		c.collectTransceivers(ch, label, sw.Optics)
@@ -594,16 +594,17 @@ func collectEVPNRoutes(ch chan<- prometheus.Metric, label string, r eapi.ShowBGP
 // pair loses its link the survivor still reports the segment up, correctly, so
 // forwarding_peers is the series that shows a segment running on one leg from
 // either side.
-func collectEVPNSegments(ch chan<- prometheus.Metric, label string, e eapi.ShowBGPEVPNInstance) {
+func collectEVPNSegments(ch chan<- prometheus.Metric, label, fabric string, e eapi.ShowBGPEVPNInstance) {
 	for name, inst := range e.Instances {
 		for esi, seg := range inst.EthernetSegments {
-			setBool(ch, "arista_evpn_esi_up", seg.Up(), label, name, esi)
+			setBool(ch, "arista_evpn_esi_up", seg.Up(), label, fabric, name, esi)
 			setBool(ch, "arista_evpn_esi_designated_forwarder",
-				seg.DesignatedForwarder(inst.LocalVTEP), label, name, esi)
+				seg.DesignatedForwarder(inst.LocalVTEP), label, fabric, name, esi)
 			setBool(ch, "arista_evpn_esi_designated_forwarder_elected",
-				seg.HasDesignatedForwarder(), label, name, esi)
-			set(ch, "arista_evpn_esi_forwarding_peers", float64(len(seg.ForwardingPeers)), label, name, esi)
-			set(ch, "arista_evpn_esi_info", 1, label, name, esi, seg.Interface, seg.RedundancyMode)
+				seg.HasDesignatedForwarder(), label, fabric, name, esi)
+			set(ch, "arista_evpn_esi_forwarding_peers", float64(len(seg.ForwardingPeers)),
+				label, fabric, name, esi)
+			set(ch, "arista_evpn_esi_info", 1, label, fabric, name, esi, seg.Interface, seg.RedundancyMode)
 		}
 	}
 }

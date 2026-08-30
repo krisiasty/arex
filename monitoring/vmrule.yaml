@@ -321,7 +321,7 @@ spec:
           # means its peer holds the role. No leaf reporting 1 means broadcast and
           # multicast into that segment are going nowhere.
           expr: |
-            max by (esi, instance) (arista_evpn_esi_designated_forwarder_elected) == 0
+            max by (fabric, esi, evpn_instance) (arista_evpn_esi_designated_forwarder_elected) == 0
           for: 5m
           labels:
             severity: critical

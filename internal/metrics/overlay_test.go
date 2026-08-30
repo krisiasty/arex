@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	privBundle = `instance="VLAN-aware bundle TENANT_PROD_PRIVATE"`
-	pubBundle  = `instance="VLAN-aware bundle TENANT_PROD_PUBLIC"`
+	fabric     = `fabric="fabric-a"`
+	privBundle = `evpn_instance="VLAN-aware bundle TENANT_PROD_PRIVATE"`
+	pubBundle  = `evpn_instance="VLAN-aware bundle TENANT_PROD_PUBLIC"`
 	downESI    = `esi="0000:0000:0000:0000:1002"`
 	healthyESI = `esi="0000:0000:0000:0000:1001"`
 	splitESI   = `esi="0000:0000:0000:0000:1008"`
@@ -38,6 +39,14 @@ func TestESIDistinguishesNoForwarderFromSomeoneElsesForwarder(t *testing.T) {
 			t.Errorf("%s: forwarder=%q elected=%q peers=%q, want %s/%s/%s",
 				c.what, df, el, fp, c.df, c.elected, c.want)
 		}
+	}
+}
+
+func TestESICarriesConfiguredFabric(t *testing.T) {
+	out := render(t, nil)
+
+	if got := sample(out, "arista_evpn_esi_up", fabric, privBundle, healthyESI); got != "1" {
+		t.Errorf("ESI series with configured fabric = %q, want 1", got)
 	}
 }
 

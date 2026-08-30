@@ -78,10 +78,12 @@ config:
     - host: https://10.10.0.11
       username: prometheus
       name: leaf1
+      fabric: fabric-a
       pinnedCertSha256: "A1:B2:..."
     - host: https://10.10.0.12
       username: prometheus
       name: leaf2
+      fabric: fabric-a
       pinnedCertSha256: "C3:D4:..."
 
 serviceMonitor:

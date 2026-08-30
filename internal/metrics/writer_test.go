@@ -67,7 +67,7 @@ func (f fixtureRunner) Run(cmds []string) ([]json.RawMessage, error) {
 func render(t *testing.T, mutate func(*collector.SwitchData)) string {
 	t.Helper()
 	store, err := collector.NewStore([]config.SwitchConfig{
-		{Host: "https://192.0.2.33", Username: "u", Password: "p", Name: "sw1"},
+		{Host: "https://192.0.2.33", Username: "u", Password: "p", Name: "sw1", Fabric: "fabric-a"},
 	}, collectAll(), 30*time.Second)
 	if err != nil {
 		t.Fatal(err)

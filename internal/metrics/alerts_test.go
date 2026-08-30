@@ -59,6 +59,17 @@ func TestEVPNPeerDownExcludesMaintenance(t *testing.T) {
 	}
 }
 
+func TestESINoDesignatedForwarderIsScopedToFabricAndEVPNInstance(t *testing.T) {
+	body, err := os.ReadFile("../../monitoring/alerts.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = "max by (fabric, esi, evpn_instance) (arista_evpn_esi_designated_forwarder_elected) == 0"
+	if !strings.Contains(string(body), want) {
+		t.Errorf("SwitchESINoDesignatedForwarder must aggregate by fabric, ESI and EVPN instance with %q", want)
+	}
+}
+
 // The labels the annotations interpolate have to exist on the metric being
 // alerted on, or the summary renders an empty string where a switch name
 // should be.

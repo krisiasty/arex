@@ -261,6 +261,7 @@ Per-switch fields:
 | `password` | eAPI password, inline. See [Credentials](#credentials) |
 | `passwordFile` | File to read the password from, instead of `password` |
 | `name` | Value for the `switch` label on every metric. Optional, falls back to `host` |
+| `fabric` | Value for the `fabric` label on ESI metrics. Set consistently per EVPN fabric when one arex monitors more than one; optional for a single fabric |
 | `collect` | Overrides the top-level collect set for this switch, wholesale |
 | `interfaceScope` | Interface argument for the three interface commands, passed verbatim |
 | `caFile` | PEM bundle to verify this switch's certificate against. See [TLS](tls.md) |
@@ -272,6 +273,11 @@ something arex will decide for you. Setting more than one is rejected.
 
 Point `host` at the switch's management address — on a typical switch that address lives in the `management` VRF.
 Keep `name` unique across switches: two entries sharing one label collapse into a single metric series.
+
+`fabric` is not discovered from EOS. Set the same value on every switch participating in one EVPN fabric and a
+different value on switches in another. The shipped ESI designated-forwarder alert aggregates by `fabric`, `esi`,
+and `evpn_instance`, preventing an identically numbered segment in one fabric from masking a failed election in
+another. Leaving it empty is safe when one arex instance monitors only one EVPN fabric.
 
 There is no VRF setting in arex's own config. It runs off-box, so the VRF is purely a switch-side concern, handled
 by the `vrf management` stanza in [switch configuration](switch-configuration.md).

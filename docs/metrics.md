@@ -283,10 +283,14 @@ learned from two peers counts twice, so these are not comparable with a filtered
 | `arista_evpn_esi_forwarding_peers` | gauge | Peers forwarding — **alert on this** |
 | `arista_evpn_esi_info` | gauge | `interface`, `redundancy_mode` |
 
-All carry `instance` and `esi`. **Both are needed.** DF election runs per VLAN-aware bundle, so one
-ESI legitimately has a different forwarder in each bundle it belongs to — the modulus algorithm
-spreading the role, not a fault. A metric keyed by ESI alone would report one bundle's answer as
-the whole truth.
+All carry `fabric`, `evpn_instance`, and `esi`. `evpn_instance` and `esi` are both needed: DF election runs per
+VLAN-aware bundle, so one ESI legitimately has a different forwarder in each bundle it belongs to — the modulus
+algorithm spreading the role, not a fault. A metric keyed by ESI alone would report one bundle's answer as the whole
+truth.
+
+`fabric` comes from the switch's optional configuration. It distinguishes independent EVPN fabrics when one arex
+instance monitors more than one. Use the same value on every switch in a fabric; leaving it empty is safe for a
+single-fabric deployment. The name `evpn_instance` deliberately avoids Prometheus's scrape-target `instance` label.
 
 #### Why three forwarder metrics
 

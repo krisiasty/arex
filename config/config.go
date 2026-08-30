@@ -93,6 +93,11 @@ type SwitchConfig struct {
 	// Falls back to Host if empty.
 	Name string `json:"name"`
 
+	// Fabric identifies the EVPN fabric this switch belongs to. It is emitted
+	// on ESI metrics so fabric-wide elections are not aggregated across
+	// independent fabrics. Empty is suitable when arex monitors one fabric.
+	Fabric string `json:"fabric"`
+
 	// TLSSkipVerify disables verification of this switch's certificate.
 	// Per-switch rather than global: skipping verification is a decision
 	// about one switch's certificate, and a fleet-wide default made it easy

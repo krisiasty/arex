@@ -115,6 +115,7 @@ config:
   # - host: https://10.10.0.11
   #   username: prometheus
   #   name: leaf1
+  #   fabric: fabric-a  # set consistently when arex monitors multiple EVPN fabrics
   #   pinnedCertSha256: "A1:B2:..."
 
 # One replica in steady state. arex has no leader election, so two running

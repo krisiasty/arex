@@ -97,6 +97,9 @@ switches:
   - host: https://192.0.2.12
     username: prometheus
     name: leaf1
+    # Required when one arex instance monitors more than one independent EVPN
+    # fabric. Use the same value on every switch in this fabric.
+    fabric: fabric-a
     caFile: /etc/arex/switch-ca.pem
     interfaceScope: Ethernet1/1-4,Ethernet2/1-4,Ethernet29/1-4
     collect:

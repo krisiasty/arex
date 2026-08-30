@@ -31,6 +31,7 @@ type Runner interface {
 type SwitchData struct {
 	mu          sync.RWMutex
 	Label       string
+	Fabric      string
 	LastSuccess time.Time
 	ScrapeErr   error
 
@@ -125,16 +126,17 @@ func NewStore(switches []config.SwitchConfig, defaults map[string]config.ModuleC
 			return nil, fmt.Errorf("config: duplicate switch label %q — names must be unique", label)
 		}
 		specs := commandsFor(sw.EffectiveCollect(defaults, pollInterval), sw.InterfaceScope, pollInterval)
-		s.switches[label] = newSwitchDataFromSpecs(label, specs)
+		s.switches[label] = newSwitchDataFromSpecs(label, sw.Fabric, specs)
 		s.order = append(s.order, label)
 	}
 	return s, nil
 }
 
 // newSwitchDataFromSpecs builds a switch's state from its command list.
-func newSwitchDataFromSpecs(label string, specs []cmdSpec) *SwitchData {
+func newSwitchDataFromSpecs(label, fabric string, specs []cmdSpec) *SwitchData {
 	d := &SwitchData{
 		Label:              label,
+		Fabric:             fabric,
 		CommandLastSuccess: make(map[string]time.Time, len(specs)),
 		CommandInterval:    make(map[string]time.Duration, len(specs)),
 		nextDue:            make(map[string]time.Time, len(specs)),
