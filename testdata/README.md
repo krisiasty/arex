@@ -151,12 +151,16 @@ leaf-to-spine relationships, and the steady-state session shape remain.
 
 The Fabric B EVPN summary fixtures cover a back-to-back pair with one established peer per leaf.
 
-The EVPN route-type count fixtures preserve EOS's compact `evpnRoutes.count` shape. Their ASN is a
-JSON number, unlike the string ASN in the EVPN summary response. Exact route counts are synthetic,
-but their relative scale is retained. VXLAN address-table counts remain small so quiet-fabric
-behavior is represented rather than replaced with a busy synthetic table.
+`show_bgp_evpn_route_type_count_*.json` captures all EVPN route types in one response, including
+separate IPv4 and IPv6 type-5 totals. Exact nonzero counts are synthetic, but their relative scale
+is retained; zero remains zero. These aggregate totals are not interchangeable with the different
+cardinality returned by filtering one route type before applying `count`.
 
-Across Fabric A, the leaf route-type totals agree while the spine has a slightly higher type-2
-count and the same type-3/type-5 totals. Its VXLAN address-table count is empty because the spine
-does not terminate VXLAN. Fabric B preserves the quieter case: empty VXLAN counts, much smaller
-type-2/type-3 totals, and no type-5 routes.
+The captures support interpreting the aggregate values as path entries rather than unique NLRIs.
+On the single-peer Fabric B leaves, aggregate type-2/type-3/type-5 totals equal their filtered
+counts. The Fabric A spine also matches, apart from one type-2 route of capture-time drift, while
+the dual-peer leaves have larger aggregate totals because remote routes can carry multiple paths.
+
+VXLAN address-table counts remain small so quiet-fabric behavior is represented rather than
+replaced with a busy synthetic table. The Fabric A leaves each report one remote VTEP with four
+entries, while the spine and both Fabric B leaves return an empty `vtepCounts` object.

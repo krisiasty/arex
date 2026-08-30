@@ -1,0 +1,8 @@
+{
+    "autoDiscovery": 720,
+    "macIp": 840,
+    "imet": 105,
+    "ethernetSegment": 110,
+    "ipPrefixIpv4": 225,
+    "ipPrefixIpv6": 0
+}
