@@ -22,7 +22,7 @@ func TestBuildInfoIsExposed(t *testing.T) {
 	out := gather(t, store, 90*time.Second)
 
 	line := ""
-	for _, l := range strings.Split(out, "\n") {
+	for l := range strings.SplitSeq(out, "\n") {
 		if strings.HasPrefix(l, "arex_build_info{") {
 			line = l
 		}

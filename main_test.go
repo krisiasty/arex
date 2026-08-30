@@ -2,19 +2,14 @@ package main
 
 import (
 	"os"
+	"slices"
 	"syscall"
 	"testing"
 )
 
-// hasSignal reports whether the list contains s. os.Signal is an interface,
-// so this cannot be slices.Contains.
+// hasSignal reports whether the list contains s.
 func hasSignal(list []os.Signal, s os.Signal) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(list, s)
 }
 
 // The flag wins over the config when it is given, so a running deployment can

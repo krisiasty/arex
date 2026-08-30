@@ -88,8 +88,3 @@ func load() {
 	}
 	cached = b
 }
-
-// reset clears the cache so a test can vary the injected version.
-func reset() {
-	once = sync.Once{}
-}
