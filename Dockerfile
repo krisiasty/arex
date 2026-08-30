@@ -19,6 +19,10 @@ RUN CGO_ENABLED=0 go build -trimpath -o /arex .
 FROM gcr.io/distroless/static-debian13:nonroot@sha256:1c2c046bc09ed40fad370b599a0b1ae7987f55b01e247cf27a7c27cd97e5bbc7
 
 COPY --from=builder /arex /usr/local/bin/arex
+# Inherited from the nonroot base, but stated so it is enforced here rather
+# than assumed, and so image scanners can see it.
+USER 65532:65532
+
 EXPOSE 9100
 ENTRYPOINT ["/usr/local/bin/arex"]
 CMD ["-config", "/etc/arex/config.yaml"]
