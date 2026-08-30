@@ -289,3 +289,48 @@ groups:
           summary: "{{ $labels.switch }}: hardware table {{ $labels.table }} {{ $labels.feature }} is over 80% full"
           description: >-
             Forwarding entries are dropped, not queued, once a table is full.
+
+      - alert: SwitchEVPNPeerDown
+        # The EVPN address family, not the IPv4 unicast session to the same
+        # neighbour. Either can fail while the other stays up, and a healthy
+        # underlay session is exactly what makes a dead overlay one hard to see.
+        expr: arista_bgp_evpn_peer_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.switch }}: EVPN peering with {{ $labels.peer }} is down"
+
+      - alert: SwitchESISinglyAttached
+        # Watches forwarding peers rather than state, because state is each
+        # switch's own view: when one leaf of a multihomed pair loses its link,
+        # the survivor still reports the segment up. This fires from either
+        # side, which is the point.
+        expr: arista_evpn_esi_forwarding_peers < 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.switch }}: ethernet segment {{ $labels.esi }} is down to {{ $value }} forwarding peer(s)"
+          description: >-
+            The segment still forwards, on one leg. The next failure takes it down.
+
+      - alert: SwitchESINoDesignatedForwarder
+        # Aggregated across the fabric: one leaf reporting 0 is normal, it just
+        # means its peer holds the role. No leaf reporting 1 means broadcast and
+        # multicast into that segment are going nowhere.
+        expr: |
+          max by (esi, instance) (arista_evpn_esi_designated_forwarder_elected) == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "no designated forwarder elected for ethernet segment {{ $labels.esi }}"
+
+      - alert: SwitchVXLANInterfaceDown
+        expr: arista_vxlan_interface_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.switch }}: {{ $labels.interface }} is down; the overlay is not forwarding"

@@ -46,6 +46,9 @@ against — and every other command group must be enabled explicitly:
   "cooling":     { "enabled": true },
   "ntp":         { "enabled": true },
   "capacity":    { "enabled": true },
+  "vxlan":       { "enabled": true },
+  "evpn":        { "enabled": true },
+  "esi":         { "enabled": true },
   "interfaces":  { "enabled": true },
   "bgp":         { "enabled": true },
   "transceiver": { "enabled": true, "interval": "5m" },
@@ -92,6 +95,8 @@ Each group has a default interval, which an explicit `interval` overrides:
 | --- | --- | --- |
 | `interfaces` | `pollInterval` | Error counters and link state are the fastest-moving signals arex collects, and the primary detection source. |
 | `bgp` | `pollInterval` | Session state changes in seconds. |
+| `vxlan`, `evpn` | `pollInterval` | Together 8 kB; VTEP and session state change as fast as the underlay does. |
+| `esi` | `15m` | 19 kB and growing with every multihomed host — 71% of the overlay payload. A forwarder change follows a link or session failure the faster modules already report. |
 | `processes`, `temperature`, `power`, `cooling` | `pollInterval` | Cheap — every non-interface command together is 12% of a poll. |
 | `ntp` | `1m` | ntpd polls its own upstream every 64 seconds at the fastest, so anything quicker re-reads unchanged numbers. |
 | `capacity` | `5m` | Table usage moves slowly, and `highWatermark` records the peak between polls, so a spike is not sampled past. |

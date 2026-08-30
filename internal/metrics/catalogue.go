@@ -27,6 +27,16 @@ var (
 	lIfaceCause  = []string{"switch", "interface", "cause"}
 	lCapacity    = []string{"switch", "table", "feature", "chip"}
 	lCapacityInf = []string{"switch", "table", "feature", "chip", "shared_features"}
+	lVxlan       = []string{"switch", "interface"}
+	lVxlanInfo   = []string{"switch", "interface", "source_interface", "source_address", "replication_mode", "encapsulation"}
+	lVtep        = []string{"switch", "interface", "vtep", "tunnel_types"}
+	lVtepMAC     = []string{"switch", "vtep"}
+	lVni         = []string{"switch", "interface", "vlan", "vni", "source"}
+	lVrfVni      = []string{"switch", "interface", "vrf", "vni"}
+	lVlan        = []string{"switch", "interface", "vlan"}
+	lEvpnRoute   = []string{"switch", "route_type"}
+	lEsi         = []string{"switch", "instance", "esi"}
+	lEsiInfo     = []string{"switch", "instance", "esi", "interface", "redundancy_mode"}
 	lNTPPeer     = []string{"switch", "peer"}
 	lNTPPeerInfo = []string{"switch", "peer", "refid", "peer_type"}
 	lPeer        = []string{"switch", "vrf", "peer", "asn"}
@@ -62,6 +72,13 @@ func (d metricDef) valueType() prometheus.ValueType {
 // metricDefs is every metric arex can produce.
 var metricDefs = []metricDef{
 	{"arex_build_info", "gauge", "Version, VCS revision and Go version of the running arex. Always 1", lBuild},
+	{"arista_bgp_evpn_peer_info", "gauge", "EVPN peer description labels. Always 1", lPeerInfo},
+	{"arista_bgp_evpn_peer_prefixes_accepted", "gauge", "EVPN routes accepted after policy", lPeer},
+	{"arista_bgp_evpn_peer_prefixes_advertised", "gauge", "EVPN routes advertised to the peer", lPeer},
+	{"arista_bgp_evpn_peer_prefixes_received", "gauge", "EVPN routes received from the peer", lPeer},
+	{"arista_bgp_evpn_peer_state_change_timestamp_seconds", "gauge", "Unix timestamp the EVPN session last changed state", lPeer},
+	{"arista_bgp_evpn_peer_up", "gauge", "1 if the EVPN peering is Established; distinct from the IPv4 unicast session to the same neighbour", lPeer},
+	{"arista_bgp_evpn_routes", "gauge", "EVPN path entries by route type. Paths, not unique routes: one route learned from two peers counts twice", lEvpnRoute},
 	{"arista_bgp_peer_info", "gauge", "BGP peer description labels. Always 1", lPeerInfo},
 	{"arista_bgp_peer_prefixes_accepted", "gauge", "Prefixes accepted after policy; below received means prefixes were rejected", lPeer},
 	{"arista_bgp_peer_prefixes_advertised", "gauge", "Prefixes advertised to the peer", lPeer},
@@ -84,10 +101,15 @@ var metricDefs = []metricDef{
 	{"arista_cpu_steal_percent", "gauge", "CPU time stolen by the hypervisor (vEOS)", lSwitch},
 	{"arista_cpu_system_percent", "gauge", "CPU time in kernel space", lSwitch},
 	{"arista_cpu_user_percent", "gauge", "CPU time in user space", lSwitch},
-	{"arista_eapi_request_duration_seconds_total", "counter", "Total time spent on eAPI requests to this switch", lSwitch},
 	{"arista_credential_reloads_total", "counter", "Times arex re-read a switch's password file after a rejection, by outcome: rotated, unchanged or failed", lReload},
+	{"arista_eapi_request_duration_seconds_total", "counter", "Total time spent on eAPI requests to this switch", lSwitch},
 	{"arista_eapi_requests_total", "counter", "eAPI requests arex has made, by outcome and by whether it was the normal batch or a per-command retry", lEAPI},
 	{"arista_eapi_response_bytes_total", "counter", "Total eAPI response bytes received from this switch", lSwitch},
+	{"arista_evpn_esi_designated_forwarder", "gauge", "1 if this switch is the elected forwarder for the segment in this bundle", lEsi},
+	{"arista_evpn_esi_designated_forwarder_elected", "gauge", "1 if any forwarder is elected; 0 means the election has not settled", lEsi},
+	{"arista_evpn_esi_forwarding_peers", "gauge", "Peers forwarding for this segment; below 2 on an all-active segment means the redundancy is gone", lEsi},
+	{"arista_evpn_esi_info", "gauge", "Ethernet segment interface and redundancy mode. Always 1", lEsiInfo},
+	{"arista_evpn_esi_up", "gauge", "1 if this switch's own link into the segment is up; a peer that still has its link reports 1 regardless", lEsi},
 	{"arista_fan_boot_timestamp_seconds", "gauge", "Unix timestamp when the fan came online", lFan},
 	{"arista_fan_info", "gauge", "Fan vendor model labels. Always 1", lFanInfo},
 	{"arista_fan_ok", "gauge", "1 if fan status is ok", lFan},
@@ -212,6 +234,14 @@ var metricDefs = []metricDef{
 	{"arista_transceiver_update_timestamp_seconds", "gauge", "Unix timestamp EOS last refreshed this optic's DOM data", lIface},
 	{"arista_transceiver_voltage_threshold_volts", "gauge", "Threshold for transceiver supply voltage as reported by the optic; level is high_alarm, high_warn, low_alarm or low_warn", lXcvrThresh},
 	{"arista_transceiver_voltage_volts", "gauge", "Transceiver supply voltage", lIface},
+	{"arista_vxlan_interface_info", "gauge", "VXLAN interface source and encapsulation labels. Always 1", lVxlanInfo},
+	{"arista_vxlan_interface_up", "gauge", "1 if the VXLAN interface line protocol is up", lVxlan},
+	{"arista_vxlan_remote_mac_count", "gauge", "Overlay MAC addresses learned from this remote VTEP", lVtepMAC},
+	{"arista_vxlan_remote_vtep_count", "gauge", "Remote VTEPs known to this interface; a drop means a VTEP left the fabric", lVxlan},
+	{"arista_vxlan_remote_vtep_info", "gauge", "One known remote VTEP and how it is used. Always 1", lVtep},
+	{"arista_vxlan_vlan_flood_vteps", "gauge", "Remote VTEPs in this VLAN's flood list", lVlan},
+	{"arista_vxlan_vni_info", "gauge", "VLAN-to-VNI binding. Always 1", lVni},
+	{"arista_vxlan_vrf_vni_info", "gauge", "VRF-to-VNI binding for a routed overlay. Always 1", lVrfVni},
 }
 
 // descs is the catalogue compiled into Prometheus descriptors, keyed by name.

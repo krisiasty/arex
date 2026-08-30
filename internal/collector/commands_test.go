@@ -44,9 +44,20 @@ func TestVersionIsAlwaysCollected(t *testing.T) {
 }
 
 func TestAllEnabledGivesEveryCommand(t *testing.T) {
-	if n := len(commandsFor(allEnabled(), "", directInterval)); n != len(config.CollectKeys)+1 {
-		t.Errorf("commands = %d, want %d", n, len(config.CollectKeys)+1)
+	if n := len(commandsFor(allEnabled(), "", directInterval)); n != everyCommand() {
+		t.Errorf("commands = %d, want %d", n, everyCommand())
 	}
+}
+
+// everyCommand is show version plus every command the collect keys name.
+// Deliberately not len(CollectKeys)+1: a key may name several commands, as the
+// overlay keys do.
+func everyCommand() int {
+	n := 1
+	for _, key := range config.CollectKeys {
+		n += len(optionalCommands[key])
+	}
+	return n
 }
 
 func TestDisabledCommandsAreNotIssued(t *testing.T) {
@@ -116,7 +127,7 @@ func TestStoreUsesPerSwitchCommands(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n := len(store.Get("full").Commands); n != len(config.CollectKeys)+1 {
+	if n := len(store.Get("full").Commands); n != everyCommand() {
 		t.Errorf("full switch has %d commands", n)
 	}
 	if n := len(store.Get("lean").Commands); n != 2 {

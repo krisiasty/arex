@@ -82,10 +82,17 @@ type SwitchData struct {
 	EnvCooling eapi.ShowEnvironmentCooling
 	NTP        eapi.ShowNTPAssociations
 	Capacity   eapi.ShowHardwareCapacity
-	Interfaces eapi.ShowInterfaces
-	BGPSummary eapi.ShowBGPSummary
-	Optics     eapi.ShowTransceiverDetail
-	Phy        eapi.ShowPhyDetail
+
+	VXLANVTEP      eapi.ShowVXLANVTEP
+	VXLANInterface eapi.ShowInterfaceVXLAN
+	VXLANAddresses eapi.ShowVXLANAddressTableCount
+	EVPNSummary    eapi.ShowBGPEVPNSummary
+	EVPNRoutes     eapi.ShowBGPEVPNRouteTypeCount
+	EVPNInstance   eapi.ShowBGPEVPNInstance
+	Interfaces     eapi.ShowInterfaces
+	BGPSummary     eapi.ShowBGPSummary
+	Optics         eapi.ShowTransceiverDetail
+	Phy            eapi.ShowPhyDetail
 }
 
 // RLock takes the read lock, for callers rendering metrics.
@@ -234,10 +241,17 @@ type snapshot struct {
 	envCooling eapi.ShowEnvironmentCooling
 	ntp        eapi.ShowNTPAssociations
 	capacity   eapi.ShowHardwareCapacity
-	interfaces eapi.ShowInterfaces
-	bgp        eapi.ShowBGPSummary
-	optics     eapi.ShowTransceiverDetail
-	phy        eapi.ShowPhyDetail
+
+	vxlanVTEP    eapi.ShowVXLANVTEP
+	vxlanIface   eapi.ShowInterfaceVXLAN
+	vxlanAddrs   eapi.ShowVXLANAddressTableCount
+	evpnSummary  eapi.ShowBGPEVPNSummary
+	evpnRoutes   eapi.ShowBGPEVPNRouteTypeCount
+	evpnInstance eapi.ShowBGPEVPNInstance
+	interfaces   eapi.ShowInterfaces
+	bgp          eapi.ShowBGPSummary
+	optics       eapi.ShowTransceiverDetail
+	phy          eapi.ShowPhyDetail
 }
 
 // cmdSpec binds a command to where its output is parsed and committed.
@@ -272,8 +286,18 @@ const (
 	CmdHardwareCapacity = "show hardware capacity"
 	CmdInterfaces       = "show interfaces"
 	CmdBGPSummary       = "show ip bgp summary vrf all"
-	CmdTransceivers     = "show interfaces transceiver detail"
-	CmdPhy              = "show interfaces phy detail"
+
+	// The overlay. show interface vxlan 1 fails outright on a switch with no
+	// VXLAN interface, which is why a spine leaves the vxlan key off rather than
+	// collecting it and absorbing a failed command every poll.
+	CmdVXLANVTEP         = "show vxlan vtep"
+	CmdVXLANInterface    = "show interface vxlan 1"
+	CmdVXLANAddressCount = "show vxlan address-table count"
+	CmdBGPEVPNSummary    = "show bgp evpn summary"
+	CmdBGPEVPNRouteCount = "show bgp evpn route-type count"
+	CmdBGPEVPNInstance   = "show bgp evpn instance"
+	CmdTransceivers      = "show interfaces transceiver detail"
+	CmdPhy               = "show interfaces phy detail"
 )
 
 // versionCommand is collected unconditionally: arista_info is the identity
@@ -285,66 +309,94 @@ var versionCommand = cmdSpec{
 	apply: func(s *snapshot, d *SwitchData) { d.Version = s.version },
 }
 
-// optionalCommands is keyed by the names in config.CollectKeys. Collection is
+// optionalCommands is keyed by the names in config.CollectKeys, each naming
+// one or more commands. Collection is
 // opt-in, so a command absent from a switch's set is never issued.
-var optionalCommands = map[string]cmdSpec{
-	"processes": {
+var optionalCommands = map[string][]cmdSpec{
+	"processes": {{
 		name: CmdProcessesTop, cli: CmdProcessesTop,
 		into:  func(s *snapshot) any { return &s.processTop },
 		apply: func(s *snapshot, d *SwitchData) { d.ProcessTop = s.processTop },
-	},
-	"temperature": {
+	}},
+	"temperature": {{
 		name: CmdEnvTemp, cli: CmdEnvTemp,
 		into:  func(s *snapshot) any { return &s.envTemp },
 		apply: func(s *snapshot, d *SwitchData) { d.EnvTemp = s.envTemp },
-	},
-	"power": {
+	}},
+	"power": {{
 		name: CmdEnvPower, cli: CmdEnvPower,
 		into:  func(s *snapshot) any { return &s.envPower },
 		apply: func(s *snapshot, d *SwitchData) { d.EnvPower = s.envPower },
-	},
-	"cooling": {
+	}},
+	"cooling": {{
 		name: CmdEnvCooling, cli: CmdEnvCooling,
 		into:  func(s *snapshot) any { return &s.envCooling },
 		apply: func(s *snapshot, d *SwitchData) { d.EnvCooling = s.envCooling },
-	},
-	"ntp": {
+	}},
+	"ntp": {{
 		name: CmdNTPAssociations, cli: CmdNTPAssociations,
 		into:  func(s *snapshot) any { return &s.ntp },
 		apply: func(s *snapshot, d *SwitchData) { d.NTP = s.ntp },
-	},
-	"capacity": {
+	}},
+	"capacity": {{
 		name: CmdHardwareCapacity, cli: CmdHardwareCapacity,
 		into:  func(s *snapshot) any { return &s.capacity },
 		apply: func(s *snapshot, d *SwitchData) { d.Capacity = s.capacity },
-	},
-	"interfaces": {
+	}},
+	"interfaces": {{
 		name: CmdInterfaces, cli: CmdInterfaces,
 		into:  func(s *snapshot) any { return &s.interfaces },
 		apply: func(s *snapshot, d *SwitchData) { d.Interfaces = s.interfaces },
-	},
-	"bgp": {
+	}},
+	"bgp": {{
 		name: CmdBGPSummary, cli: CmdBGPSummary,
 		into:  func(s *snapshot) any { return &s.bgp },
 		apply: func(s *snapshot, d *SwitchData) { d.BGPSummary = s.bgp },
-	},
-	"transceiver": {
+	}},
+	"vxlan": {{
+		name: CmdVXLANVTEP, cli: CmdVXLANVTEP,
+		into:  func(s *snapshot) any { return &s.vxlanVTEP },
+		apply: func(s *snapshot, d *SwitchData) { d.VXLANVTEP = s.vxlanVTEP },
+	}, {
+		name: CmdVXLANInterface, cli: CmdVXLANInterface,
+		into:  func(s *snapshot) any { return &s.vxlanIface },
+		apply: func(s *snapshot, d *SwitchData) { d.VXLANInterface = s.vxlanIface },
+	}, {
+		name: CmdVXLANAddressCount, cli: CmdVXLANAddressCount,
+		into:  func(s *snapshot) any { return &s.vxlanAddrs },
+		apply: func(s *snapshot, d *SwitchData) { d.VXLANAddresses = s.vxlanAddrs },
+	}},
+	"evpn": {{
+		name: CmdBGPEVPNSummary, cli: CmdBGPEVPNSummary,
+		into:  func(s *snapshot) any { return &s.evpnSummary },
+		apply: func(s *snapshot, d *SwitchData) { d.EVPNSummary = s.evpnSummary },
+	}, {
+		name: CmdBGPEVPNRouteCount, cli: CmdBGPEVPNRouteCount,
+		into:  func(s *snapshot) any { return &s.evpnRoutes },
+		apply: func(s *snapshot, d *SwitchData) { d.EVPNRoutes = s.evpnRoutes },
+	}},
+	"esi": {{
+		name: CmdBGPEVPNInstance, cli: CmdBGPEVPNInstance,
+		into:  func(s *snapshot) any { return &s.evpnInstance },
+		apply: func(s *snapshot, d *SwitchData) { d.EVPNInstance = s.evpnInstance },
+	}},
+	"transceiver": {{
 		name: CmdTransceivers, cli: CmdTransceivers,
 		into:  func(s *snapshot) any { return &s.optics },
 		apply: func(s *snapshot, d *SwitchData) { d.Optics = s.optics },
-	},
-	"phy": {
+	}},
+	"phy": {{
 		name: CmdPhy, cli: CmdPhy,
 		into:  func(s *snapshot) any { return &s.phy },
 		apply: func(s *snapshot, d *SwitchData) { d.Phy = s.phy },
-	},
+	}},
 }
 
 // commandOrder fixes the sequence commands are issued in, so /metrics output
 // and log lines are stable rather than following Go map iteration.
 var commandOrder = []string{
 	"processes", "temperature", "power", "cooling", "ntp", "capacity",
-	"interfaces", "bgp", "transceiver", "phy",
+	"interfaces", "bgp", "vxlan", "evpn", "esi", "transceiver", "phy",
 }
 
 // scoped inserts an interface scope into the commands that accept one.
@@ -387,13 +439,18 @@ func commandsFor(collect map[string]config.ModuleConfig, scope string, pollInter
 		if !ok || !mod.Enabled {
 			continue
 		}
-		spec := optionalCommands[key]
-		spec.cli = scoped(spec.name, scope)
-		spec.interval = mod.Interval
-		if spec.interval <= 0 {
-			spec.interval = pollInterval
+		// A key may name several commands: the overlay data plane and its
+		// control plane each take more than one, and splitting them into a key
+		// apiece would make the collect block a list of CLI invocations rather
+		// than of things to watch.
+		for _, spec := range optionalCommands[key] {
+			spec.cli = scoped(spec.name, scope)
+			spec.interval = mod.Interval
+			if spec.interval <= 0 {
+				spec.interval = pollInterval
+			}
+			out = append(out, spec)
 		}
-		out = append(out, spec)
 	}
 	return out
 }
@@ -717,4 +774,18 @@ func setError(data *SwitchData, specs []cmdSpec, err error) {
 	if line := data.tracker.observe(err.Error(), time.Now()); line != "" {
 		slog.Error("collection failed", "switch", data.Label, "detail", line)
 	}
+}
+
+// CommandsPerKey reports the CLI commands each collect key issues. Exported so
+// tests can size an expectation without assuming one command per key.
+func CommandsPerKey() map[string][]string {
+	out := make(map[string][]string, len(optionalCommands))
+	for key, specs := range optionalCommands {
+		names := make([]string, 0, len(specs))
+		for _, s := range specs {
+			names = append(names, s.name)
+		}
+		out[key] = names
+	}
+	return out
 }

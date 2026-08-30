@@ -66,6 +66,12 @@ collect:
     enabled: true
   capacity:
     enabled: true
+  vxlan:
+    enabled: true
+  evpn:
+    enabled: true
+  esi:
+    enabled: true
   interfaces:
     enabled: true
   bgp:

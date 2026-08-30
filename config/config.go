@@ -362,7 +362,7 @@ const ReservedTarget = "internal"
 // against.
 var CollectKeys = []string{
 	"processes", "temperature", "power", "cooling", "ntp", "capacity",
-	"interfaces", "bgp", "transceiver", "phy",
+	"interfaces", "bgp", "vxlan", "evpn", "esi", "transceiver", "phy",
 }
 
 // EffectiveCollect resolves which optional groups this switch collects.

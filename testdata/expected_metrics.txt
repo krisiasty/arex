@@ -1,6 +1,38 @@
 # HELP arex_build_info Version, VCS revision and Go version of the running arex. Always 1
 # TYPE arex_build_info gauge
 arex_build_info{<build>} 1
+# HELP arista_bgp_evpn_peer_info EVPN peer description labels. Always 1
+# TYPE arista_bgp_evpn_peer_info gauge
+arista_bgp_evpn_peer_info{asn="4200000100",description="",peer="198.51.100.101",switch="sw1",vrf="default"} 1
+arista_bgp_evpn_peer_info{asn="4200000100",description="",peer="198.51.100.102",switch="sw1",vrf="default"} 1
+# HELP arista_bgp_evpn_peer_prefixes_accepted EVPN routes accepted after policy
+# TYPE arista_bgp_evpn_peer_prefixes_accepted gauge
+arista_bgp_evpn_peer_prefixes_accepted{asn="4200000100",peer="198.51.100.101",switch="sw1",vrf="default"} 650
+arista_bgp_evpn_peer_prefixes_accepted{asn="4200000100",peer="198.51.100.102",switch="sw1",vrf="default"} 650
+# HELP arista_bgp_evpn_peer_prefixes_advertised EVPN routes advertised to the peer
+# TYPE arista_bgp_evpn_peer_prefixes_advertised gauge
+arista_bgp_evpn_peer_prefixes_advertised{asn="4200000100",peer="198.51.100.101",switch="sw1",vrf="default"} 1100
+arista_bgp_evpn_peer_prefixes_advertised{asn="4200000100",peer="198.51.100.102",switch="sw1",vrf="default"} 800
+# HELP arista_bgp_evpn_peer_prefixes_received EVPN routes received from the peer
+# TYPE arista_bgp_evpn_peer_prefixes_received gauge
+arista_bgp_evpn_peer_prefixes_received{asn="4200000100",peer="198.51.100.101",switch="sw1",vrf="default"} 653
+arista_bgp_evpn_peer_prefixes_received{asn="4200000100",peer="198.51.100.102",switch="sw1",vrf="default"} 653
+# HELP arista_bgp_evpn_peer_state_change_timestamp_seconds Unix timestamp the EVPN session last changed state
+# TYPE arista_bgp_evpn_peer_state_change_timestamp_seconds gauge
+arista_bgp_evpn_peer_state_change_timestamp_seconds{asn="4200000100",peer="198.51.100.101",switch="sw1",vrf="default"} 1.700000000125001e+09
+arista_bgp_evpn_peer_state_change_timestamp_seconds{asn="4200000100",peer="198.51.100.102",switch="sw1",vrf="default"} 1.700000000250002e+09
+# HELP arista_bgp_evpn_peer_up 1 if the EVPN peering is Established; distinct from the IPv4 unicast session to the same neighbour
+# TYPE arista_bgp_evpn_peer_up gauge
+arista_bgp_evpn_peer_up{asn="4200000100",peer="198.51.100.101",switch="sw1",vrf="default"} 1
+arista_bgp_evpn_peer_up{asn="4200000100",peer="198.51.100.102",switch="sw1",vrf="default"} 1
+# HELP arista_bgp_evpn_routes EVPN path entries by route type. Paths, not unique routes: one route learned from two peers counts twice
+# TYPE arista_bgp_evpn_routes gauge
+arista_bgp_evpn_routes{route_type="auto_discovery",switch="sw1"} 720
+arista_bgp_evpn_routes{route_type="ethernet_segment",switch="sw1"} 110
+arista_bgp_evpn_routes{route_type="imet",switch="sw1"} 105
+arista_bgp_evpn_routes{route_type="ip_prefix_ipv4",switch="sw1"} 225
+arista_bgp_evpn_routes{route_type="ip_prefix_ipv6",switch="sw1"} 0
+arista_bgp_evpn_routes{route_type="mac_ip",switch="sw1"} 840
 # HELP arista_bgp_peer_info BGP peer description labels. Always 1
 # TYPE arista_bgp_peer_info gauge
 arista_bgp_peer_info{asn="4200000000",description="",peer="198.51.100.10",switch="sw1",vrf="default"} 1
@@ -48,7 +80,11 @@ arista_bgp_peer_up{asn="64500",peer="203.0.113.168",switch="sw1",vrf="INTERNET"}
 arista_boot_timestamp_seconds{switch="sw1"} 1.7772940864660642e+09
 # HELP arista_command_success 1 if this eAPI command succeeded in the last poll
 # TYPE arista_command_success gauge
+arista_command_success{command="show bgp evpn instance",switch="sw1"} 1
+arista_command_success{command="show bgp evpn route-type count",switch="sw1"} 1
+arista_command_success{command="show bgp evpn summary",switch="sw1"} 1
 arista_command_success{command="show hardware capacity",switch="sw1"} 1
+arista_command_success{command="show interface vxlan 1",switch="sw1"} 1
 arista_command_success{command="show interfaces",switch="sw1"} 1
 arista_command_success{command="show interfaces phy detail",switch="sw1"} 1
 arista_command_success{command="show interfaces transceiver detail",switch="sw1"} 1
@@ -59,6 +95,8 @@ arista_command_success{command="show system environment cooling",switch="sw1"} 1
 arista_command_success{command="show system environment power",switch="sw1"} 1
 arista_command_success{command="show system environment temperature",switch="sw1"} 1
 arista_command_success{command="show version",switch="sw1"} 1
+arista_command_success{command="show vxlan address-table count",switch="sw1"} 1
+arista_command_success{command="show vxlan vtep",switch="sw1"} 1
 # HELP arista_cooling_ambient_temperature_celsius Ambient temperature
 # TYPE arista_cooling_ambient_temperature_celsius gauge
 arista_cooling_ambient_temperature_celsius{switch="sw1"} 21.5
@@ -104,6 +142,311 @@ arista_eapi_request_duration_seconds_total{switch="sw1"} 0
 # HELP arista_eapi_response_bytes_total Total eAPI response bytes received from this switch
 # TYPE arista_eapi_response_bytes_total counter
 arista_eapi_response_bytes_total{switch="sw1"} 0
+# HELP arista_evpn_esi_designated_forwarder 1 if this switch is the elected forwarder for the segment in this bundle
+# TYPE arista_evpn_esi_designated_forwarder gauge
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1001",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1002",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 0
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1003",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1004",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1005",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1006",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1007",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1008",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1008",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 0
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1009",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1010",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1010",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 0
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1011",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1012",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1012",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 0
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1013",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1014",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1014",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 0
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1015",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1016",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1016",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 0
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1017",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1018",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1018",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 0
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1019",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_LAB_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_LAB_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 0
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_LAB_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_LAB_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 0
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1022",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1022",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 0
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1023",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1024",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1024",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 0
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1025",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1026",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1026",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 0
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1027",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1028",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1029",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1029",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 0
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1030",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1031",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1031",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 0
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1032",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1033",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1033",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 0
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1034",instance="VLAN-aware bundle TENANT_LAB_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1034",instance="VLAN-aware bundle TENANT_LAB_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1035",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1036",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1036",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 0
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1037",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1038",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder{esi="0000:0000:0000:0000:1038",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 0
+# HELP arista_evpn_esi_designated_forwarder_elected 1 if any forwarder is elected; 0 means the election has not settled
+# TYPE arista_evpn_esi_designated_forwarder_elected gauge
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1001",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1002",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 0
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1003",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1004",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1005",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1006",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1007",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1008",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1008",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1009",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1010",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1010",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1011",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1012",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1012",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1013",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1014",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1014",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1015",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1016",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1016",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1017",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1018",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1018",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1019",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_LAB_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_LAB_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_LAB_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_LAB_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1022",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1022",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1023",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1024",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1024",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1025",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1026",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1026",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1027",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1028",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1029",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1029",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1030",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1031",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1031",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1032",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1033",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1033",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1034",instance="VLAN-aware bundle TENANT_LAB_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1034",instance="VLAN-aware bundle TENANT_LAB_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1035",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1036",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1036",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1037",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1038",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_designated_forwarder_elected{esi="0000:0000:0000:0000:1038",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+# HELP arista_evpn_esi_forwarding_peers Peers forwarding for this segment; below 2 on an all-active segment means the redundancy is gone
+# TYPE arista_evpn_esi_forwarding_peers gauge
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1001",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1002",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 0
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1003",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1004",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1005",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1006",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1007",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1008",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1008",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1009",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1010",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1010",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1011",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1012",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1012",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1013",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1014",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1014",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1015",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1016",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1016",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1017",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1018",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1018",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1019",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_LAB_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_LAB_PUBLIC",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_LAB_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_LAB_PUBLIC",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1022",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1022",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1023",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1024",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1024",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1025",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1026",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1026",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1027",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1028",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1029",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1029",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1030",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1031",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1031",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1032",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1033",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1033",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1034",instance="VLAN-aware bundle TENANT_LAB_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1034",instance="VLAN-aware bundle TENANT_LAB_PUBLIC",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1035",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1036",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1036",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1037",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1038",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 2
+arista_evpn_esi_forwarding_peers{esi="0000:0000:0000:0000:1038",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 2
+# HELP arista_evpn_esi_info Ethernet segment interface and redundancy mode. Always 1
+# TYPE arista_evpn_esi_info gauge
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1001",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel101",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1002",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel112",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1003",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel123",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1004",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel130",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1005",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel131",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1006",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel132",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1007",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel111",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1008",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel113",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1008",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",interface="Port-Channel113",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1009",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel114",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1010",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel115",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1010",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",interface="Port-Channel115",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1011",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel116",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1012",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel117",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1012",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",interface="Port-Channel117",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1013",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel105",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1014",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel106",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1014",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",interface="Port-Channel106",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1015",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel107",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1016",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel108",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1016",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",interface="Port-Channel108",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1017",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel109",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1018",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel110",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1018",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",interface="Port-Channel110",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1019",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel125",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_LAB_PRIVATE",interface="Port-Channel136",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_LAB_PUBLIC",interface="Port-Channel136",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel136",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",interface="Port-Channel136",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_LAB_PRIVATE",interface="Port-Channel137",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_LAB_PUBLIC",interface="Port-Channel137",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel137",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",interface="Port-Channel137",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1022",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel133",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1022",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",interface="Port-Channel133",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1023",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel134",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1024",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel135",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1024",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",interface="Port-Channel135",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1025",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel102",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1026",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel103",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1026",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",interface="Port-Channel103",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1027",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel104",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1028",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel122",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1029",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel124",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1029",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",interface="Port-Channel124",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1030",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel118",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1031",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel119",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1031",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",interface="Port-Channel119",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1032",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel120",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1033",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel121",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1033",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",interface="Port-Channel121",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1034",instance="VLAN-aware bundle TENANT_LAB_PRIVATE",interface="Port-Channel138",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1034",instance="VLAN-aware bundle TENANT_LAB_PUBLIC",interface="Port-Channel138",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1035",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel126",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1036",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel127",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1036",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",interface="Port-Channel127",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1037",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel128",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1038",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",interface="Port-Channel129",redundancy_mode="allActive",switch="sw1"} 1
+arista_evpn_esi_info{esi="0000:0000:0000:0000:1038",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",interface="Port-Channel129",redundancy_mode="allActive",switch="sw1"} 1
+# HELP arista_evpn_esi_up 1 if this switch's own link into the segment is up; a peer that still has its link reports 1 regardless
+# TYPE arista_evpn_esi_up gauge
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1001",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1002",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 0
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1003",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1004",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1005",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1006",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1007",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1008",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1008",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1009",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1010",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1010",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1011",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1012",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1012",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1013",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1014",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1014",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1015",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1016",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1016",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1017",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1018",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1018",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1019",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_LAB_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_LAB_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1020",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_LAB_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_LAB_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1021",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1022",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1022",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1023",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1024",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1024",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1025",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1026",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1026",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1027",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1028",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1029",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1029",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1030",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1031",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1031",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1032",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1033",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1033",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1034",instance="VLAN-aware bundle TENANT_LAB_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1034",instance="VLAN-aware bundle TENANT_LAB_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1035",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1036",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1036",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1037",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1038",instance="VLAN-aware bundle TENANT_PROD_PRIVATE",switch="sw1"} 1
+arista_evpn_esi_up{esi="0000:0000:0000:0000:1038",instance="VLAN-aware bundle TENANT_PROD_PUBLIC",switch="sw1"} 1
 # HELP arista_fan_boot_timestamp_seconds Unix timestamp when the fan came online
 # TYPE arista_fan_boot_timestamp_seconds gauge
 arista_fan_boot_timestamp_seconds{fan="1/1",location="fantray",switch="sw1",tray="1"} 1.7772941891848712e+09
@@ -1108,3 +1451,109 @@ arista_transceiver_voltage_volts{interface="Ethernet1/1",switch="sw1"} 3.2270000
 arista_transceiver_voltage_volts{interface="Ethernet31/1",switch="sw1"} 3.3046
 arista_transceiver_voltage_volts{interface="Ethernet7/1",switch="sw1"} 3.2869
 arista_transceiver_voltage_volts{interface="Ethernet7/2",switch="sw1"} 3.2869
+# HELP arista_vxlan_interface_info VXLAN interface source and encapsulation labels. Always 1
+# TYPE arista_vxlan_interface_info gauge
+arista_vxlan_interface_info{encapsulation="ipv4",interface="Vxlan1",replication_mode="headendVcs",source_address="192.0.2.101",source_interface="Loopback0",switch="sw1"} 1
+# HELP arista_vxlan_interface_up 1 if the VXLAN interface line protocol is up
+# TYPE arista_vxlan_interface_up gauge
+arista_vxlan_interface_up{interface="Vxlan1",switch="sw1"} 1
+# HELP arista_vxlan_remote_mac_count Overlay MAC addresses learned from this remote VTEP
+# TYPE arista_vxlan_remote_mac_count gauge
+arista_vxlan_remote_mac_count{switch="sw1",vtep="192.0.2.102"} 4
+# HELP arista_vxlan_remote_vtep_count Remote VTEPs known to this interface; a drop means a VTEP left the fabric
+# TYPE arista_vxlan_remote_vtep_count gauge
+arista_vxlan_remote_vtep_count{interface="Vxlan1",switch="sw1"} 1
+# HELP arista_vxlan_remote_vtep_info One known remote VTEP and how it is used. Always 1
+# TYPE arista_vxlan_remote_vtep_info gauge
+arista_vxlan_remote_vtep_info{interface="Vxlan1",switch="sw1",tunnel_types="unicast,flood",vtep="192.0.2.102"} 1
+# HELP arista_vxlan_vlan_flood_vteps Remote VTEPs in this VLAN's flood list
+# TYPE arista_vxlan_vlan_flood_vteps gauge
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="1600"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="1601"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="1602"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="1603"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="1604"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="1606"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="1608"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="1609"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="1611"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="1612"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="1614"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="1620"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="1621"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="1622"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="1623"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="1624"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="202"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="203"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="204"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="207"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="208"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="209"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="210"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="211"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="212"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="214"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="215"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="216"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="217"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="226"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="299"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="315"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="318"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="352"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="353"} 1
+arista_vxlan_vlan_flood_vteps{interface="Vxlan1",switch="sw1",vlan="354"} 1
+# HELP arista_vxlan_vni_info VLAN-to-VNI binding. Always 1
+# TYPE arista_vxlan_vni_info gauge
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="1600",vni="21600"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="1601",vni="21601"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="1602",vni="21602"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="1603",vni="21603"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="1604",vni="21604"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="1606",vni="21606"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="1608",vni="21608"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="1609",vni="21609"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="1611",vni="21611"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="1612",vni="21612"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="1614",vni="21614"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="1620",vni="21620"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="1621",vni="21621"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="1622",vni="21622"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="1623",vni="21623"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="1624",vni="21624"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="201",vni="20201"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="202",vni="20202"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="203",vni="20203"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="204",vni="20204"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="207",vni="20207"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="208",vni="20208"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="209",vni="20209"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="210",vni="20210"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="211",vni="20211"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="212",vni="20212"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="214",vni="20214"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="215",vni="20215"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="216",vni="20216"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="217",vni="20217"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="226",vni="20226"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="299",vni="20299"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="315",vni="20315"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="318",vni="20213"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="352",vni="20352"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="353",vni="20353"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="",switch="sw1",vlan="354",vni="20354"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="evpn",switch="sw1",vlan="3901",vni="6000001"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="evpn",switch="sw1",vlan="3902",vni="6000002"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="evpn",switch="sw1",vlan="3903",vni="6000003"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="evpn",switch="sw1",vlan="3904",vni="6000004"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="evpn",switch="sw1",vlan="3905",vni="6000005"} 1
+arista_vxlan_vni_info{interface="Vxlan1",source="evpn",switch="sw1",vlan="3906",vni="6000006"} 1
+# HELP arista_vxlan_vrf_vni_info VRF-to-VNI binding for a routed overlay. Always 1
+# TYPE arista_vxlan_vrf_vni_info gauge
+arista_vxlan_vrf_vni_info{interface="Vxlan1",switch="sw1",vni="6000001",vrf="TENANT_TEST"} 1
+arista_vxlan_vrf_vni_info{interface="Vxlan1",switch="sw1",vni="6000002",vrf="TENANT_PROD_PRIVATE"} 1
+arista_vxlan_vrf_vni_info{interface="Vxlan1",switch="sw1",vni="6000003",vrf="TRANSIT"} 1
+arista_vxlan_vrf_vni_info{interface="Vxlan1",switch="sw1",vni="6000004",vrf="TENANT_PROD_PUBLIC"} 1
+arista_vxlan_vrf_vni_info{interface="Vxlan1",switch="sw1",vni="6000005",vrf="TENANT_LAB_PRIVATE"} 1
+arista_vxlan_vrf_vni_info{interface="Vxlan1",switch="sw1",vni="6000006",vrf="TENANT_LAB_PUBLIC"} 1

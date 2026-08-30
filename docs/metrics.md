@@ -228,6 +228,89 @@ the honest headroom for a shared pool and `limit - used` overstates it.
 EOS returns the rows in no stable order; captures from three switches each began with a different one. Nothing in
 arex depends on the ordering, and a test asserts that reversing the array produces identical output.
 
+## Overlay: VXLAN and EVPN
+
+Three collect keys, because the parts fail independently and cost wildly different amounts.
+
+| Key | Commands | Default interval | Wire cost |
+| --- | --- | --- | --- |
+| `vxlan` | `show vxlan vtep`, `show interface vxlan 1`, `show vxlan address-table count` | `pollInterval` | 7.5 kB |
+| `evpn` | `show bgp evpn summary`, `show bgp evpn route-type count` | `pollInterval` | 0.7 kB |
+| `esi` | `show bgp evpn instance` | `15m` | **19 kB** |
+
+`show interface vxlan 1` fails outright on a switch with no VXLAN interface, so a spine leaves
+`vxlan` off rather than absorbing a failed command every poll. `evpn` and `esi` are fine on a
+route-reflector spine, which simply reports no instances.
+
+### The data plane
+
+| Metric | Type | Description |
+| --- | --- | --- |
+| `arista_vxlan_interface_up` | gauge | 1 if the VXLAN interface line protocol is up |
+| `arista_vxlan_interface_info` | gauge | `source_interface`, `source_address`, `replication_mode`, `encapsulation` |
+| `arista_vxlan_remote_vtep_count` | gauge | Remote VTEPs known — **alert on this** |
+| `arista_vxlan_remote_vtep_info` | gauge | `vtep`, `tunnel_types` (comma-joined: `unicast`, `flood`) |
+| `arista_vxlan_remote_mac_count` | gauge | Overlay MACs learned from each remote VTEP |
+| `arista_vxlan_vni_info` | gauge | VLAN-to-VNI binding |
+| `arista_vxlan_vrf_vni_info` | gauge | VRF-to-VNI binding for a routed overlay |
+| `arista_vxlan_vlan_flood_vteps` | gauge | Remote VTEPs in a VLAN's flood list |
+
+Alert on the **count**, not the per-VTEP series. EOS reports only VTEPs it knows, so one leaving
+the fabric removes its series rather than setting it to zero, and absence is not something a
+threshold can be written against.
+
+### The control plane
+
+`arista_bgp_evpn_peer_up`, `_prefixes_received` / `_accepted` / `_advertised`,
+`_state_change_timestamp_seconds` and `_info`, all labelled `vrf`, `peer`, `asn` — the same shape
+as the IPv4 series, deliberately.
+
+They are **separate series, not extra labels on `arista_bgp_peer_*`**. The same neighbour normally
+carries both an IPv4 unicast and an EVPN session, and either can fail while the other stays up. A
+healthy underlay session is exactly what makes a dead overlay one hard to notice.
+
+`arista_bgp_evpn_routes{route_type}` counts path entries by type — `auto_discovery`, `mac_ip`,
+`imet`, `ethernet_segment`, `ip_prefix_ipv4`, `ip_prefix_ipv6`. Paths, not unique routes: a route
+learned from two peers counts twice, so these are not comparable with a filtered per-type count.
+
+### Ethernet segments
+
+| Metric | Type | Description |
+| --- | --- | --- |
+| `arista_evpn_esi_up` | gauge | 1 if **this switch's own** link into the segment is up |
+| `arista_evpn_esi_designated_forwarder` | gauge | 1 if this switch is the elected forwarder |
+| `arista_evpn_esi_designated_forwarder_elected` | gauge | 1 if *anyone* is elected |
+| `arista_evpn_esi_forwarding_peers` | gauge | Peers forwarding — **alert on this** |
+| `arista_evpn_esi_info` | gauge | `interface`, `redundancy_mode` |
+
+All carry `instance` and `esi`. **Both are needed.** DF election runs per VLAN-aware bundle, so one
+ESI legitimately has a different forwarder in each bundle it belongs to — the modulus algorithm
+spreading the role, not a fault. A metric keyed by ESI alone would report one bundle's answer as
+the whole truth.
+
+#### Why three forwarder metrics
+
+`designated_forwarder` alone is ambiguous. A 0 means either "the other leaf is forwarding, all is
+well" or "nobody is forwarding, broadcast traffic is going nowhere" — opposite conclusions from the
+same value. `_elected` separates them:
+
+| `_designated_forwarder` | `_elected` | Meaning |
+| --- | --- | --- |
+| 1 | 1 | This switch forwards for the segment |
+| 0 | 1 | Its peer forwards. Normal |
+| 0 | 0 | **No forwarder at all** |
+
+The third row is only representable because EOS reports an empty `dFPeer.ip` rather than omitting
+the field, and swaps `dFElectionAlgorithm` for `dFElectionState: "pending"` while an election has
+not settled.
+
+#### Why `up` is not enough
+
+When one leaf of a multihomed pair loses its link, **the survivor still reports the segment up** —
+correctly, its own link is fine. Only `forwarding_peers` dropping from 2 to 1 shows, from either
+side, that the segment is running on one leg. A rule watching `up` sees nothing wrong from the
+switch that still works.
+
 ## Interfaces
 
 | Metric | Type | Description |
