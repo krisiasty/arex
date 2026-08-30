@@ -143,3 +143,8 @@ sentinel values rather than fabric identifiers, so they remain unchanged.
 
 `show_interface_vxlan_1_no_interface.txt` records the spine response when the command is issued
 without a VXLAN interface. The switch prompt is intentionally omitted.
+
+The two `show_bgp_evpn_summary_fabric_a_leaf_*.json` fixtures each contain two established EVPN
+peers in the default VRF. Router and peer addresses, ASNs, timestamps, and exact counters are
+synthetic; numeric types, counter magnitudes, differing advertised-prefix counts, and the
+steady-state session shape remain.
