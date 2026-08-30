@@ -54,7 +54,7 @@ have installed a certificate signed by a CA that arex trusts.
 Then verify eAPI answers from wherever arex will run. This is the same request arex issues:
 
 ```bash
-curl -k -u prometheus:secret https://<mgmt-ip>/command-api \
+curl -k --user prometheus https://<mgmt-ip>/command-api \
   -d '{"jsonrpc":"2.0","method":"runCmds","params":{"version":1,"cmds":["show version"],"format":"json"},"id":1}'
 ```
 
@@ -125,15 +125,15 @@ permits only what is needed is.
 
 ```bash
 # 1. a privileged read, unelevated
-curl -k -u prometheus:<password> https://<switch>/command-api \
+curl -k --user prometheus https://<switch>/command-api \
   -d '{"jsonrpc":"2.0","method":"runCmds","params":{"version":1,"cmds":["show running-config"],"format":"json"},"id":1}'
 
 # 2. the same read, elevating first -- catches a missing enable secret
-curl -k -u prometheus:<password> https://<switch>/command-api -d '{"jsonrpc":"2.0","method":"runCmds",
+curl -k --user prometheus https://<switch>/command-api -d '{"jsonrpc":"2.0","method":"runCmds",
   "params":{"version":1,"cmds":["enable","show running-config"],"format":"json"},"id":1}'
 
 # 3. a command the role forbids -- catches authorization being disabled
-curl -k -u prometheus:<password> https://<switch>/command-api \
+curl -k --user prometheus https://<switch>/command-api \
   -d '{"jsonrpc":"2.0","method":"runCmds","params":{"version":1,"cmds":["configure"],"format":"json"},"id":1}'
 ```
 
