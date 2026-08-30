@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/krisiasty/arex/security/advisories/new
+    about: Report suspected vulnerabilities privately instead of opening an issue.
+  - name: Read the documentation
+    url: https://github.com/krisiasty/arex#documentation
+    about: Installation, configuration, metrics, TLS, operations, and alerting guides.

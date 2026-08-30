@@ -209,7 +209,7 @@ journalctl -u arex -n 20 --output=cat | jq 'select(.msg=="listening")'
 Then from outside:
 
 ```bash
-curl -s --cacert /etc/arex/tls/ca.crt -u prometheus:... https://arex-host:9100/metrics | head -1
+curl -s --cacert /etc/arex/tls/ca.crt --user prometheus https://arex-host:9100/metrics | head -1
 curl -s -o /dev/null -w '%{http_code}\n' --cacert /etc/arex/tls/ca.crt https://arex-host:9100/livez
 ```
 
