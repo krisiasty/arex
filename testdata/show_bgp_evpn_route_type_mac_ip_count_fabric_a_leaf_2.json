@@ -1,0 +1,8 @@
+{
+    "vrf": "default",
+    "routerId": "192.0.2.102",
+    "asn": 4200000102,
+    "evpnRoutes": {
+        "count": 560
+    }
+}

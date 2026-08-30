@@ -150,3 +150,13 @@ synthetic; numeric types, counter magnitudes, differing advertised-prefix counts
 leaf-to-spine relationships, and the steady-state session shape remain.
 
 The Fabric B EVPN summary fixtures cover a back-to-back pair with one established peer per leaf.
+
+The EVPN route-type count fixtures preserve EOS's compact `evpnRoutes.count` shape. Their ASN is a
+JSON number, unlike the string ASN in the EVPN summary response. Exact route counts are synthetic,
+but their relative scale is retained. VXLAN address-table counts remain small so quiet-fabric
+behavior is represented rather than replaced with a busy synthetic table.
+
+Across Fabric A, the leaf route-type totals agree while the spine has a slightly higher type-2
+count and the same type-3/type-5 totals. Its VXLAN address-table count is empty because the spine
+does not terminate VXLAN. Fabric B preserves the quieter case: empty VXLAN counts, much smaller
+type-2/type-3 totals, and no type-5 routes.
