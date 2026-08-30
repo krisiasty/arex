@@ -174,3 +174,7 @@ segments and interfaces retain the same replacement within and across both fixtu
 
 `show_bgp_evpn_instance_fabric_a_spine_1.json` preserves the empty `bgpEvpnInstances` object
 returned by a route-reflector spine that does not terminate EVPN instances locally.
+
+The paired `show_bgp_evpn_instance_fabric_b_leaf_*.json` fixtures each contain one synthetic
+storage bundle with 17 unique Ethernet segments. Every segment is up and uses modulus DF election.
+Both views agree that leaf 2 is the elected DF for all 17 entries.

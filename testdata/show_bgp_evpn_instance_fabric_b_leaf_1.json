@@ -1,0 +1,461 @@
+{
+    "bgpEvpnInstances": {
+        "VLAN-aware bundle TENANT_STORAGE": {
+            "rd": "192.0.2.201:201",
+            "importRts": [
+                700000000000201
+            ],
+            "exportRts": [
+                700000000000201
+            ],
+            "serviceIntf": "vlanAwareBundle",
+            "localVxlanIp": "192.0.2.201",
+            "vxlanEnabled": true,
+            "mplsEnabled": false,
+            "ethernetSegments": {
+                "0000:0000:0000:0000:2001": {
+                    "intf": "Port-Channel201",
+                    "redundancyMode": "allActive",
+                    "state": "up",
+                    "importRT": "00:00:00:00:20:01",
+                    "importRTs": [
+                        "00:00:00:00:20:01"
+                    ],
+                    "dFElectionAlgorithm": "modulus",
+                    "dFPeer": {
+                        "ip": "192.0.2.202"
+                    },
+                    "nonDFPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        }
+                    ],
+                    "forwardingPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        },
+                        {
+                            "ip": "192.0.2.202"
+                        }
+                    ]
+                },
+                "0000:0000:0000:0000:2002": {
+                    "intf": "Port-Channel210",
+                    "redundancyMode": "allActive",
+                    "state": "up",
+                    "importRT": "00:00:00:00:20:02",
+                    "importRTs": [
+                        "00:00:00:00:20:02"
+                    ],
+                    "dFElectionAlgorithm": "modulus",
+                    "dFPeer": {
+                        "ip": "192.0.2.202"
+                    },
+                    "nonDFPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        }
+                    ],
+                    "forwardingPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        },
+                        {
+                            "ip": "192.0.2.202"
+                        }
+                    ]
+                },
+                "0000:0000:0000:0000:2003": {
+                    "intf": "Port-Channel211",
+                    "redundancyMode": "allActive",
+                    "state": "up",
+                    "importRT": "00:00:00:00:20:03",
+                    "importRTs": [
+                        "00:00:00:00:20:03"
+                    ],
+                    "dFElectionAlgorithm": "modulus",
+                    "dFPeer": {
+                        "ip": "192.0.2.202"
+                    },
+                    "nonDFPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        }
+                    ],
+                    "forwardingPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        },
+                        {
+                            "ip": "192.0.2.202"
+                        }
+                    ]
+                },
+                "0000:0000:0000:0000:2004": {
+                    "intf": "Port-Channel212",
+                    "redundancyMode": "allActive",
+                    "state": "up",
+                    "importRT": "00:00:00:00:20:04",
+                    "importRTs": [
+                        "00:00:00:00:20:04"
+                    ],
+                    "dFElectionAlgorithm": "modulus",
+                    "dFPeer": {
+                        "ip": "192.0.2.202"
+                    },
+                    "nonDFPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        }
+                    ],
+                    "forwardingPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        },
+                        {
+                            "ip": "192.0.2.202"
+                        }
+                    ]
+                },
+                "0000:0000:0000:0000:2005": {
+                    "intf": "Port-Channel213",
+                    "redundancyMode": "allActive",
+                    "state": "up",
+                    "importRT": "00:00:00:00:20:05",
+                    "importRTs": [
+                        "00:00:00:00:20:05"
+                    ],
+                    "dFElectionAlgorithm": "modulus",
+                    "dFPeer": {
+                        "ip": "192.0.2.202"
+                    },
+                    "nonDFPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        }
+                    ],
+                    "forwardingPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        },
+                        {
+                            "ip": "192.0.2.202"
+                        }
+                    ]
+                },
+                "0000:0000:0000:0000:2006": {
+                    "intf": "Port-Channel214",
+                    "redundancyMode": "allActive",
+                    "state": "up",
+                    "importRT": "00:00:00:00:20:06",
+                    "importRTs": [
+                        "00:00:00:00:20:06"
+                    ],
+                    "dFElectionAlgorithm": "modulus",
+                    "dFPeer": {
+                        "ip": "192.0.2.202"
+                    },
+                    "nonDFPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        }
+                    ],
+                    "forwardingPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        },
+                        {
+                            "ip": "192.0.2.202"
+                        }
+                    ]
+                },
+                "0000:0000:0000:0000:2007": {
+                    "intf": "Port-Channel202",
+                    "redundancyMode": "allActive",
+                    "state": "up",
+                    "importRT": "00:00:00:00:20:07",
+                    "importRTs": [
+                        "00:00:00:00:20:07"
+                    ],
+                    "dFElectionAlgorithm": "modulus",
+                    "dFPeer": {
+                        "ip": "192.0.2.202"
+                    },
+                    "nonDFPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        }
+                    ],
+                    "forwardingPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        },
+                        {
+                            "ip": "192.0.2.202"
+                        }
+                    ]
+                },
+                "0000:0000:0000:0000:2008": {
+                    "intf": "Port-Channel203",
+                    "redundancyMode": "allActive",
+                    "state": "up",
+                    "importRT": "00:00:00:00:20:08",
+                    "importRTs": [
+                        "00:00:00:00:20:08"
+                    ],
+                    "dFElectionAlgorithm": "modulus",
+                    "dFPeer": {
+                        "ip": "192.0.2.202"
+                    },
+                    "nonDFPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        }
+                    ],
+                    "forwardingPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        },
+                        {
+                            "ip": "192.0.2.202"
+                        }
+                    ]
+                },
+                "0000:0000:0000:0000:2009": {
+                    "intf": "Port-Channel204",
+                    "redundancyMode": "allActive",
+                    "state": "up",
+                    "importRT": "00:00:00:00:20:09",
+                    "importRTs": [
+                        "00:00:00:00:20:09"
+                    ],
+                    "dFElectionAlgorithm": "modulus",
+                    "dFPeer": {
+                        "ip": "192.0.2.202"
+                    },
+                    "nonDFPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        }
+                    ],
+                    "forwardingPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        },
+                        {
+                            "ip": "192.0.2.202"
+                        }
+                    ]
+                },
+                "0000:0000:0000:0000:2010": {
+                    "intf": "Port-Channel215",
+                    "redundancyMode": "allActive",
+                    "state": "up",
+                    "importRT": "00:00:00:00:20:10",
+                    "importRTs": [
+                        "00:00:00:00:20:10"
+                    ],
+                    "dFElectionAlgorithm": "modulus",
+                    "dFPeer": {
+                        "ip": "192.0.2.202"
+                    },
+                    "nonDFPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        }
+                    ],
+                    "forwardingPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        },
+                        {
+                            "ip": "192.0.2.202"
+                        }
+                    ]
+                },
+                "0000:0000:0000:0000:2011": {
+                    "intf": "Port-Channel216",
+                    "redundancyMode": "allActive",
+                    "state": "up",
+                    "importRT": "00:00:00:00:20:11",
+                    "importRTs": [
+                        "00:00:00:00:20:11"
+                    ],
+                    "dFElectionAlgorithm": "modulus",
+                    "dFPeer": {
+                        "ip": "192.0.2.202"
+                    },
+                    "nonDFPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        }
+                    ],
+                    "forwardingPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        },
+                        {
+                            "ip": "192.0.2.202"
+                        }
+                    ]
+                },
+                "0000:0000:0000:0000:2012": {
+                    "intf": "Port-Channel217",
+                    "redundancyMode": "allActive",
+                    "state": "up",
+                    "importRT": "00:00:00:00:20:12",
+                    "importRTs": [
+                        "00:00:00:00:20:12"
+                    ],
+                    "dFElectionAlgorithm": "modulus",
+                    "dFPeer": {
+                        "ip": "192.0.2.202"
+                    },
+                    "nonDFPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        }
+                    ],
+                    "forwardingPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        },
+                        {
+                            "ip": "192.0.2.202"
+                        }
+                    ]
+                },
+                "0000:0000:0000:0000:2013": {
+                    "intf": "Port-Channel207",
+                    "redundancyMode": "allActive",
+                    "state": "up",
+                    "importRT": "00:00:00:00:20:13",
+                    "importRTs": [
+                        "00:00:00:00:20:13"
+                    ],
+                    "dFElectionAlgorithm": "modulus",
+                    "dFPeer": {
+                        "ip": "192.0.2.202"
+                    },
+                    "nonDFPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        }
+                    ],
+                    "forwardingPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        },
+                        {
+                            "ip": "192.0.2.202"
+                        }
+                    ]
+                },
+                "0000:0000:0000:0000:2014": {
+                    "intf": "Port-Channel205",
+                    "redundancyMode": "allActive",
+                    "state": "up",
+                    "importRT": "00:00:00:00:20:14",
+                    "importRTs": [
+                        "00:00:00:00:20:14"
+                    ],
+                    "dFElectionAlgorithm": "modulus",
+                    "dFPeer": {
+                        "ip": "192.0.2.202"
+                    },
+                    "nonDFPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        }
+                    ],
+                    "forwardingPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        },
+                        {
+                            "ip": "192.0.2.202"
+                        }
+                    ]
+                },
+                "0000:0000:0000:0000:2015": {
+                    "intf": "Port-Channel206",
+                    "redundancyMode": "allActive",
+                    "state": "up",
+                    "importRT": "00:00:00:00:20:15",
+                    "importRTs": [
+                        "00:00:00:00:20:15"
+                    ],
+                    "dFElectionAlgorithm": "modulus",
+                    "dFPeer": {
+                        "ip": "192.0.2.202"
+                    },
+                    "nonDFPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        }
+                    ],
+                    "forwardingPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        },
+                        {
+                            "ip": "192.0.2.202"
+                        }
+                    ]
+                },
+                "0000:0000:0000:0000:2016": {
+                    "intf": "Port-Channel208",
+                    "redundancyMode": "allActive",
+                    "state": "up",
+                    "importRT": "00:00:00:00:20:16",
+                    "importRTs": [
+                        "00:00:00:00:20:16"
+                    ],
+                    "dFElectionAlgorithm": "modulus",
+                    "dFPeer": {
+                        "ip": "192.0.2.202"
+                    },
+                    "nonDFPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        }
+                    ],
+                    "forwardingPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        },
+                        {
+                            "ip": "192.0.2.202"
+                        }
+                    ]
+                },
+                "0000:0000:0000:0000:2017": {
+                    "intf": "Port-Channel209",
+                    "redundancyMode": "allActive",
+                    "state": "up",
+                    "importRT": "00:00:00:00:20:17",
+                    "importRTs": [
+                        "00:00:00:00:20:17"
+                    ],
+                    "dFElectionAlgorithm": "modulus",
+                    "dFPeer": {
+                        "ip": "192.0.2.202"
+                    },
+                    "nonDFPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        }
+                    ],
+                    "forwardingPeers": [
+                        {
+                            "ip": "192.0.2.201"
+                        },
+                        {
+                            "ip": "192.0.2.202"
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}
