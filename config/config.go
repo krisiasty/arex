@@ -15,6 +15,12 @@ import (
 	"github.com/krisiasty/arex/internal/eapi"
 )
 
+// MaxSwitches is the hard number of switches one arex instance accepts.
+//
+// It is a defensive ceiling, not a tested capacity: large fleets should be
+// split across separate instances.
+const MaxSwitches = 1000
+
 // Config is the top-level configuration for arex.
 type Config struct {
 	ListenAddress  string   `json:"listenAddress"`  // default ":9100"
@@ -269,6 +275,10 @@ func (c *Config) validate() error {
 	}
 	if len(c.Switches) == 0 {
 		return errors.New("config: no switches defined")
+	}
+	if len(c.Switches) > MaxSwitches {
+		return fmt.Errorf("config: %d switches configured; maximum is %d per instance: "+
+			"split large fleets across separate arex instances", len(c.Switches), MaxSwitches)
 	}
 	if c.Collect == nil {
 		return fmt.Errorf("config: no collect block; collection is opt-in, so an absent "+

@@ -31,7 +31,11 @@ const InternalTarget = "internal"
 // switch is ambiguous and is dropped rather than resolved to whichever came
 // last, which would return one switch's metrics under another's identity.
 func TargetIndex(switches []config.SwitchConfig) map[string]string {
-	index := make(map[string]string, len(switches)*3)
+	capacity := len(switches)
+	if capacity > config.MaxSwitches {
+		capacity = config.MaxSwitches
+	}
+	index := make(map[string]string, capacity*3)
 	ambiguous := make(map[string]bool)
 
 	add := func(key, label string) {

@@ -80,6 +80,8 @@ collect:
     interval: 15m
 
 switches:
+  # One instance accepts at most 1,000 switches. This is a defensive ceiling,
+  # not tested capacity; split large fleets across separate arex instances.
   # A stock EOS switch serves a certificate with no subject alternative names,
   # so it can only be verified by pinning. See the TLS section of the README.
   # This spine inherits the conservative global collect set. A route reflector
