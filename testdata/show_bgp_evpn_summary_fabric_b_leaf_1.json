@@ -1,0 +1,25 @@
+{
+    "vrfs": {
+        "default": {
+            "vrf": "default",
+            "routerId": "192.0.2.201",
+            "asn": "4200000201",
+            "peers": {
+                "192.0.2.202": {
+                    "version": 4,
+                    "msgReceived": 210000,
+                    "msgSent": 210500,
+                    "inMsgQueue": 0,
+                    "outMsgQueue": 0,
+                    "asn": "4200000202",
+                    "prefixAccepted": 72,
+                    "prefixReceived": 72,
+                    "upDownTime": 1700000200.125001,
+                    "underMaintenance": false,
+                    "peerState": "Established",
+                    "prefixAdvertised": 71
+                }
+            }
+        }
+    }
+}

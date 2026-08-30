@@ -148,3 +148,5 @@ The `show_bgp_evpn_summary_fabric_a_*.json` fixtures contain two established EVP
 switch in the default VRF. Router and peer addresses, ASNs, timestamps, and exact counters are
 synthetic; numeric types, counter magnitudes, differing advertised-prefix counts, reciprocal
 leaf-to-spine relationships, and the steady-state session shape remain.
+
+The Fabric B EVPN summary fixtures cover a back-to-back pair with one established peer per leaf.
