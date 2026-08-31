@@ -29,6 +29,9 @@ the rules in [`monitoring/`](../monitoring/) and do not replace alerting.
 
 ## Shared behavior
 
+The concrete compatibility, source, identity, variable, link and validation contracts are in
+[`monitoring/grafana/`](../monitoring/grafana/). Dashboard implementations must follow that shared foundation.
+
 ### Variables
 
 All dashboards use a Prometheus-compatible datasource variable rather than a hard-coded datasource UID. Variables
