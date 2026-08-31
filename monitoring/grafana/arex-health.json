@@ -739,7 +739,7 @@
         "type": "prometheus",
         "uid": "$datasource"
       },
-      "description": "Last complete poll result over time. Red with a running exporter points toward switch, credential or transport failure; missing data with an absent exporter points to the exporter or scrape path.",
+      "description": "Last complete poll result over time: green is successful and red is failed. Red with a running exporter points toward switch, credential or transport failure; missing data with an absent exporter points to the exporter or scrape path.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -757,30 +757,18 @@
             "lineWidth": 0,
             "spanNulls": false
           },
-          "mappings": [
-            {
-              "options": {
-                "0": {
-                  "color": "red",
-                  "index": 0,
-                  "text": "Failed"
-                },
-                "1": {
-                  "color": "green",
-                  "index": 1,
-                  "text": "Successful"
-                }
-              },
-              "type": "value"
-            }
-          ],
+          "mappings": [],
           "noValue": "Exporter or series unavailable",
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "transparent",
+                "color": "red",
                 "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
               }
             ]
           }
@@ -799,11 +787,11 @@
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": false
         },
         "mergeValues": true,
         "rowHeight": 0.8,
-        "showValue": "auto",
+        "showValue": "never",
         "tooltip": {
           "hideZeros": false,
           "mode": "single",
