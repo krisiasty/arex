@@ -73,11 +73,10 @@ type Config struct {
 	// exists -- the config decides the log level.
 	Warnings []string `json:"-"`
 
-	// Collect enables optional command groups for every switch that does not
-	// override it. Collection is opt-in: anything not listed here is not
-	// collected. A nil map means the block was absent, which is an error --
-	// defaulting it either way would silently change what a deployment
-	// gathers.
+	// Collect enables optional command groups for every switch. Collection is
+	// opt-in: anything not listed here or in a switch override is not collected.
+	// A nil map means the block was absent, which is an error -- defaulting it
+	// either way would silently change what a deployment gathers.
 	Collect CollectSet `json:"collect"`
 }
 
@@ -122,7 +121,7 @@ type SwitchConfig struct {
 	// hostname or address can match it.
 	PinnedCertSHA256 string `json:"pinnedCertSha256"`
 
-	// Collect overrides the top-level set for this switch, wholesale.
+	// Collect overrides top-level modules by key and can add role-specific ones.
 	Collect CollectSet `json:"collect"`
 
 	// InterfaceScope is passed to the switch verbatim as the interface
@@ -382,17 +381,21 @@ var CollectKeys = []string{
 
 // EffectiveCollect resolves which optional groups this switch collects.
 //
-// A per-switch block replaces the default wholesale rather than merging, so
-// there is no partial inheritance to reason about: what you see in a
-// switch's block is exactly what it collects.
+// A per-switch block merges with the defaults by module key. An entry replaces
+// the corresponding default, including its interval; enabled:false explicitly
+// disables a globally enabled module for that switch.
 func (s SwitchConfig) EffectiveCollect(defaults map[string]ModuleConfig,
 	pollInterval time.Duration) map[string]ModuleConfig {
-	src := defaults
-	if s.Collect != nil {
-		src = s.Collect
+	merged := make(map[string]ModuleConfig, len(defaults)+len(s.Collect))
+	for k, v := range defaults {
+		merged[k] = v
 	}
-	out := make(map[string]ModuleConfig, len(src))
-	for k, v := range src {
+	for k, v := range s.Collect {
+		merged[k] = v
+	}
+
+	out := make(map[string]ModuleConfig, len(merged))
+	for k, v := range merged {
 		if !v.Enabled {
 			continue
 		}

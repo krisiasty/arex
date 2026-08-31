@@ -49,6 +49,25 @@ func TestAllEnabledGivesEveryCommand(t *testing.T) {
 	}
 }
 
+func TestVXLANUsesCanonicalEAPICommand(t *testing.T) {
+	specs := commandsFor(map[string]config.ModuleConfig{
+		"vxlan": {Enabled: true},
+	}, "", directInterval)
+
+	for _, spec := range specs {
+		if spec.name == CmdVXLANInterface {
+			if spec.cli != "show interfaces vxlan 1" {
+				t.Errorf("VXLAN interface command = %q, want canonical eAPI spelling", spec.cli)
+			}
+			if spec.name != "show interface vxlan 1" {
+				t.Errorf("VXLAN metric command label = %q, want stable spelling", spec.name)
+			}
+			return
+		}
+	}
+	t.Fatal("VXLAN interface command missing")
+}
+
 // everyCommand is show version plus every command the collect keys name.
 // Deliberately not len(CollectKeys)+1: a key may name several commands, as the
 // overlay keys do.
@@ -118,7 +137,10 @@ func TestMetricNameIsIndependentOfScope(t *testing.T) {
 
 func TestStoreUsesPerSwitchCommands(t *testing.T) {
 	full := allEnabled()
-	lean := map[string]config.ModuleConfig{"interfaces": {Enabled: true}}
+	lean := map[string]config.ModuleConfig{
+		"phy": {Enabled: false},
+		"bgp": {Enabled: false},
+	}
 
 	store, err := NewStore([]config.SwitchConfig{
 		{Host: "https://192.0.2.1", Username: "u", Password: "p", Name: "full", Collect: full},
@@ -130,7 +152,7 @@ func TestStoreUsesPerSwitchCommands(t *testing.T) {
 	if n := len(store.Get("full").Commands); n != everyCommand() {
 		t.Errorf("full switch has %d commands", n)
 	}
-	if n := len(store.Get("lean").Commands); n != 2 {
-		t.Errorf("lean switch has %d commands, want version + interfaces", n)
+	if n := len(store.Get("lean").Commands); n != everyCommand()-2 {
+		t.Errorf("lean switch has %d commands, want all except phy and bgp", n)
 	}
 }

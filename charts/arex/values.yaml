@@ -90,7 +90,7 @@ config:
     # Topology-dependent groups stay off in the fleet-wide default. Enable
     # vxlan only where Vxlan1 exists, evpn only where the EVPN address family
     # runs, and esi only on switches terminating ESI multihoming. A switch's
-    # collect block replaces this one, so repeat every common group it needs.
+    # collect block merges with this one and only needs role-specific changes.
     vxlan:
       enabled: false
     evpn:

@@ -33,7 +33,7 @@ var fixtureFile = map[string]string{
 	"show ntp associations":               "show_ntp_associations.json",
 	"show hardware capacity":              "show_hardware_capacity.json",
 	"show vxlan vtep":                     "show_vxlan_vtep_fabric_a_leaf_1.json",
-	"show interface vxlan 1":              "show_interface_vxlan_1_fabric_a_leaf_1.json",
+	"show interfaces vxlan 1":             "show_interface_vxlan_1_fabric_a_leaf_1.json",
 	"show vxlan address-table count":      "show_vxlan_address_table_count_fabric_a_leaf_1.json",
 	"show bgp evpn summary":               "show_bgp_evpn_summary_fabric_a_leaf_1.json",
 	"show bgp evpn route-type count":      "show_bgp_evpn_route_type_count_fabric_a_leaf_1.json",

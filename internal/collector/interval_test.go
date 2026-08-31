@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -132,6 +133,41 @@ func TestIntervalsAreExposedPerCommand(t *testing.T) {
 	} {
 		if got := data.CommandInterval[cmd]; got != want {
 			t.Errorf("interval[%s] = %v, want %v", cmd, got, want)
+		}
+	}
+}
+
+func TestScheduleListsModulesOnce(t *testing.T) {
+	data := newSwitchData(mods(map[string]time.Duration{
+		"bgp": 30 * time.Second, "vxlan": 5 * time.Minute, "phy": 15 * time.Minute,
+	}))
+
+	want := []ModuleSchedule{
+		{Module: "bgp", Interval: 30 * time.Second},
+		{Module: "vxlan", Interval: 5 * time.Minute},
+		{Module: "phy", Interval: 15 * time.Minute},
+	}
+	if got := data.Schedule(); !slices.Equal(got, want) {
+		t.Errorf("Schedule() = %v, want %v", got, want)
+	}
+}
+
+func TestTickerDriftDoesNotSplitDueModules(t *testing.T) {
+	f := newFake()
+	data := newSwitchData(mods(map[string]time.Duration{
+		"interfaces": 30 * time.Second,
+		"ntp":        time.Minute,
+	}))
+
+	CollectDue(f, data, testEpoch)
+	CollectDue(f, data, testEpoch.Add(30*time.Second+5*time.Millisecond))
+	f.calls = nil
+	CollectDue(f, data, testEpoch.Add(time.Minute))
+
+	got := strings.Join(f.calls, "\n")
+	for _, want := range []string{CmdInterfaces, CmdNTPAssociations} {
+		if !strings.Contains(got, want) {
+			t.Errorf("commands = %q, want it to contain %q", got, want)
 		}
 	}
 }

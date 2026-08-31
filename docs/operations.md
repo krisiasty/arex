@@ -248,11 +248,22 @@ each other — the exact outcome the staggering exists to prevent. A small varia
 instances polling the same switches do not align, bounded well inside the spacing so it cannot reorder pollers back
 into a cluster.
 
+## Request logging
+
+Without debug logging, every successful eAPI request emits one concise record. Failed requests are reported by the
+collector's warning and error records instead, so a failed request is never described as successful.
+
+```json
+{"time":"2026-08-31T09:19:18.545Z","level":"INFO","msg":"eapi request successful",
+ "switch":"leaf-1","duration_ms":145,"cmds":7}
+```
+
 ## Debug logging
 
-Either `"debug": true` in the config or `-debug` on the command line adds one record per eAPI request. The flag
-wins when given, so a deployment can be started verbosely without editing its config — or quietly with
-`-debug=false` when its config leaves debug on. An absent flag does not override the config.
+Either `"debug": true` in the config or `-debug` on the command line replaces the concise success record with one
+detailed record per eAPI request, including failures. The flag wins when given, so a deployment can be started
+verbosely without editing its config — or quietly with `-debug=false` when its config leaves debug on. An absent
+flag does not override the config.
 
 ```json
 {"time":"2026-08-28T09:19:18.545Z","level":"DEBUG","msg":"eapi request","switch":"leaf-1",

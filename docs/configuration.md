@@ -66,7 +66,7 @@ Enable the role-specific groups only where the corresponding feature runs:
 | `vxlan` | Switches where `Vxlan1` exists |
 | `esi` | Switches terminating ESI multihoming, normally leaves rather than route reflectors |
 
-This is more than avoiding empty output. `show interface vxlan 1` is rejected when `Vxlan1` does not exist, so
+This is more than avoiding empty output. `show interfaces vxlan 1` is rejected when `Vxlan1` does not exist, so
 enabling `vxlan` fleet-wide creates a permanently failing command on spines without a VXLAN interface. Unsupported
 commands are isolated from the rest of a poll and reported by `arista_command_success`, but should not be scheduled.
 
@@ -79,9 +79,9 @@ An absent `collect` block is a configuration error rather than a default, becaus
 silently change what an existing deployment gathers. An unknown key is also an error, so a typo cannot quietly
 disable a group, and so is an unknown field inside a group's object.
 
-A switch may carry its own `collect`, which **replaces** the top-level set rather than merging with it — what you
-see in a switch's block is exactly what it collects, including its intervals. A role-specific block therefore has
-to repeat every fleet-wide group that switch should keep collecting, not only the groups it wants to add.
+A switch may carry its own `collect`, which merges with the top-level set by module name. Use it to enable
+role-specific modules, override a global interval, or disable a global module with `enabled: false`; unrelated
+global modules remain enabled.
 
 This is the main lever on cost. Measured on a 32-port leaf, one poll of everything is roughly 654 kB and occupies
 eAPI for 1.4 seconds; three commands account for 88% of it, at about 30% each:
@@ -161,8 +161,7 @@ actually polls:
 
 ```json
 {"level":"INFO","msg":"switch schedule","switch":"leaf1",
- "modules":"show version=30s show interfaces=30s show ip bgp summary vrf all=30s
-             show interfaces transceiver detail=5m0s show interfaces phy detail=15m0s"}
+ "modules":"interfaces:30s, bgp:30s, transceiver:5m, phy:15m"}
 ```
 
 ### What actually detects a degrading link
@@ -262,7 +261,7 @@ Per-switch fields:
 | `passwordFile` | File to read the password from, instead of `password` |
 | `name` | Value for the `switch` label on every metric. Optional, falls back to `host` |
 | `fabric` | Value for the `fabric` label on ESI metrics. Set consistently per EVPN fabric when one arex monitors more than one; optional for a single fabric |
-| `collect` | Overrides the top-level collect set for this switch, wholesale |
+| `collect` | Adds or overrides modules for this switch; `enabled: false` disables a global module |
 | `interfaceScope` | Interface argument for the three interface commands, passed verbatim |
 | `caFile` | PEM bundle to verify this switch's certificate against. See [TLS](tls.md) |
 | `pinnedCertSha256` | SHA-256 of this switch's leaf certificate. See [TLS](tls.md) |

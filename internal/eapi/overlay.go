@@ -25,7 +25,7 @@ type VTEPTunnelType struct {
 	TunnelType string `json:"tunnelType"`
 }
 
-// ShowInterfaceVXLAN maps the output of "show interface vxlan 1".
+// ShowInterfaceVXLAN maps the output of "show interfaces vxlan 1".
 type ShowInterfaceVXLAN struct {
 	Interfaces map[string]VXLANInterface `json:"interfaces"`
 }

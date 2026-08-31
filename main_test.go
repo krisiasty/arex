@@ -5,6 +5,9 @@ import (
 	"slices"
 	"syscall"
 	"testing"
+	"time"
+
+	"github.com/krisiasty/arex/internal/collector"
 )
 
 // hasSignal reports whether the list contains s.
@@ -34,6 +37,17 @@ func TestDebugResolution(t *testing.T) {
 					tc.config, tc.flag, tc.set, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestDescribeScheduleListsModulesClearly(t *testing.T) {
+	sched := []collector.ModuleSchedule{
+		{Module: "bgp", Interval: 30 * time.Second},
+		{Module: "vxlan", Interval: 5 * time.Minute},
+		{Module: "phy", Interval: 15 * time.Minute},
+	}
+	if got, want := describeSchedule(sched), "bgp:30s, vxlan:5m, phy:15m"; got != want {
+		t.Errorf("describeSchedule() = %q, want %q", got, want)
 	}
 }
 
