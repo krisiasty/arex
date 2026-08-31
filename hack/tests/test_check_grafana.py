@@ -91,6 +91,27 @@ class CheckGrafanaTest(unittest.TestCase):
             any("Kubernetes resource metric must be scoped to arex_build_info" in error for error in errors)
         )
 
+    def test_kubernetes_usage_metric_must_not_require_image_label(self) -> None:
+        dashboard = copy.deepcopy(self.dashboard)
+        dashboard["panels"] = [
+            {
+                "fieldConfig": {"defaults": {"noValue": "Kubernetes metrics unavailable"}},
+                "targets": [
+                    {
+                        "expr": (
+                            'container_memory_working_set_bytes{container!="",image!=""} '
+                            "and on (namespace, pod) arex_build_info"
+                        )
+                    }
+                ],
+                "type": "timeseries",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write_dashboard(directory, "dashboard.json", dashboard)
+            errors = check_grafana.check_paths([path])
+        self.assertTrue(any("must not require a non-empty image label" in error for error in errors), errors)
+
     def test_noncanonical_json_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "dashboard.json"

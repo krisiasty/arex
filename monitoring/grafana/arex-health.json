@@ -1686,105 +1686,7 @@
         "type": "prometheus",
         "uid": "$datasource"
       },
-      "description": "CPU cores consumed by arex processes across active exporter instances, grouped by job. This excludes sidecars and other pod overhead.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "CPU cores",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 15,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 3,
-          "mappings": [],
-          "min": 0,
-          "noValue": "Exporter absent",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 8,
-        "x": 0,
-        "y": 53
-      },
-      "id": 19,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.4.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "editorMode": "code",
-          "expr": "sum by (job) (rate(process_cpu_seconds_total{job=~\"$job\"}[5m]) and on (job, instance) arex_build_info{job=~\"$job\"})",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "{{job}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Exporter CPU by job",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "description": "Kubernetes working-set memory for all real containers in selected arex pods, compared with their summed requests and limits. Requires namespace and pod labels on arex_build_info, plus cAdvisor and kube-state-metrics.",
+      "description": "Actual Kubernetes pod working-set memory as a solid filled series, with summed container requests as dashed yellow and limits as dashed red when configured. Includes all real containers in selected arex pods.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1898,8 +1800,8 @@
       },
       "gridPos": {
         "h": 9,
-        "w": 8,
-        "x": 8,
+        "w": 12,
+        "x": 0,
         "y": 53
       },
       "id": 20,
@@ -1924,7 +1826,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (namespace, pod) (\n  container_memory_working_set_bytes{container!=\"\",image!=\"\"}\n  and on (namespace, pod) arex_build_info{job=~\"$job\"}\n)",
+          "expr": "sum by (namespace, pod) (\n  container_memory_working_set_bytes{container!=\"\",container!=\"POD\"}\n  and on (namespace, pod) arex_build_info{job=~\"$job\"}\n)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{namespace}}/{{pod}} usage",
@@ -1966,7 +1868,7 @@
         "type": "prometheus",
         "uid": "$datasource"
       },
-      "description": "Kubernetes CPU cores used by all real containers in selected arex pods, compared with their summed requests and limits. A missing limit line means no CPU limit is configured.",
+      "description": "Actual Kubernetes pod CPU usage in cores as a solid filled series, with summed container requests as dashed yellow and limits as dashed red when configured. Includes all real containers in selected arex pods.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2081,8 +1983,8 @@
       },
       "gridPos": {
         "h": 9,
-        "w": 8,
-        "x": 16,
+        "w": 12,
+        "x": 12,
         "y": 53
       },
       "id": 21,
@@ -2107,7 +2009,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (namespace, pod) (\n  rate(container_cpu_usage_seconds_total{container!=\"\",image!=\"\"}[5m])\n  and on (namespace, pod) arex_build_info{job=~\"$job\"}\n)",
+          "expr": "sum by (namespace, pod) (\n  rate(container_cpu_usage_seconds_total{container!=\"\",container!=\"POD\"}[5m])\n  and on (namespace, pod) arex_build_info{job=~\"$job\"}\n)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{namespace}}/{{pod}} usage",
@@ -2143,168 +2045,6 @@
       ],
       "title": "Pod CPU vs resources",
       "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "description": "Current Kubernetes pod working-set memory as a percentage of the summed configured container memory limits.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 1,
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "noValue": "No memory limit configured or Kubernetes metrics unavailable",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 90
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 0,
-        "y": 62
-      },
-      "id": 22,
-      "options": {
-        "displayMode": "gradient",
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "12.4.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "editorMode": "code",
-          "expr": "100 *\n  sum by (namespace, pod) (\n    container_memory_working_set_bytes{container!=\"\",image!=\"\"}\n    and on (namespace, pod) arex_build_info{job=~\"$job\"}\n  )\n/\n  sum by (namespace, pod) (\n    kube_pod_container_resource_limits{resource=\"memory\"}\n    and on (namespace, pod) arex_build_info{job=~\"$job\"}\n  )",
-          "format": "time_series",
-          "instant": true,
-          "legendFormat": "{{namespace}}/{{pod}}",
-          "range": false,
-          "refId": "A"
-        }
-      ],
-      "title": "Memory limit utilization by pod",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "description": "Current Kubernetes pod CPU usage as a percentage of the summed configured container CPU limits. The default arex chart has no CPU limit, so this panel is empty until one is configured.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 1,
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "noValue": "No CPU limit configured or Kubernetes metrics unavailable",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 90
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 62
-      },
-      "id": 23,
-      "options": {
-        "displayMode": "gradient",
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "12.4.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "editorMode": "code",
-          "expr": "100 *\n  sum by (namespace, pod) (\n    rate(container_cpu_usage_seconds_total{container!=\"\",image!=\"\"}[5m])\n    and on (namespace, pod) arex_build_info{job=~\"$job\"}\n  )\n/\n  sum by (namespace, pod) (\n    kube_pod_container_resource_limits{resource=\"cpu\"}\n    and on (namespace, pod) arex_build_info{job=~\"$job\"}\n  )",
-          "format": "time_series",
-          "instant": true,
-          "legendFormat": "{{namespace}}/{{pod}}",
-          "range": false,
-          "refId": "A"
-        }
-      ],
-      "title": "CPU limit utilization by pod",
-      "type": "bargauge"
     },
     {
       "datasource": {
@@ -2398,7 +2138,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 71
+        "y": 62
       },
       "id": 18,
       "options": {

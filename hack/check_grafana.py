@@ -18,6 +18,7 @@ GENERIC_RUNTIME_METRIC_RE = re.compile(r"\b(?:go|process)_[A-Za-z_:][A-Za-z0-9_:
 KUBERNETES_RESOURCE_METRIC_RE = re.compile(
     r"\b(?:container_(?:cpu|memory)_[A-Za-z0-9_:]*|kube_pod_container_resource_(?:requests|limits))"
 )
+NONEMPTY_IMAGE_MATCHER_RE = re.compile(r'\bimage\s*!=\s*""')
 DATASOURCE_VALUES = {"$datasource", "${datasource}"}
 DASHBOARD_IDENTITIES = {
     "arex-health.json": ("arex-exporter-health", "arex / Exporter health"),
@@ -182,6 +183,11 @@ def validate_panels(dashboard: dict[str, Any]) -> list[str]:
                 errors.append(
                     f"panels[{index}].targets[{target_index}] "
                     "Kubernetes resource metric must be scoped to arex_build_info"
+                )
+            if KUBERNETES_RESOURCE_METRIC_RE.search(expression) and NONEMPTY_IMAGE_MATCHER_RE.search(expression):
+                errors.append(
+                    f"panels[{index}].targets[{target_index}] "
+                    "Kubernetes usage metric must not require a non-empty image label"
                 )
     return errors
 
