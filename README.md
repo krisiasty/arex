@@ -28,6 +28,7 @@ are actually polled.
 | [Metrics reference](docs/metrics.md) | every series, and which ones are worth alerting on |
 | [Running arex](docs/operations.md) | endpoints, filtered scrapes, logging, shutdown, poll pacing |
 | [PromQL and alerting](docs/promql.md) | queries worth having, and rules that fire on real problems |
+| [Grafana dashboards](docs/grafana-dashboards.md) | proposed dashboard suite, panel forms, navigation and delivery order |
 | [Releasing](docs/releasing.md) | how a version of arex and a version of the chart get published |
 | [`charts/arex`](charts/arex) | the Helm chart itself, with the reasoning in `values.yaml` |
 | [`monitoring/`](monitoring/) | alerting rules, for Prometheus, prometheus-operator and VictoriaMetrics |
