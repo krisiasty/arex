@@ -1413,7 +1413,7 @@
         "type": "prometheus",
         "uid": "$datasource"
       },
-      "description": "Resident process memory and currently allocated Go heap for every exporter instance in the selected jobs.",
+      "description": "Total resident process memory and currently allocated Go heap across active exporter instances, grouped by job.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1493,10 +1493,10 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "process_resident_memory_bytes{job=~\"$job\"}",
+          "expr": "sum by (job) (process_resident_memory_bytes{job=~\"$job\"})",
           "format": "time_series",
           "instant": false,
-          "legendFormat": "{{instance}} resident",
+          "legendFormat": "{{job}} resident",
           "range": true,
           "refId": "A"
         },
@@ -1506,15 +1506,15 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "go_memstats_heap_alloc_bytes{job=~\"$job\"}",
+          "expr": "sum by (job) (go_memstats_heap_alloc_bytes{job=~\"$job\"})",
           "format": "time_series",
           "instant": false,
-          "legendFormat": "{{instance}} heap",
+          "legendFormat": "{{job}} heap",
           "range": true,
           "refId": "B"
         }
       ],
-      "title": "Process memory",
+      "title": "Process memory by job",
       "type": "timeseries"
     },
     {
@@ -1522,7 +1522,7 @@
         "type": "prometheus",
         "uid": "$datasource"
       },
-      "description": "Current goroutines and garbage-collection cycles per second for every exporter instance in the selected jobs.",
+      "description": "Total goroutines and garbage-collection cycles per second across active exporter instances, grouped by job.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1634,10 +1634,10 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "go_goroutines{job=~\"$job\"}",
+          "expr": "sum by (job) (go_goroutines{job=~\"$job\"})",
           "format": "time_series",
           "instant": false,
-          "legendFormat": "{{instance}} goroutines",
+          "legendFormat": "{{job}} goroutines",
           "range": true,
           "refId": "A"
         },
@@ -1647,15 +1647,15 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "rate(go_gc_duration_seconds_count{job=~\"$job\"}[5m])",
+          "expr": "sum by (job) (rate(go_gc_duration_seconds_count{job=~\"$job\"}[5m]))",
           "format": "time_series",
           "instant": false,
-          "legendFormat": "{{instance}} GC cycles/s",
+          "legendFormat": "{{job}} GC cycles/s",
           "range": true,
           "refId": "B"
         }
       ],
-      "title": "Runtime activity",
+      "title": "Runtime activity by job",
       "type": "timeseries"
     },
     {
