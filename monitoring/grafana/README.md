@@ -109,6 +109,20 @@ Every visualization panel sets `fieldConfig.defaults.noValue`. Use `Not collecte
 for an expected series whose absence is separately explained, and `Unavailable` for stale collection. Do not map
 absence to numeric zero. Collection failures remain visible through scrape and command-health panels.
 
+## Kubernetes resource panels
+
+The exporter-health dashboard always provides process-level CPU and memory metrics. Its optional Kubernetes resource
+panels additionally require:
+
+- `namespace` and `pod` target labels on `arex_build_info`;
+- cAdvisor `container_cpu_usage_seconds_total` and `container_memory_working_set_bytes` metrics; and
+- kube-state-metrics `kube_pod_container_resource_requests` and `kube_pod_container_resource_limits` metrics.
+
+The Kubernetes queries join on `namespace` and `pod`, using `arex_build_info{job=~"$job"}` to exclude unrelated
+workloads. They sum all real containers in each selected arex pod, so injected sidecars are included in both usage and
+configured resources. If these metrics or labels are unavailable, the optional panels show no data while the
+process-level panels continue to work.
+
 ## Validation
 
 Run the same structural validation as CI:

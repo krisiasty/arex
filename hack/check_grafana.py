@@ -15,6 +15,9 @@ ROOT = Path(__file__).resolve().parent.parent
 GRAFANA_DIR = ROOT / "monitoring" / "grafana"
 UID_RE = re.compile(r"^[A-Za-z0-9_-]{8,40}$")
 GENERIC_RUNTIME_METRIC_RE = re.compile(r"\b(?:go|process)_[A-Za-z_:][A-Za-z0-9_:]*")
+KUBERNETES_RESOURCE_METRIC_RE = re.compile(
+    r"\b(?:container_(?:cpu|memory)_[A-Za-z0-9_:]*|kube_pod_container_resource_(?:requests|limits))"
+)
 DATASOURCE_VALUES = {"$datasource", "${datasource}"}
 DASHBOARD_IDENTITIES = {
     "arex-health.json": ("arex-exporter-health", "arex / Exporter health"),
@@ -174,6 +177,11 @@ def validate_panels(dashboard: dict[str, Any]) -> list[str]:
             if GENERIC_RUNTIME_METRIC_RE.search(expression) and "arex_build_info" not in expression:
                 errors.append(
                     f"panels[{index}].targets[{target_index}] generic runtime metric must be scoped to arex_build_info"
+                )
+            if KUBERNETES_RESOURCE_METRIC_RE.search(expression) and "arex_build_info" not in expression:
+                errors.append(
+                    f"panels[{index}].targets[{target_index}] "
+                    "Kubernetes resource metric must be scoped to arex_build_info"
                 )
     return errors
 

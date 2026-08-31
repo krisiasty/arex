@@ -75,6 +75,22 @@ class CheckGrafanaTest(unittest.TestCase):
             errors = check_grafana.check_paths([path])
         self.assertTrue(any("must be scoped to arex_build_info" in error for error in errors), errors)
 
+    def test_kubernetes_resource_metric_must_be_scoped_to_arex(self) -> None:
+        dashboard = copy.deepcopy(self.dashboard)
+        dashboard["panels"] = [
+            {
+                "fieldConfig": {"defaults": {"noValue": "Kubernetes metrics unavailable"}},
+                "targets": [{"expr": 'rate(container_cpu_usage_seconds_total{container!=""}[5m])'}],
+                "type": "timeseries",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write_dashboard(directory, "dashboard.json", dashboard)
+            errors = check_grafana.check_paths([path])
+        self.assertTrue(
+            any("Kubernetes resource metric must be scoped to arex_build_info" in error for error in errors)
+        )
+
     def test_noncanonical_json_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "dashboard.json"
