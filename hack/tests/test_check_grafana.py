@@ -61,6 +61,20 @@ class CheckGrafanaTest(unittest.TestCase):
             errors = check_grafana.check_paths([path])
         self.assertTrue(any("noValue" in error for error in errors), errors)
 
+    def test_generic_runtime_metric_must_be_scoped_to_arex(self) -> None:
+        dashboard = copy.deepcopy(self.dashboard)
+        dashboard["panels"] = [
+            {
+                "fieldConfig": {"defaults": {"noValue": "Exporter absent"}},
+                "targets": [{"expr": 'go_goroutines{job=~"$job"}'}],
+                "type": "timeseries",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write_dashboard(directory, "dashboard.json", dashboard)
+            errors = check_grafana.check_paths([path])
+        self.assertTrue(any("must be scoped to arex_build_info" in error for error in errors), errors)
+
     def test_noncanonical_json_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "dashboard.json"

@@ -14,6 +14,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 GRAFANA_DIR = ROOT / "monitoring" / "grafana"
 UID_RE = re.compile(r"^[A-Za-z0-9_-]{8,40}$")
+GENERIC_RUNTIME_METRIC_RE = re.compile(r"\b(?:go|process)_[A-Za-z_:][A-Za-z0-9_:]*")
 DATASOURCE_VALUES = {"$datasource", "${datasource}"}
 DASHBOARD_IDENTITIES = {
     "arex-health.json": ("arex-exporter-health", "arex / Exporter health"),
@@ -162,6 +163,18 @@ def validate_panels(dashboard: dict[str, Any]) -> list[str]:
         no_value = defaults.get("noValue") if isinstance(defaults, dict) else None
         if not isinstance(no_value, str) or not no_value.strip():
             errors.append(f"panels[{index}] must set fieldConfig.defaults.noValue")
+
+        targets = panel.get("targets", [])
+        if not isinstance(targets, list):
+            continue
+        for target_index, target in enumerate(targets):
+            expression = target.get("expr") if isinstance(target, dict) else None
+            if not isinstance(expression, str):
+                continue
+            if GENERIC_RUNTIME_METRIC_RE.search(expression) and "arex_build_info" not in expression:
+                errors.append(
+                    f"panels[{index}].targets[{target_index}] generic runtime metric must be scoped to arex_build_info"
+                )
     return errors
 
 

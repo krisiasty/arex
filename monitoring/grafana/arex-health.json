@@ -1493,7 +1493,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (job) (process_resident_memory_bytes{job=~\"$job\"})",
+          "expr": "sum by (job) (process_resident_memory_bytes{job=~\"$job\"} and on (job, instance) arex_build_info{job=~\"$job\"})",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{job}} resident",
@@ -1506,7 +1506,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (job) (go_memstats_heap_alloc_bytes{job=~\"$job\"})",
+          "expr": "sum by (job) (go_memstats_heap_alloc_bytes{job=~\"$job\"} and on (job, instance) arex_build_info{job=~\"$job\"})",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{job}} heap",
@@ -1634,7 +1634,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (job) (go_goroutines{job=~\"$job\"})",
+          "expr": "sum by (job) (go_goroutines{job=~\"$job\"} and on (job, instance) arex_build_info{job=~\"$job\"})",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{job}} goroutines",
@@ -1647,7 +1647,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (job) (rate(go_gc_duration_seconds_count{job=~\"$job\"}[5m]))",
+          "expr": "sum by (job) (rate(go_gc_duration_seconds_count{job=~\"$job\"}[5m]) and on (job, instance) arex_build_info{job=~\"$job\"})",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{job}} GC cycles/s",
