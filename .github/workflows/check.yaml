@@ -75,6 +75,11 @@ jobs:
           ./hack/gen-monitoring.sh
           git diff --exit-code -- monitoring/
 
+      - name: Grafana dashboards are valid
+        run: |
+          python3 ./hack/check_grafana.py
+          python3 -m unittest discover -s hack/tests -p 'test_check_grafana.py'
+
       - name: shellcheck
         run: shellcheck hack/*.sh
 
