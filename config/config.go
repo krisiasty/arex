@@ -386,7 +386,7 @@ var CollectKeys = []string{
 // disables a globally enabled module for that switch.
 func (s SwitchConfig) EffectiveCollect(defaults map[string]ModuleConfig,
 	pollInterval time.Duration) map[string]ModuleConfig {
-	merged := make(map[string]ModuleConfig, len(defaults)+len(s.Collect))
+	merged := make(map[string]ModuleConfig, len(defaults))
 	for k, v := range defaults {
 		merged[k] = v
 	}
