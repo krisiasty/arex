@@ -172,7 +172,25 @@ func (d *SwitchData) markDue(specs []cmdSpec, now time.Time) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	for _, c := range specs {
-		d.nextDue[c.name] = now.Add(c.interval)
+		if c.interval <= 0 {
+			d.nextDue[c.name] = now
+			continue
+		}
+
+		previous, seen := d.nextDue[c.name]
+		if !seen {
+			d.nextDue[c.name] = now.Add(c.interval)
+			continue
+		}
+
+		// Advance from the scheduled deadline, not the actual wake-up time, so
+		// independently scheduled modules retain a common phase after delays.
+		next := previous.Add(c.interval)
+		if !next.After(now) {
+			late := now.Sub(next)
+			next = now.Add(c.interval - late%c.interval)
+		}
+		d.nextDue[c.name] = next
 	}
 }
 
@@ -207,15 +225,20 @@ func (d *SwitchData) Schedule() []ModuleSchedule {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	out := make([]ModuleSchedule, 0, len(d.specs))
+	last := ""
 	for _, c := range d.specs {
-		out = append(out, ModuleSchedule{Command: c.name, Interval: c.interval})
+		if c.module == "" || c.module == last {
+			continue
+		}
+		out = append(out, ModuleSchedule{Module: c.module, Interval: c.interval})
+		last = c.module
 	}
 	return out
 }
 
-// ModuleSchedule is one command and how often it runs.
+// ModuleSchedule is one configured collection module and how often it runs.
 type ModuleSchedule struct {
-	Command  string
+	Module   string
 	Interval time.Duration
 }
 
@@ -263,8 +286,9 @@ type snapshot struct {
 // stops switches with different scopes from each producing their own
 // arista_command_success series for the same logical command.
 type cmdSpec struct {
-	name string
-	cli  string
+	name   string
+	cli    string
+	module string
 
 	// interval is how often this command is issued. Modules differ by orders
 	// of magnitude in how fast their data changes, so a single poll interval
@@ -289,11 +313,15 @@ const (
 	CmdInterfaces       = "show interfaces"
 	CmdBGPSummary       = "show ip bgp summary vrf all"
 
-	// The overlay. show interface vxlan 1 fails outright on a switch with no
+	// The overlay. show interfaces vxlan 1 fails outright on a switch with no
 	// VXLAN interface, which is why a spine leaves the vxlan key off rather than
 	// collecting it and absorbing a failed command every poll.
-	CmdVXLANVTEP         = "show vxlan vtep"
+	CmdVXLANVTEP = "show vxlan vtep"
+	// CmdVXLANInterface keeps the original metric label stable. EOS eAPI does
+	// not autocomplete the singular "interface" token, so the command sent on
+	// the wire uses the canonical plural spelling below.
 	CmdVXLANInterface    = "show interface vxlan 1"
+	cmdVXLANInterfaceCLI = "show interfaces vxlan 1"
 	CmdVXLANAddressCount = "show vxlan address-table count"
 	CmdBGPEVPNSummary    = "show bgp evpn summary"
 	CmdBGPEVPNRouteCount = "show bgp evpn route-type count"
@@ -360,7 +388,7 @@ var optionalCommands = map[string][]cmdSpec{
 		into:  func(s *snapshot) any { return &s.vxlanVTEP },
 		apply: func(s *snapshot, d *SwitchData) { d.VXLANVTEP = s.vxlanVTEP },
 	}, {
-		name: CmdVXLANInterface, cli: CmdVXLANInterface,
+		name: CmdVXLANInterface, cli: cmdVXLANInterfaceCLI,
 		into:  func(s *snapshot) any { return &s.vxlanIface },
 		apply: func(s *snapshot, d *SwitchData) { d.VXLANInterface = s.vxlanIface },
 	}, {
@@ -446,7 +474,8 @@ func commandsFor(collect map[string]config.ModuleConfig, scope string, pollInter
 		// apiece would make the collect block a list of CLI invocations rather
 		// than of things to watch.
 		for _, spec := range optionalCommands[key] {
-			spec.cli = scoped(spec.name, scope)
+			spec.cli = scoped(spec.cli, scope)
+			spec.module = key
 			spec.interval = mod.Interval
 			if spec.interval <= 0 {
 				spec.interval = pollInterval

@@ -13,6 +13,14 @@ import (
 // disturb existing call sites.
 type Option func(*Client)
 
+// WithLogging logs one concise info-level record for each successful eAPI
+// request, tagged with name. Failed requests are reported by the collector.
+func WithLogging(name string, logger *slog.Logger) Option {
+	return func(c *Client) {
+		c.logger = logger.With("switch", name)
+	}
+}
+
 // WithDebug logs one structured record per eAPI request, tagged with name.
 //
 // Credentials are never included: the Authorization header is not logged, and
@@ -20,6 +28,7 @@ type Option func(*Client)
 func WithDebug(name string, logger *slog.Logger) Option {
 	return func(c *Client) {
 		c.logger = logger.With("switch", name)
+		c.debug = true
 	}
 }
 

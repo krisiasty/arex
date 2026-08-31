@@ -34,25 +34,28 @@ func TestUnknownCollectKeyIsRejected(t *testing.T) {
 	}
 }
 
-// A per-switch block replaces the default wholesale, so there is no
-// partial-inheritance puzzle to reason about.
-func TestPerSwitchCollectReplacesDefault(t *testing.T) {
+// A per-switch block inherits the global modules, can add role-specific ones,
+// and can explicitly disable a global module.
+func TestPerSwitchCollectMergesWithDefault(t *testing.T) {
 	cfg, err := Load(write(t, `{
 		"collect":{"processes":{"enabled": true},"temperature":{"enabled": true},"power":{"enabled": true},"cooling":{"enabled": true},
 		           "interfaces":{"enabled": true},"bgp":{"enabled": true},"transceiver":{"enabled": true},"phy":{"enabled": true}},
 		"switches":[
 			{"tlsSkipVerify":true,"host":"https://192.0.2.1","username":"u","password":"p","name":"full"},
-			{"tlsSkipVerify":true,"host":"https://192.0.2.2","username":"u","password":"p","name":"lean",
-			 "collect":{"interfaces":{"enabled": true}}}]}`))
+			{"tlsSkipVerify":true,"host":"https://192.0.2.2","username":"u","password":"p","name":"leaf",
+			 "collect":{"bgp":{"enabled": false},"ntp":{"enabled": true}}}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if n := len(cfg.Switches[0].EffectiveCollect(cfg.Collect, cfg.PollInterval.Duration)); n != 8 {
 		t.Errorf("inheriting switch enables %d, want 8", n)
 	}
-	lean := cfg.Switches[1].EffectiveCollect(cfg.Collect, cfg.PollInterval.Duration)
-	if len(lean) != 1 || !lean["interfaces"].Enabled {
-		t.Errorf("overriding switch = %v, want interfaces only", lean)
+	leaf := cfg.Switches[1].EffectiveCollect(cfg.Collect, cfg.PollInterval.Duration)
+	if len(leaf) != 8 || !leaf["processes"].Enabled || !leaf["ntp"].Enabled {
+		t.Errorf("merged switch = %v, want inherited globals plus ntp", leaf)
+	}
+	if _, ok := leaf["bgp"]; ok {
+		t.Errorf("merged switch = %v, want per-switch bgp disable to win", leaf)
 	}
 }
 

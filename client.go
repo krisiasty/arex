@@ -13,8 +13,9 @@ import (
 // package name across the wiring.
 type eapiOption = eapi.Option
 
-func withStats(s *eapi.Stats) eapiOption            { return eapi.WithStats(s) }
-func withDebug(n string, l *slog.Logger) eapiOption { return eapi.WithDebug(n, l) }
+func withStats(s *eapi.Stats) eapiOption              { return eapi.WithStats(s) }
+func withLogging(n string, l *slog.Logger) eapiOption { return eapi.WithLogging(n, l) }
+func withDebug(n string, l *slog.Logger) eapiOption   { return eapi.WithDebug(n, l) }
 
 // newClient builds the eAPI client for one switch.
 func newClient(sw config.SwitchConfig, cfg *config.Config, opts ...eapiOption) (*eapi.Client, error) {

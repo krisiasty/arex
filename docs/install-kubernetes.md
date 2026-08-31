@@ -129,7 +129,7 @@ arrived as intended:
 
 ```json
 {"level":"INFO","msg":"switch schedule","switch":"leaf1",
- "modules":"show version=30s show interfaces=30s show interfaces transceiver detail=5m0s ..."}
+ "modules":"interfaces:30s, bgp:30s, transceiver:5m, phy:15m"}
 ```
 
 A pod that stays `NotReady` means arex cannot reach a switch: readiness waits until every switch has been polled

@@ -117,7 +117,8 @@ func TestInvalidIntervalIsRejected(t *testing.T) {
 	loadCollectErr(t, `{"interfaces":{"enabled":true,"interval":"0s"}}`, "")
 }
 
-// A per-switch block still replaces the default wholesale.
+// A per-switch module replaces the corresponding global module while other
+// global modules remain inherited.
 func TestPerSwitchOverrideCarriesIntervals(t *testing.T) {
 	cfg, err := Load(writeRaw(t, `{"pollInterval":"30s",
 		"collect":{"interfaces":{"enabled":true},"phy":{"enabled":true}},
@@ -137,8 +138,8 @@ func TestPerSwitchOverrideCarriesIntervals(t *testing.T) {
 	if b["phy"].Interval != time.Hour {
 		t.Errorf("switch b phy = %v, want 1h", b["phy"].Interval)
 	}
-	if _, ok := b["interfaces"]; ok {
-		t.Error("a per-switch block replaces the default wholesale")
+	if got := b["interfaces"].Interval; got != 30*time.Second {
+		t.Errorf("switch b inherited interfaces = %v, want 30s", got)
 	}
 }
 

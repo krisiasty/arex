@@ -234,11 +234,11 @@ Three collect keys, because the parts fail independently and cost wildly differe
 
 | Key | Commands | Default interval | Wire cost |
 | --- | --- | --- | --- |
-| `vxlan` | `show vxlan vtep`, `show interface vxlan 1`, `show vxlan address-table count` | `pollInterval` | 7.5 kB |
+| `vxlan` | `show vxlan vtep`, `show interfaces vxlan 1`, `show vxlan address-table count` | `pollInterval` | 7.5 kB |
 | `evpn` | `show bgp evpn summary`, `show bgp evpn route-type count` | `pollInterval` | 0.7 kB |
 | `esi` | `show bgp evpn instance` | `15m` | **19 kB** |
 
-Enable `vxlan` only where `Vxlan1` exists: `show interface vxlan 1` fails outright without it. Enable
+Enable `vxlan` only where `Vxlan1` exists: `show interfaces vxlan 1` fails outright without it. Enable
 `evpn` wherever the EVPN address family runs, including route-reflector spines. Enable `esi` only on
 switches terminating ESI multihoming; an EVPN route reflector does not need the empty instance query.
 

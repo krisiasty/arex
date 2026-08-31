@@ -66,6 +66,54 @@ func TestDebugDisabledLogsNothing(t *testing.T) {
 	}
 }
 
+func TestNormalLoggingReportsSuccessfulRequest(t *testing.T) {
+	buf, logger := captureLog(t)
+	srv := eapiServer(t, okBody, http.StatusOK)
+
+	c, err := NewClient(srv.URL, "u", "hunter2", 5*time.Second,
+		TLSOptions{SkipVerify: true}, WithLogging("sw1", logger))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Run([]string{"show version", "show interfaces"}); err != nil {
+		t.Fatal(err)
+	}
+
+	recs := records(t, buf)
+	if len(recs) != 1 {
+		t.Fatalf("%d records, want 1", len(recs))
+	}
+	rec := recs[0]
+	if rec["level"] != "INFO" || rec["msg"] != "eapi request successful" {
+		t.Errorf("record = %v, want info-level success", rec)
+	}
+	if rec["switch"] != "sw1" {
+		t.Errorf("switch = %v, want sw1", rec["switch"])
+	}
+	if rec["cmds"] != float64(2) {
+		t.Errorf("cmds = %v, want 2", rec["cmds"])
+	}
+	if _, ok := rec["duration_ms"]; !ok {
+		t.Errorf("missing duration_ms: %v", rec)
+	}
+}
+
+func TestNormalLoggingDoesNotReportFailedRequestAsSuccessful(t *testing.T) {
+	buf, logger := captureLog(t)
+	srv := eapiServer(t, "", http.StatusUnauthorized)
+
+	c, err := NewClient(srv.URL, "u", "hunter2", 5*time.Second,
+		TLSOptions{SkipVerify: true}, WithLogging("sw1", logger))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = c.Run([]string{"show version"})
+
+	if buf.Len() != 0 {
+		t.Errorf("failed request logged as successful: %s", buf.String())
+	}
+}
+
 // Every field is a discrete attribute rather than formatted into a message, so
 // the output can be queried instead of grepped.
 func TestDebugRecordIsStructured(t *testing.T) {
@@ -73,7 +121,7 @@ func TestDebugRecordIsStructured(t *testing.T) {
 	srv := eapiServer(t, okBody, http.StatusOK)
 
 	c, err := NewClient(srv.URL, "u", "hunter2", 5*time.Second,
-		TLSOptions{SkipVerify: true}, WithDebug("sw1", logger))
+		TLSOptions{SkipVerify: true}, WithLogging("sw1", logger), WithDebug("sw1", logger))
 	if err != nil {
 		t.Fatal(err)
 	}

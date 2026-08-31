@@ -273,7 +273,7 @@ func run(cfgPath string, debugFlag, debugSet bool) error {
 			"modules", describeSchedule(data.Schedule()),
 		)
 
-		opts := []eapiOption{withStats(&data.Stats)}
+		opts := []eapiOption{withStats(&data.Stats), withLogging(sw.Label(), logger)}
 		if debug {
 			opts = append(opts, withDebug(sw.Label(), logger))
 		}
@@ -380,12 +380,28 @@ func run(cfgPath string, debugFlag, debugSet bool) error {
 	return nil
 }
 
-// describeSchedule renders a switch's command schedule as "command=interval"
+// describeSchedule renders a switch's module schedule as "module:interval"
 // pairs, so one log line shows the whole resolved plan.
 func describeSchedule(sched []collector.ModuleSchedule) string {
 	parts := make([]string, 0, len(sched))
 	for _, m := range sched {
-		parts = append(parts, m.Command+"="+m.Interval.String())
+		parts = append(parts, m.Module+":"+compactDuration(m.Interval))
 	}
-	return strings.Join(parts, " ")
+	return strings.Join(parts, ", ")
+}
+
+// compactDuration drops zero-valued trailing units from whole minutes and
+// hours while preserving mixed durations such as 1h30m or 1m30s.
+func compactDuration(d time.Duration) string {
+	if d == 0 {
+		return d.String()
+	}
+	out := d.String()
+	if d%time.Minute == 0 {
+		out = strings.TrimSuffix(out, "0s")
+	}
+	if d%time.Hour == 0 {
+		out = strings.TrimSuffix(out, "0m")
+	}
+	return out
 }

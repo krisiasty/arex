@@ -25,9 +25,10 @@ type Client struct {
 	username   string
 	cred       *secret.Credential
 
-	// logger is nil unless WithDebug was given, which is what gates
-	// per-request logging.
+	// logger is nil unless request logging was configured. debug selects the
+	// detailed record and its HTTP trace instead of the concise success record.
 	logger *slog.Logger
+	debug  bool
 	stats  *Stats
 }
 
@@ -218,7 +219,7 @@ func (c *Client) attempt(cmds []string) ([]json.RawMessage, error) {
 		start:    time.Now(),
 		reqBytes: len(body),
 	}
-	if c.logger != nil {
+	if c.debug {
 		defer rl.emit(c.logger)
 		ctx = httptrace.WithClientTrace(ctx, rl.trace())
 	}
@@ -278,6 +279,11 @@ func (c *Client) attempt(cmds []string) ([]json.RawMessage, error) {
 			Message: rpcResp.Error.Message,
 			Details: rpcResp.Error.details(),
 		}
+	}
+	if c.logger != nil && !c.debug {
+		c.logger.LogAttrs(context.Background(), slog.LevelInfo, "eapi request successful",
+			slog.Int64("duration_ms", time.Since(start).Milliseconds()),
+			slog.Int("cmds", len(cmds)))
 	}
 
 	return rpcResp.Result, nil
