@@ -29,7 +29,7 @@
         "type": "prometheus",
         "uid": "$datasource"
       },
-      "description": "Presence of arex_build_info for the selected exporter target. If absent, switch poll and command panels are not evidence of a switch failure.",
+      "description": "Presence of arex_build_info for the selected jobs. If absent, switch poll and command panels are not evidence of a switch failure.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -98,7 +98,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "max(arex_build_info{job=~\"$job\",instance=~\"$target\"}) or vector(0)",
+          "expr": "max(arex_build_info{job=~\"$job\"}) or vector(0)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -114,7 +114,7 @@
         "type": "prometheus",
         "uid": "$datasource"
       },
-      "description": "Switches represented by poll-health metrics for the selected exporter target.",
+      "description": "Unique switches represented by poll-health metrics across the selected jobs.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -167,7 +167,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "count(arista_scrape_success{job=~\"$job\",instance=~\"$target\",switch=~\"$switch\"})",
+          "expr": "count(max by (job, switch) (arista_scrape_success{job=~\"$job\",switch=~\"$switch\"}))",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -240,7 +240,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum(arista_scrape_success{job=~\"$job\",instance=~\"$target\",switch=~\"$switch\"} == bool 0) or vector(0)",
+          "expr": "sum(max by (job, switch) (arista_scrape_success{job=~\"$job\",switch=~\"$switch\"}) == bool 0) or vector(0)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -309,7 +309,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "max(arista_scrape_age_seconds{job=~\"$job\",instance=~\"$target\",switch=~\"$switch\"})",
+          "expr": "max(min by (job, switch) (arista_scrape_age_seconds{job=~\"$job\",switch=~\"$switch\"}))",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -382,7 +382,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum(arista_command_success{job=~\"$job\",instance=~\"$target\",switch=~\"$switch\"} == bool 0) or vector(0)",
+          "expr": "sum(min by (job, switch, command) (arista_command_success{job=~\"$job\",switch=~\"$switch\"}) == bool 0) or vector(0)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -455,7 +455,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "100 * sum(rate(arista_eapi_requests_total{job=~\"$job\",instance=~\"$target\",switch=~\"$switch\",attempt=\"retry\"}[5m]))\n  / clamp_min(sum(rate(arista_eapi_requests_total{job=~\"$job\",instance=~\"$target\",switch=~\"$switch\"}[5m])), 1e-9)",
+          "expr": "100 * sum(rate(arista_eapi_requests_total{job=~\"$job\",switch=~\"$switch\",attempt=\"retry\"}[5m]))\n  / clamp_min(sum(rate(arista_eapi_requests_total{job=~\"$job\",switch=~\"$switch\"}[5m])), 1e-9)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -525,8 +525,8 @@
         ]
       },
       "gridPos": {
-        "h": 8,
-        "w": 10,
+        "h": 6,
+        "w": 24,
         "x": 0,
         "y": 4
       },
@@ -552,7 +552,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "arex_build_info{job=~\"$job\",instance=~\"$target\"}",
+          "expr": "arex_build_info{job=~\"$job\"}",
           "format": "table",
           "instant": true,
           "legendFormat": "Build",
@@ -566,6 +566,37 @@
           "id": "labelsToFields",
           "options": {
             "mode": "columns"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Name": true,
+              "Time": true,
+              "Value": true,
+              "Value #A": true,
+              "__name__": true,
+              "name": true
+            },
+            "indexByName": {
+              "built": 6,
+              "go_version": 4,
+              "instance": 1,
+              "job": 0,
+              "modified": 5,
+              "revision": 3,
+              "version": 2
+            },
+            "renameByName": {
+              "built": "Built",
+              "go_version": "Go version",
+              "instance": "Exporter instance",
+              "job": "Job",
+              "modified": "Modified",
+              "revision": "Revision",
+              "version": "Version"
+            }
           }
         }
       ],
@@ -649,9 +680,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 14,
-        "x": 10,
-        "y": 4
+        "w": 24,
+        "x": 0,
+        "y": 10
       },
       "id": 8,
       "options": {
@@ -684,7 +715,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "arista_command_success{job=~\"$job\",instance=~\"$target\",switch=~\"$switch\"} == 0",
+          "expr": "min by (job, switch, command) (arista_command_success{job=~\"$job\",switch=~\"$switch\"}) == 0",
           "format": "table",
           "instant": true,
           "legendFormat": "Failed",
@@ -715,8 +746,16 @@
             "mode": "thresholds"
           },
           "custom": {
+            "axisPlacement": "auto",
             "fillOpacity": 80,
-            "lineWidth": 0
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineWidth": 0,
+            "spanNulls": false
           },
           "mappings": [
             {
@@ -740,7 +779,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "transparent",
                 "value": null
               }
             ]
@@ -752,7 +791,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 12
+        "y": 18
       },
       "id": 9,
       "options": {
@@ -760,7 +799,7 @@
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": false
+          "showLegend": true
         },
         "mergeValues": true,
         "rowHeight": 0.8,
@@ -779,7 +818,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "arista_scrape_success{job=~\"$job\",instance=~\"$target\",switch=~\"$switch\"}",
+          "expr": "max by (job, switch) (arista_scrape_success{job=~\"$job\",switch=~\"$switch\"})",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{switch}}",
@@ -833,6 +872,7 @@
             }
           },
           "mappings": [],
+          "min": 0,
           "noValue": "Unavailable",
           "thresholds": {
             "mode": "absolute",
@@ -851,7 +891,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 12
+        "y": 18
       },
       "id": 10,
       "options": {
@@ -875,7 +915,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "arista_scrape_age_seconds{job=~\"$job\",instance=~\"$target\",switch=~\"$switch\"}",
+          "expr": "min by (job, switch) (arista_scrape_age_seconds{job=~\"$job\",switch=~\"$switch\"})",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{switch}}",
@@ -947,7 +987,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 20
+        "y": 26
       },
       "id": 11,
       "options": {
@@ -971,7 +1011,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (outcome, attempt) (\n  rate(arista_eapi_requests_total{job=~\"$job\",instance=~\"$target\",switch=~\"$switch\"}[5m])\n)",
+          "expr": "sum by (outcome, attempt) (\n  rate(arista_eapi_requests_total{job=~\"$job\",switch=~\"$switch\"}[5m])\n)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{attempt}} / {{outcome}}",
@@ -1043,7 +1083,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 20
+        "y": 26
       },
       "id": 12,
       "options": {
@@ -1067,7 +1107,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (switch) (\n  rate(arista_eapi_requests_total{job=~\"$job\",instance=~\"$target\",switch=~\"$switch\",attempt=\"batch\"}[5m])\n)",
+          "expr": "sum by (switch) (\n  rate(arista_eapi_requests_total{job=~\"$job\",switch=~\"$switch\",attempt=\"batch\"}[5m])\n)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{switch}} batch",
@@ -1080,7 +1120,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (switch) (\n  rate(arista_eapi_requests_total{job=~\"$job\",instance=~\"$target\",switch=~\"$switch\",attempt=\"retry\"}[5m])\n)",
+          "expr": "sum by (switch) (\n  rate(arista_eapi_requests_total{job=~\"$job\",switch=~\"$switch\",attempt=\"retry\"}[5m])\n)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{switch}} retry",
@@ -1152,7 +1192,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 29
+        "y": 35
       },
       "id": 13,
       "options": {
@@ -1176,7 +1216,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (switch) (\n  rate(arista_eapi_request_duration_seconds_total{job=~\"$job\",instance=~\"$target\",switch=~\"$switch\"}[5m])\n)\n/\nclamp_min(\n  sum by (switch) (\n    rate(arista_eapi_requests_total{job=~\"$job\",instance=~\"$target\",switch=~\"$switch\"}[5m])\n  ),\n  1e-9\n)",
+          "expr": "sum by (switch) (\n  rate(arista_eapi_request_duration_seconds_total{job=~\"$job\",switch=~\"$switch\"}[5m])\n)\n/\nclamp_min(\n  sum by (switch) (\n    rate(arista_eapi_requests_total{job=~\"$job\",switch=~\"$switch\"}[5m])\n  ),\n  1e-9\n)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{switch}} mean",
@@ -1248,7 +1288,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 29
+        "y": 35
       },
       "id": 14,
       "options": {
@@ -1272,7 +1312,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (switch) (\n  rate(arista_eapi_response_bytes_total{job=~\"$job\",instance=~\"$target\",switch=~\"$switch\"}[5m])\n)",
+          "expr": "sum by (switch) (\n  rate(arista_eapi_response_bytes_total{job=~\"$job\",switch=~\"$switch\"}[5m])\n)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{switch}}",
@@ -1345,7 +1385,7 @@
         "h": 9,
         "w": 8,
         "x": 0,
-        "y": 38
+        "y": 44
       },
       "id": 15,
       "options": {
@@ -1369,7 +1409,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (outcome) (\n  increase(arista_credential_reloads_total{job=~\"$job\",instance=~\"$target\",switch=~\"$switch\"}[$__rate_interval])\n)",
+          "expr": "sum by (outcome) (\n  increase(arista_credential_reloads_total{job=~\"$job\",switch=~\"$switch\"}[$__rate_interval])\n)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{outcome}}",
@@ -1385,7 +1425,7 @@
         "type": "prometheus",
         "uid": "$datasource"
       },
-      "description": "Resident process memory and currently allocated Go heap for the selected exporter target.",
+      "description": "Resident process memory and currently allocated Go heap for every exporter instance in the selected jobs.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1441,7 +1481,7 @@
         "h": 9,
         "w": 8,
         "x": 8,
-        "y": 38
+        "y": 44
       },
       "id": 16,
       "options": {
@@ -1465,7 +1505,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "process_resident_memory_bytes{job=~\"$job\",instance=~\"$target\"}",
+          "expr": "process_resident_memory_bytes{job=~\"$job\"}",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{instance}} resident",
@@ -1478,7 +1518,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "go_memstats_heap_alloc_bytes{job=~\"$job\",instance=~\"$target\"}",
+          "expr": "go_memstats_heap_alloc_bytes{job=~\"$job\"}",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{instance}} heap",
@@ -1494,7 +1534,7 @@
         "type": "prometheus",
         "uid": "$datasource"
       },
-      "description": "Current goroutines and garbage-collection cycles per second for the selected exporter target.",
+      "description": "Current goroutines and garbage-collection cycles per second for every exporter instance in the selected jobs.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1582,7 +1622,7 @@
         "h": 9,
         "w": 8,
         "x": 16,
-        "y": 38
+        "y": 44
       },
       "id": 17,
       "options": {
@@ -1606,7 +1646,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "go_goroutines{job=~\"$job\",instance=~\"$target\"}",
+          "expr": "go_goroutines{job=~\"$job\"}",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{instance}} goroutines",
@@ -1619,7 +1659,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "rate(go_gc_duration_seconds_count{job=~\"$job\",instance=~\"$target\"}[5m])",
+          "expr": "rate(go_gc_duration_seconds_count{job=~\"$job\"}[5m])",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{instance}} GC cycles/s",
@@ -1722,7 +1762,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 47
+        "y": 53
       },
       "id": 18,
       "options": {
@@ -1751,7 +1791,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "topk(\n  10,\n  sum by (job, instance, switch) (\n    rate(arista_eapi_response_bytes_total{job=~\"$job\",instance=~\"$target\",switch=~\"$switch\"}[5m])\n  )\n)",
+          "expr": "topk(\n  10,\n  sum by (job, switch) (\n    rate(arista_eapi_response_bytes_total{job=~\"$job\",switch=~\"$switch\"}[5m])\n  )\n)",
           "format": "table",
           "instant": true,
           "legendFormat": "Response bandwidth",
@@ -1764,7 +1804,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "topk(\n  10,\n  sum by (job, instance, switch) (\n    increase(arista_eapi_request_duration_seconds_total{job=~\"$job\",instance=~\"$target\",switch=~\"$switch\"}[$__range])\n  )\n)",
+          "expr": "topk(\n  10,\n  sum by (job, switch) (\n    increase(arista_eapi_request_duration_seconds_total{job=~\"$job\",switch=~\"$switch\"}[$__range])\n  )\n)",
           "format": "table",
           "instant": true,
           "legendFormat": "Accumulated request time",
@@ -1783,6 +1823,22 @@
         {
           "id": "merge",
           "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Name": true,
+              "Time": true,
+              "__name__": true,
+              "instance": true,
+              "name": true
+            },
+            "renameByName": {
+              "Value #A": "Response bandwidth",
+              "Value #B": "Accumulated request time"
+            }
+          }
         }
       ],
       "type": "table"
@@ -1836,36 +1892,13 @@
         "type": "query"
       },
       {
-        "current": {},
-        "datasource": {
-          "type": "prometheus",
-          "uid": "$datasource"
-        },
-        "definition": "label_values(arex_build_info{job=~\"$job\"}, instance)",
-        "hide": 0,
-        "includeAll": false,
-        "label": "Exporter target",
-        "multi": false,
-        "name": "target",
-        "options": [],
-        "query": {
-          "query": "label_values(arex_build_info{job=~\"$job\"}, instance)",
-          "refId": "StandardVariableQuery"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 1,
-        "type": "query"
-      },
-      {
         "allValue": ".*",
         "current": {},
         "datasource": {
           "type": "prometheus",
           "uid": "$datasource"
         },
-        "definition": "label_values(arista_info{job=~\"$job\",instance=~\"$target\"}, switch)",
+        "definition": "label_values(arista_info{job=~\"$job\"}, switch)",
         "hide": 0,
         "includeAll": true,
         "label": "Switch",
@@ -1873,7 +1906,7 @@
         "name": "switch",
         "options": [],
         "query": {
-          "query": "label_values(arista_info{job=~\"$job\",instance=~\"$target\"}, switch)",
+          "query": "label_values(arista_info{job=~\"$job\"}, switch)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
