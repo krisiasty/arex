@@ -35,3 +35,6 @@ go.work.sum
 coverage.*
 *.coverprofile
 profile.cov
+
+# graphify knowledge graph output
+graphify-out/
