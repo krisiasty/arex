@@ -1826,7 +1826,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (namespace, pod) (\n  container_memory_working_set_bytes{container!=\"\",container!=\"POD\"}\n  and on (namespace, pod) arex_build_info{job=~\"$job\"}\n)",
+          "expr": "sum by (namespace, pod) (\n  container_memory_working_set_bytes{container=\"arex\"}\n  and on (namespace, pod) arex_build_info{job=~\"$job\"}\n)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{namespace}}/{{pod}} usage",
@@ -1839,7 +1839,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (namespace, pod) (\n  kube_pod_container_resource_requests{resource=\"memory\"}\n  and on (namespace, pod) arex_build_info{job=~\"$job\"}\n)",
+          "expr": "max by (namespace, pod) (\n  kube_pod_container_resource_requests{container=\"arex\",resource=\"memory\",unit=\"byte\"}\n  and on (namespace, pod) arex_build_info{job=~\"$job\"}\n)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{namespace}}/{{pod}} request",
@@ -1852,7 +1852,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (namespace, pod) (\n  kube_pod_container_resource_limits{resource=\"memory\"}\n  and on (namespace, pod) arex_build_info{job=~\"$job\"}\n)",
+          "expr": "max by (namespace, pod) (\n  kube_pod_container_resource_limits{container=\"arex\",resource=\"memory\",unit=\"byte\"}\n  and on (namespace, pod) arex_build_info{job=~\"$job\"}\n)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{namespace}}/{{pod}} limit",
@@ -1860,7 +1860,7 @@
           "refId": "C"
         }
       ],
-      "title": "Pod memory vs resources",
+      "title": "arex container memory vs resources",
       "type": "timeseries"
     },
     {
@@ -2009,7 +2009,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (namespace, pod) (\n  rate(container_cpu_usage_seconds_total{container!=\"\",container!=\"POD\"}[5m])\n  and on (namespace, pod) arex_build_info{job=~\"$job\"}\n)",
+          "expr": "sum by (namespace, pod) (\n  rate(container_cpu_usage_seconds_total{container=\"arex\"}[5m])\n  and on (namespace, pod) arex_build_info{job=~\"$job\"}\n)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{namespace}}/{{pod}} usage",
@@ -2022,7 +2022,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (namespace, pod) (\n  kube_pod_container_resource_requests{resource=\"cpu\"}\n  and on (namespace, pod) arex_build_info{job=~\"$job\"}\n)",
+          "expr": "max by (namespace, pod) (\n  kube_pod_container_resource_requests{container=\"arex\",resource=\"cpu\",unit=\"core\"}\n  and on (namespace, pod) arex_build_info{job=~\"$job\"}\n)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{namespace}}/{{pod}} request",
@@ -2035,7 +2035,7 @@
             "uid": "$datasource"
           },
           "editorMode": "code",
-          "expr": "sum by (namespace, pod) (\n  kube_pod_container_resource_limits{resource=\"cpu\"}\n  and on (namespace, pod) arex_build_info{job=~\"$job\"}\n)",
+          "expr": "max by (namespace, pod) (\n  kube_pod_container_resource_limits{container=\"arex\",resource=\"cpu\",unit=\"core\"}\n  and on (namespace, pod) arex_build_info{job=~\"$job\"}\n)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{namespace}}/{{pod}} limit",
@@ -2043,7 +2043,7 @@
           "refId": "C"
         }
       ],
-      "title": "Pod CPU vs resources",
+      "title": "arex container CPU vs resources",
       "type": "timeseries"
     },
     {
@@ -2244,7 +2244,6 @@
         "type": "datasource"
       },
       {
-        "allValue": ".*",
         "current": {},
         "datasource": {
           "type": "prometheus",

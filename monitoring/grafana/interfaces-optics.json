@@ -2159,7 +2159,6 @@
         "type": "datasource"
       },
       {
-        "allValue": ".*",
         "current": {},
         "datasource": {
           "type": "prometheus",

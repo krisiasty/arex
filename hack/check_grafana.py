@@ -18,6 +18,7 @@ GENERIC_RUNTIME_METRIC_RE = re.compile(r"\b(?:go|process)_[A-Za-z_:][A-Za-z0-9_:
 KUBERNETES_RESOURCE_METRIC_RE = re.compile(
     r"\b(?:container_(?:cpu|memory)_[A-Za-z0-9_:]*|kube_pod_container_resource_(?:requests|limits))"
 )
+AREX_CONTAINER_MATCHER_RE = re.compile(r'\bcontainer\s*=\s*"arex"')
 NONEMPTY_IMAGE_MATCHER_RE = re.compile(r'\bimage\s*!=\s*""')
 DATASOURCE_VALUES = {"$datasource", "${datasource}"}
 DASHBOARD_IDENTITIES = {
@@ -122,6 +123,8 @@ def validate_variables(dashboard: dict[str, Any]) -> list[str]:
     job = by_name.get("job", {})
     if job.get("type") != "query" or "label_values(arex_build_info, job)" not in query_text(job):
         errors.append("job variable must read job from arex_build_info")
+    if job.get("allValue"):
+        errors.append("job variable must derive its All value from arex_build_info options")
 
     switch = by_name.get("switch", {})
     switch_query = query_text(switch)
@@ -178,6 +181,11 @@ def validate_panels(dashboard: dict[str, Any]) -> list[str]:
             if GENERIC_RUNTIME_METRIC_RE.search(expression) and "arex_build_info" not in expression:
                 errors.append(
                     f"panels[{index}].targets[{target_index}] generic runtime metric must be scoped to arex_build_info"
+                )
+            if KUBERNETES_RESOURCE_METRIC_RE.search(expression) and not AREX_CONTAINER_MATCHER_RE.search(expression):
+                errors.append(
+                    f"panels[{index}].targets[{target_index}] "
+                    'Kubernetes resource metric must select container="arex"'
                 )
             if KUBERNETES_RESOURCE_METRIC_RE.search(expression) and "arex_build_info" not in expression:
                 errors.append(

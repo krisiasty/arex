@@ -111,16 +111,17 @@ absence to numeric zero. Collection failures remain visible through scrape and c
 
 ## Kubernetes resource panels
 
-The exporter-health dashboard always provides process-level CPU and memory metrics. Its optional Kubernetes resource
-panels additionally require:
+The exporter-health dashboard always provides process-level memory and runtime metrics. Its optional Kubernetes
+resource panels additionally require:
 
-- `namespace` and `pod` target labels on `arex_build_info`;
 - cAdvisor `container_cpu_usage_seconds_total` and `container_memory_working_set_bytes` metrics; and
-- kube-state-metrics `kube_pod_container_resource_requests` and `kube_pod_container_resource_limits` metrics.
+- kube-state-metrics `kube_pod_container_resource_requests` and `kube_pod_container_resource_limits` metrics; and
+- canonical `namespace`, `pod` and `container` workload labels, preserved by setting `honorLabels: true` on the
+  cAdvisor and kube-state-metrics monitors.
 
-The Kubernetes queries join on `namespace` and `pod`, using `arex_build_info{job=~"$job"}` to exclude unrelated
-workloads. They sum all real containers in each selected arex pod, so injected sidecars are included in both usage and
-configured resources. If these metrics or labels are unavailable, the optional panels show no data while the
+The Kubernetes queries select `container="arex"` and join to the selected `arex_build_info` series on `namespace` and
+`pod`. Usage, requests and limits therefore describe only the arex container in the selected arex workloads; injected
+sidecars are excluded. If these metrics or labels are unavailable, the optional panels show no data while the
 process-level panels continue to work.
 
 ## Validation
