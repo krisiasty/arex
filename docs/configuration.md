@@ -319,6 +319,12 @@ refusing to start would be worse than saying so:
  "detail":"config: switch[0] (leaf1): passwordFile /etc/arex/pw is mode 0644, readable beyond its owner"}
 ```
 
+**Group-readable is not loose when the group is arex's own.** A Kubernetes secret volume is owned by `root`
+whatever the pod runs as, and `fsGroup` is the only way to hand it to a non-root container: the kubelet chowns the
+mount to `root:<fsGroup>` and widens a read-only volume to at least `0440`. A mount asking for `defaultMode: 0400`
+therefore arrives as `0440 root:<fsGroup>`, which is the tightest a Kubernetes secret can be. arex says nothing
+about it. The other bits are always reported; the group bits only when the group is one arex is not in.
+
 ### Rotation is handled without a restart
 
 When a switch rejects the credentials with a 401, arex re-reads the password file before giving up. If the secret on

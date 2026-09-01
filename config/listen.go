@@ -86,10 +86,8 @@ func (c *Config) validateListen() ([]string, error) {
 			}
 			// The private key is the only one of the three that is a secret.
 			if f.field == "keyFile" {
-				if mode := info.Mode().Perm(); mode&0o077 != 0 {
-					warnings = append(warnings, fmt.Sprintf(
-						"config: listenTLS.keyFile %s is mode %#o, readable beyond its owner",
-						f.path, mode))
+				if w := secretModeWarning("config: listenTLS.keyFile", f.path, info); w != "" {
+					warnings = append(warnings, w)
 				}
 			}
 		}

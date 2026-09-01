@@ -173,7 +173,7 @@ func (s SwitchConfig) EffectivePasswordFile(fleetDefault string) string {
 //
 // A loose mode is a warning, not an error: the External Secrets Operator
 // mounts secrets 0644 by default, and refusing to start would be worse than
-// saying so.
+// saying so. See secretModeWarning for which modes count as loose.
 func checkPasswordFile(path, where string) (warning string, err error) {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -191,11 +191,7 @@ func checkPasswordFile(path, where string) (warning string, err error) {
 		return "", fmt.Errorf("config: %s: passwordFile %s is empty", where, path)
 	}
 
-	if mode := info.Mode().Perm(); mode&0o077 != 0 {
-		return fmt.Sprintf("config: %s: passwordFile %s is mode %#o, readable beyond its owner",
-			where, path, mode), nil
-	}
-	return "", nil
+	return secretModeWarning(fmt.Sprintf("config: %s: passwordFile", where), path, info), nil
 }
 
 // TrimSecret strips the line ending a secret file usually carries.
