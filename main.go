@@ -316,6 +316,13 @@ func run(cfgPath string, debugFlag, debugSet bool, levelFlag string, levelSet bo
 		"switches", len(cfg.Switches),
 		"poll_interval", cfg.PollInterval.String(),
 		"staleness_limit", cfg.StalenessLimit.String(),
+		// The level arex actually resolved to, spelled as the config spells
+		// it. Without this there is no way to tell a pod that honoured
+		// logLevel from one that never saw it -- a container that started
+		// before its ConfigMap was written keeps the old config for its whole
+		// life, since arex reads it once, and the only visible symptom is
+		// records at a level you thought you had turned off.
+		"log_level", strings.ToLower(level.String()),
 		"debug", debug,
 	)
 
