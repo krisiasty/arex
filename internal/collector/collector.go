@@ -598,7 +598,10 @@ func collect(client Runner, data *SwitchData, specs []cmdSpec, now time.Time) {
 			slog.Warn("commands failed", "switch", data.Label, "detail", line)
 		}
 	} else if line := data.tracker.recovered(time.Now()); line != "" {
-		slog.Info("switch recovered", "switch", data.Label, "detail", line)
+		// Warn, not Info: info carries only the per-poll success record, so warn
+		// is the level that quiets a healthy fleet without hiding anything else.
+		// See the logLevel notes in config and docs/configuration.md.
+		slog.Warn("switch recovered", "switch", data.Label, "detail", line)
 	}
 	done := now
 	if data.CommandLastSuccess == nil {
@@ -739,7 +742,7 @@ func PollOffset(i, n int, interval time.Duration) time.Duration {
 // finish or time out.
 func PollLoop(ctx context.Context, client Runner, data *SwitchData, interval, offset time.Duration) {
 	if offset > 0 {
-		slog.Info("starting poller", "switch", data.Label,
+		slog.Warn("starting poller", "switch", data.Label,
 			"interval", interval.String(), "first_poll_in", offset.Round(time.Millisecond).String())
 		timer := time.NewTimer(offset)
 		defer timer.Stop()
@@ -749,7 +752,7 @@ func PollLoop(ctx context.Context, client Runner, data *SwitchData, interval, of
 			return
 		}
 	} else {
-		slog.Info("starting poller", "switch", data.Label, "interval", interval.String())
+		slog.Warn("starting poller", "switch", data.Label, "interval", interval.String())
 	}
 
 	CollectDue(client, data, time.Now())
@@ -761,7 +764,7 @@ func PollLoop(ctx context.Context, client Runner, data *SwitchData, interval, of
 		case now := <-ticker.C:
 			CollectDue(client, data, now)
 		case <-ctx.Done():
-			slog.Info("poller stopped", "switch", data.Label)
+			slog.Warn("poller stopped", "switch", data.Label)
 			return
 		}
 	}

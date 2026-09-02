@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log/slog"
 	"os"
 	"slices"
 	"syscall"
@@ -37,6 +38,52 @@ func TestDebugResolution(t *testing.T) {
 					tc.config, tc.flag, tc.set, got, tc.want)
 			}
 		})
+	}
+}
+
+// Debug wins over any level, from either source, because a deployment asking
+// for debug and getting warn would be a trap. Below that the flag beats the
+// config, exactly as -debug does.
+func TestLevelResolution(t *testing.T) {
+	for _, tc := range []struct {
+		name                 string
+		config, flag         string
+		flagSet, debug, dOff bool
+		want                 slog.Level
+	}{
+		{name: "nothing set", want: slog.LevelInfo},
+		{name: "config warn", config: "warn", want: slog.LevelWarn},
+		{name: "config warning spelling", config: "warning", want: slog.LevelWarn},
+		{name: "config mixed case", config: "WaRn", want: slog.LevelWarn},
+		{name: "flag warn", flag: "warn", flagSet: true, want: slog.LevelWarn},
+		{name: "flag overrides config", config: "error", flag: "info", flagSet: true, want: slog.LevelInfo},
+		{name: "unset flag does not override", config: "error", flag: "", want: slog.LevelError},
+		{name: "debug beats config", config: "warn", debug: true, want: slog.LevelDebug},
+		{name: "debug beats flag", flag: "error", flagSet: true, debug: true, want: slog.LevelDebug},
+		{name: "debug off clamps config debug", config: "debug", dOff: true, want: slog.LevelInfo},
+		{name: "debug off leaves warn alone", config: "warn", dOff: true, want: slog.LevelWarn},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := resolveLevel(tc.config, tc.flag, tc.flagSet, tc.debug, tc.dOff)
+			if err != nil {
+				t.Fatalf("resolveLevel: %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("resolveLevel(%q, %q, %v, %v, %v) = %v, want %v",
+					tc.config, tc.flag, tc.flagSet, tc.debug, tc.dOff, got, tc.want)
+			}
+		})
+	}
+}
+
+// A typo is a startup failure, not a silent fall back to info: a deployment
+// that meant to be quiet should not discover it is verbose from its log bill.
+func TestBadLevelIsRejected(t *testing.T) {
+	if _, err := resolveLevel("", "warnn", true, false, false); err == nil {
+		t.Error("an unknown -log-level must be rejected")
+	}
+	if _, err := resolveLevel("chatty", "", false, false, false); err == nil {
+		t.Error("an unknown config logLevel must be rejected")
 	}
 }
 

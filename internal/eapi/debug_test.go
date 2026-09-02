@@ -66,6 +66,27 @@ func TestDebugDisabledLogsNothing(t *testing.T) {
 	}
 }
 
+// The point of the level knob: a warn threshold drops the one record a healthy
+// fleet repeats on every poll, and only that record. Everything else arex logs
+// is warn or above, so nothing else goes quiet with it.
+func TestWarnLevelDropsTheSuccessRecord(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	srv := eapiServer(t, okBody, http.StatusOK)
+
+	c, err := NewClient(srv.URL, "u", "hunter2", 5*time.Second,
+		TLSOptions{SkipVerify: true}, WithLogging("sw1", logger))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Run([]string{"show version"}); err != nil {
+		t.Fatal(err)
+	}
+	if buf.Len() != 0 {
+		t.Errorf("a successful poll should be silent at warn, got: %s", buf.String())
+	}
+}
+
 func TestNormalLoggingReportsSuccessfulRequest(t *testing.T) {
 	buf, logger := captureLog(t)
 	srv := eapiServer(t, okBody, http.StatusOK)

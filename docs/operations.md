@@ -12,6 +12,9 @@ go build -o arex .
 # Run
 ./arex -config config.yaml
 
+# Run quietly: everything except the one record emitted on every successful poll
+./arex -config config.yaml -log-level=warn
+
 # Run with per-request eAPI logging
 ./arex -config config.yaml -debug
 
@@ -180,11 +183,12 @@ target=leaf-1&module=power                        32
 ## Logging
 
 Logs are JSON Lines on stdout, one object per event, with UTC millisecond timestamps so records from different
-hosts sort together. Debug raises the level rather than changing the format: a format that varied with verbosity
+hosts sort together. The level changes what is emitted, never the format: a format that varied with verbosity
 could not be parsed by anything downstream, and the per-request output is only worth having if it can be queried.
+See [Log levels](#log-levels) for what each level includes.
 
 ```json
-{"time":"2026-08-28T09:19:18.537Z","level":"INFO","msg":"arex starting",
+{"time":"2026-08-28T09:19:18.537Z","level":"WARN","msg":"arex starting",
  "version":"v0.0.0-20260828085310-7a01577d0334+dirty","revision":"7a01577d0334",
  "go_version":"go1.27.0","switches":3,"poll_interval":"30s","staleness_limit":"90s","debug":false}
 ```
@@ -251,11 +255,43 @@ into a cluster.
 ## Request logging
 
 Without debug logging, every successful eAPI request emits one concise record. Failed requests are reported by the
-collector's warning and error records instead, so a failed request is never described as successful.
+collector's warning and error records instead, so a failed request is never described as successful. This is the
+only record arex logs at `INFO`, so [`logLevel: warn`](#log-levels) silences it and nothing else.
 
 ```json
 {"time":"2026-08-31T09:19:18.545Z","level":"INFO","msg":"eapi request successful",
  "switch":"leaf-1","duration_ms":145,"cmds":7}
+```
+
+## Log levels
+
+`logLevel` in the config, or `-log-level` on the command line, sets the minimum level that reaches stdout:
+`debug`, `info`, `warn` (`warning` is accepted for the same level) and `error`. The flag wins when given, an
+absent flag does not override the config, and an unrecognised level is refused at startup — `-check` catches it,
+whether it came from the config or the flag.
+
+**`warn` is the useful one.** Only `eapi request successful` is logged at `INFO`, one record per poll per switch;
+everything else arex has to say is `WARN` or above. So `warn` drops exactly the line a healthy fleet repeats
+forever and keeps the rest — startup, the resolved schedule, poller lifecycle, credential rotation, recoveries,
+failures. At three switches on a 30-second interval that is roughly 8,600 fewer records a day.
+
+| Level | What you get |
+| --- | --- |
+| `debug` | Everything, including one detailed record per eAPI request (see below) |
+| `info` | Everything except the per-request debug records — this is the default, and what earlier versions logged |
+| `warn` | Everything except `eapi request successful` |
+| `error` | Failures only: `collection failed`, and nothing else |
+
+Because arex says so little at `INFO`, startup and lifecycle records are emitted at `WARN` rather than `INFO`.
+That is deliberate — it is what makes `warn` usable — but it does mean an alerting rule keyed on `warn` and above
+sees a line on every start and stop. Key such rules on `error`, or on the `msg` field.
+
+`debug` always wins, from either source: `-debug`, `"debug": true`, or a level of `debug` all produce the same
+thing, including the per-request tracing. Asking for debug and getting warn would be a trap. The one exception is
+an explicit `-debug=false`, which refuses verbosity and clamps a configured `debug` level back to `info`.
+
+```yaml
+logLevel: warn
 ```
 
 ## Debug logging

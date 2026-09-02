@@ -35,6 +35,8 @@ func main() {
 	cfgPath := flag.String("config", "config.yaml", "path to config file")
 	debug := flag.Bool("debug", false,
 		"log every eAPI request: status, timing, sizes and commands; overrides the config")
+	logLevel := flag.String("log-level", "",
+		"minimum level to log: debug, info, warn (or warning), error; overrides the config")
 	version := flag.Bool("version", false, "print version and build information, then exit")
 	licenses := flag.Bool("licenses", false, "print third-party licenses and notices, then exit")
 	check := flag.Bool("check", false, "validate the config file and exit")
@@ -55,12 +57,25 @@ func main() {
 	// Whether the flag was given at all, as opposed to what it defaulted to:
 	// a bool flag cannot otherwise be distinguished from an absent one, and
 	// -debug=false has to be able to override a config that enables it.
-	debugSet := false
+	debugSet, levelSet := false, false
 	flag.Visit(func(f *flag.Flag) {
-		if f.Name == "debug" {
+		switch f.Name {
+		case "debug":
 			debugSet = true
+		case "log-level":
+			levelSet = true
 		}
 	})
+
+	// Validated here rather than only in run, so -check and a normal start
+	// agree with each other: a level that would refuse to start has to fail
+	// the check too, or -check blesses a command line that cannot run.
+	if levelSet {
+		if _, err := config.ParseLogLevel(*logLevel); err != nil {
+			fmt.Fprintf(os.Stderr, "arex: -log-level: %v\n", err)
+			os.Exit(1)
+		}
+	}
 
 	if *check {
 		if err := checkConfig(*cfgPath); err != nil {
@@ -70,7 +85,7 @@ func main() {
 		return
 	}
 
-	if err := run(*cfgPath, *debug, debugSet); err != nil {
+	if err := run(*cfgPath, *debug, debugSet, *logLevel, levelSet); err != nil {
 		// Plain text rather than a JSON log line. Nothing reaches this that is
 		// not a startup failure, so the only reader is the person who just ran
 		// arex -- and a JSON string escapes every quote in a message whose
@@ -139,7 +154,7 @@ func startProbes(ctx context.Context, cfg *config.Config, checker *health.Checke
 		return nil, fmt.Errorf("probe listener: %w", err)
 	}
 
-	logger.Info("serving probes", "address", cfg.ProbeAddress,
+	logger.Warn("serving probes", "address", cfg.ProbeAddress,
 		"endpoints", []string{"/livez", "/readyz"}, "tls", false, "auth", false)
 	go func() {
 		if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -164,7 +179,7 @@ func protect(mux http.Handler, cfg *config.Config, logger *slog.Logger) (http.Ha
 	if err != nil {
 		return nil, fmt.Errorf("listenAuth.basic: %w", err)
 	}
-	logger.Info("requiring basic authentication",
+	logger.Warn("requiring basic authentication",
 		"user", b.Username, "exempt", []string{"/livez", "/readyz"})
 	return listen.BasicAuth(mux, b.Username, cred, "/livez", "/readyz"), nil
 }
@@ -179,17 +194,47 @@ func resolveDebug(fromConfig, fromFlag, flagSet bool) bool {
 	return fromConfig
 }
 
+// resolveLevel picks the level to log at, in the order the flags are meant to
+// win: debug beats everything, then -log-level, then the config, then info.
+//
+// debugOff is -debug=false given explicitly. It cannot simply be ignored: a
+// config asking for debug and a command line refusing it have to resolve one
+// way, and refusing is the safer reading -- so it clamps a debug level back to
+// info rather than leaving the two contradicting each other.
+func resolveLevel(fromConfig, fromFlag string, flagSet, debug, debugOff bool) (slog.Level, error) {
+	if debug {
+		return slog.LevelDebug, nil
+	}
+	level := slog.LevelInfo
+	switch {
+	case flagSet:
+		parsed, err := config.ParseLogLevel(fromFlag)
+		if err != nil {
+			return 0, fmt.Errorf("-log-level: %w", err)
+		}
+		level = parsed
+	case fromConfig != "":
+		// Already validated by config.Load, which refuses to return a config
+		// naming a level that does not exist.
+		parsed, err := config.ParseLogLevel(fromConfig)
+		if err != nil {
+			return 0, fmt.Errorf("config: logLevel: %w", err)
+		}
+		level = parsed
+	}
+	if debugOff && level < slog.LevelInfo {
+		level = slog.LevelInfo
+	}
+	return level, nil
+}
+
 // newLogger returns a JSON logger on stdout.
 //
 // JSON unconditionally rather than switching format with -debug: a log format
 // that changes with verbosity cannot be parsed by anything downstream, and the
 // per-request debug output is only useful if it can be queried. Timestamps are
 // UTC with milliseconds, so lines from different hosts sort together.
-func newLogger(debug bool) *slog.Logger {
-	level := slog.LevelInfo
-	if debug {
-		level = slog.LevelDebug
-	}
+func newLogger(level slog.Level) *slog.Logger {
 	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: level,
 		ReplaceAttr: func(_ []string, attr slog.Attr) slog.Attr {
@@ -213,7 +258,7 @@ var shutdownSignals = []os.Signal{syscall.SIGINT, syscall.SIGTERM}
 // being asked, and it is exactly what a "systemctl reload" used to do.
 var nonFatalSignals = []os.Signal{syscall.SIGHUP}
 
-func run(cfgPath string, debugFlag, debugSet bool) error {
+func run(cfgPath string, debugFlag, debugSet bool, levelFlag string, levelSet bool) error {
 	// Cancelled on SIGINT or SIGTERM, which is how a container runtime or
 	// systemd asks arex to stop.
 	ctx, stop := signal.NotifyContext(context.Background(), shutdownSignals...)
@@ -234,8 +279,17 @@ func run(cfgPath string, debugFlag, debugSet bool) error {
 	// The logger is built after the config is read, since the config can set
 	// the level. Nothing logs before this point: a config error is printed by
 	// main, not logged.
-	debug := resolveDebug(cfg.Debug, debugFlag, debugSet)
-	logger := newLogger(debug)
+	level, err := resolveLevel(cfg.LogLevel, levelFlag, levelSet,
+		resolveDebug(cfg.Debug, debugFlag, debugSet), debugSet && !debugFlag)
+	if err != nil {
+		return err
+	}
+	// One notion of debug, so the level and the per-request tracing cannot
+	// disagree: -log-level=debug turns tracing on exactly as -debug does, and
+	// a level that says debug never withholds the records that make it worth
+	// reading.
+	debug := level == slog.LevelDebug
+	logger := newLogger(level)
 	slog.SetDefault(logger)
 
 	// Collected during Load, which runs before the logger exists.
@@ -249,7 +303,12 @@ func run(cfgPath string, debugFlag, debugSet bool) error {
 	}
 
 	build := metrics.BuildLabels()
-	logger.Info("arex starting",
+	// Warn rather than Info, here and below. Info is reserved for the one
+	// record a healthy fleet repeats forever -- "eapi request successful", one
+	// per poll per switch -- so that logLevel: warn drops that and keeps
+	// everything else. Nothing here is a problem; the level marks what a
+	// running arex says rarely, not what has gone wrong.
+	logger.Warn("arex starting",
 		"version", build.Version,
 		"revision", build.Revision,
 		"go_version", build.GoVersion,
@@ -268,7 +327,7 @@ func run(cfgPath string, debugFlag, debugSet bool) error {
 		// Logged per switch: collection is configured individually, so the
 		// only way to confirm what a deployment actually polls -- and how
 		// often -- is to see the resolved schedule.
-		logger.Info("switch schedule",
+		logger.Warn("switch schedule",
 			"switch", sw.Label(),
 			"modules", describeSchedule(data.Schedule()),
 		)
@@ -317,7 +376,7 @@ func run(cfgPath string, debugFlag, debugSet bool) error {
 		WriteTimeout:      30 * time.Second,
 	}
 
-	logger.Info("listening", "address", cfg.ListenAddress,
+	logger.Warn("listening", "address", cfg.ListenAddress,
 		"endpoints", []string{"/metrics", "/livez", "/readyz", "/status"},
 		"tls", cfg.ListenTLS.Enabled(),
 		"client_certificate", cfg.ListenTLS.RequiresClientCert(),
@@ -370,13 +429,13 @@ func run(cfgPath string, debugFlag, debugSet bool) error {
 	// Let a scrape already in progress finish. Without this a restart can cut a
 	// /metrics response mid-write, which Prometheus records as a failed scrape
 	// rather than a clean gap.
-	logger.Info("shutting down", "grace", shutdownGrace.String())
+	logger.Warn("shutting down", "grace", shutdownGrace.String())
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownGrace)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		logger.Warn("shutdown incomplete", "error", err)
 	}
-	logger.Info("arex stopped")
+	logger.Warn("arex stopped")
 	return nil
 }
 

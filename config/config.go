@@ -44,6 +44,16 @@ type Config struct {
 	Debug    bool           `json:"debug"` // default false
 	Switches []SwitchConfig `json:"switches"`
 
+	// LogLevel is the minimum level that reaches the log: debug, info, warn
+	// (or warning) or error. Empty means info.
+	//
+	// Only the per-request "eapi request successful" record sits at info;
+	// everything else arex has to say is warn or above. So warn is the level
+	// that drops the one line a healthy fleet repeats on every poll and keeps
+	// the rest. Debug wins over this, from either the flag or the config:
+	// asking for debug and getting warn would be a trap.
+	LogLevel string `json:"logLevel"` // default info
+
 	// ProbeAddress serves /livez and /readyz on a second listener, in plain
 	// HTTP, when set.
 	//
@@ -282,6 +292,11 @@ func (c *Config) validate() error {
 	}
 	if err := validateCollect(c.Collect, "collect", c.PollInterval.Duration); err != nil {
 		return err
+	}
+	if c.LogLevel != "" {
+		if _, err := ParseLogLevel(c.LogLevel); err != nil {
+			return fmt.Errorf("config: logLevel: %w", err)
+		}
 	}
 	listenWarnings, err := c.validateListen()
 	if err != nil {

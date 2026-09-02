@@ -25,6 +25,7 @@ file or replacing it with an inline `password`.
 | `pollInterval` | `30s` | How often to poll each switch |
 | `scrapeTimeout` | `10s` | eAPI request timeout |
 | `stalenessLimit` | `90s` | Stop emitting metrics if data is older than this |
+| `logLevel` | `info` | Minimum level to log: `debug`, `info`, `warn` (or `warning`), `error`. See [Log levels](operations.md#log-levels) |
 | `debug` | `false` | Log one record per eAPI request. See [Debug logging](operations.md#debug-logging) |
 | `passwordFile` | — | Credential file for every switch that does not name its own. See [Credentials](#credentials) |
 | `listenTLS` | — | Serve `/metrics` over HTTPS. See [securing the endpoint](operations.md#securing-the-endpoint) |

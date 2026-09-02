@@ -178,7 +178,10 @@ func (c *Client) retryAfterRotation(cmds []string, res []json.RawMessage, authEr
 	}
 
 	c.recordReload(ReloadRotated)
-	slog.Info("credential rotated; retrying with the new secret", "url", c.url)
+	// Warn, not Info: info carries only the per-poll success record, so warn
+	// is the level that quiets a healthy fleet without hiding anything else.
+	// See the logLevel notes in config and docs/configuration.md.
+	slog.Warn("credential rotated; retrying with the new secret", "url", c.url)
 	return c.attempt(cmds)
 }
 
