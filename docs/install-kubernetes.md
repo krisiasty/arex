@@ -42,6 +42,10 @@ config:
   pollInterval: 30s
   stalenessLimit: 90s
 
+  # info logs one record per successful poll per switch. warn drops those and
+  # keeps everything else -- see Log levels in operations.md.
+  logLevel: info
+
   # Both switches below are BGP/EVPN leaves with Vxlan1 and ESI multihoming.
   # Leave each topology-dependent group disabled on switches that do not run it.
   collect:
@@ -99,6 +103,43 @@ serviceMonitor:
 
 The chart refuses to render if `config.switches` is empty, or if a switch has no credential and no
 `credentials.existingSecret` — a config that cannot poll anything is a mistake worth catching at template time.
+
+### Values reference
+
+Everything the chart accepts. `values.yaml` carries the reasoning behind each default; this is the index.
+
+| Key | Default | What it does |
+| --- | --- | --- |
+| `config` | see above | arex's own config file, rendered verbatim into a ConfigMap. See the [configuration reference](configuration.md) |
+| `config.logLevel` | `info` | Minimum level to log. `warn` drops the per-poll success record and keeps everything else. See [Log levels](operations.md#log-levels) |
+| `credentials.existingSecret` | `""` | Secret holding the switch password. The chart never creates it |
+| `credentials.key` | `password` | Key within that Secret |
+| `credentials.mountPath` | `/etc/arex/secret` | Where it mounts. `config.passwordFile` is pointed here automatically |
+| `image.repository` | `ghcr.io/krisiasty/arex` | Image to run |
+| `image.tag` | `""` | Defaults to the chart's `appVersion`. Pin to hold a version across chart upgrades |
+| `image.pullPolicy` | `IfNotPresent` | Standard Kubernetes semantics |
+| `imagePullSecrets` | `[]` | For a private registry mirror |
+| `nameOverride` / `fullnameOverride` | `""` | Override the generated resource names |
+| `listen.tls.*` | off | Serve `/metrics` over HTTPS from an existing Secret. See [TLS](tls.md) |
+| `listen.probePort` | `0` | Second plain-HTTP listener for `/livez` and `/readyz`. Required with mutual TLS |
+| `listen.basicAuth.*` | off | Require callers to authenticate. Never covers the probes |
+| `replicaCount` | `1` | More than one means every switch is polled by every replica |
+| `strategy` | `RollingUpdate`, `maxUnavailable: 0` | The old pod serves until the new one is Ready, so there is no gap in the series. `Recreate` trades a gap for no overlap |
+| `service.type` / `service.port` | `ClusterIP` / `9100` | The Service in front of the pod |
+| `serviceMonitor.enabled` | `false` | Requires prometheus-operator. Without it, scrape the Service directly |
+| `serviceMonitor.interval` / `.scrapeTimeout` | `30s` / `10s` | Scrape pacing |
+| `serviceMonitor.labels` | `{}` | For a Prometheus whose `serviceMonitorSelector` needs them |
+| `serviceMonitor.tlsConfig` / `.basicAuth` | `{}` | How Prometheus trusts and authenticates to arex. Passed through verbatim |
+| `serviceMonitor.relabelings` / `.metricRelabelings` | `[]` | Passed through verbatim |
+| `serviceAccount.create` / `.name` / `.annotations` | `true` / `""` / `{}` | For IRSA and similar |
+| `resources` | 50m CPU / 64Mi requests, 256Mi memory limit | Requests and limits for the container. No CPU limit is set by default |
+| `podSecurityContext` | non-root 65532, `fsGroup` 65532 | `fsGroup` is what makes a mounted Secret readable by a non-root container. See [Credentials](configuration.md#credentials) |
+| `securityContext` | no privilege escalation, read-only root, all capabilities dropped | arex writes nothing |
+| `livenessProbe` / `readinessProbe` | `/livez` / `/readyz` | Readiness waits until every switch has been polled once |
+| `podAnnotations` / `podLabels` | `{}` | Added to the pod |
+| `nodeSelector` / `tolerations` / `affinity` / `topologySpreadConstraints` / `priorityClassName` | empty | Standard scheduling controls |
+| `extraArgs` | `[]` | Appended to the command line, e.g. `["-log-level=warn"]` |
+| `extraVolumes` / `extraVolumeMounts` | `[]` | For a CA bundle or anything else arex needs to read |
 
 ## 3. Install
 

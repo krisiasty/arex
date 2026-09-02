@@ -36,7 +36,7 @@ are actually polled.
 ## Quick start
 
 ```bash
-VERSION=v0.2.0
+VERSION=v0.9.0   # substitute the current release: https://github.com/krisiasty/arex/releases/latest
 curl -fsSL "https://github.com/krisiasty/arex/releases/download/${VERSION}/arex_${VERSION}_linux_amd64.tar.gz" \
   | tar xz
 
@@ -63,7 +63,7 @@ what to collect at which interval.
 Container images are published for `linux/amd64` and `linux/arm64`:
 
 ```bash
-docker pull ghcr.io/krisiasty/arex:v0.2.0
+docker pull ghcr.io/krisiasty/arex:v0.9.0
 ```
 
 Every release archive has an SPDX SBOM beside it, covered by the same

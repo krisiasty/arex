@@ -6,7 +6,7 @@ for Prometheus. This guide puts it under systemd with the switch password held i
 ## 1. Install the binary
 
 ```bash
-VERSION=v0.2.0
+VERSION=v0.9.0   # substitute the current release: https://github.com/krisiasty/arex/releases/latest
 ARCH=amd64   # or arm64
 
 curl -fsSLO "https://github.com/krisiasty/arex/releases/download/${VERSION}/arex_${VERSION}_linux_${ARCH}.tar.gz"
@@ -22,7 +22,7 @@ The tarball also carries `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES`, and the `de
 examples used below.
 
 Each archive has an SPDX SBOM beside it on the release page —
-`arex_v0.3.0_linux_amd64.tar.gz.sbom.json` — listing every module compiled into
+`arex_v0.9.0_linux_amd64.tar.gz.sbom.json` — listing every module compiled into
 that binary with its version. `checksums.txt` covers the archives **and** the
 SBOMs, so the `sha256sum --check` above verifies both.
 
