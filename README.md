@@ -36,7 +36,7 @@ are actually polled.
 ## Quick start
 
 ```bash
-VERSION=v0.9.0
+VERSION=v0.9.0   # substitute the current release: https://github.com/krisiasty/arex/releases/latest
 curl -fsSL "https://github.com/krisiasty/arex/releases/download/${VERSION}/arex_${VERSION}_linux_amd64.tar.gz" \
   | tar xz
 

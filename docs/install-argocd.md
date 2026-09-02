@@ -67,7 +67,7 @@ spec:
     # The chart, from the OCI registry.
     - repoURL: ghcr.io/krisiasty/charts
       chart: arex
-      targetRevision: 0.1.0
+      targetRevision: 0.9.0
       helm:
         valueFiles:
           - $values/clusters/prod/arex-values.yaml
@@ -86,6 +86,11 @@ spec:
 
 `targetRevision` pins the **chart** version; `image.tag` in values pins arex itself. They move independently on
 purpose — a chart fix should not imply a new exporter.
+
+Substitute the chart version you mean. The one above is current as this was written, and a chart version is not
+the same as an arex version: a chart is published alongside a release only when the chart itself changed, so the
+numbers drift apart. `helm show chart oci://ghcr.io/krisiasty/charts/arex` reports the latest, and its
+`appVersion` is the arex it installs.
 
 ## 3. Leave the Secret alone
 
