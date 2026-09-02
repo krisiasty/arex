@@ -190,7 +190,7 @@ See [Log levels](#log-levels) for what each level includes.
 ```json
 {"time":"2026-08-28T09:19:18.537Z","level":"WARN","msg":"arex starting",
  "version":"v0.9.0","revision":"8fd8759f2c1a","go_version":"go1.27.1",
- "switches":3,"poll_interval":"30s","staleness_limit":"90s","debug":false}
+ "switches":3,"poll_interval":"30s","staleness_limit":"90s","log_level":"info","debug":false}
 ```
 
 ### When a switch cannot be reached
@@ -293,6 +293,21 @@ an explicit `-debug=false`, which refuses verbosity and clamps a configured `deb
 ```yaml
 logLevel: warn
 ```
+
+### Confirming what a process resolved to
+
+The `arex starting` record names the level it settled on, in the same spelling the config uses:
+
+```json
+{"level":"WARN","msg":"arex starting","log_level":"warn","debug":false, ...}
+```
+
+Worth checking after a config change, because arex reads its config once at startup and never again. In
+Kubernetes that has a specific failure: a container that starts before its ConfigMap is written keeps the old
+config for its whole life, and the only symptom is records at a level you thought you had turned off. It happens
+when an upgrade applies the Deployment but not the ConfigMap — a rejected server-side apply, say — and the retry
+that fixes the ConfigMap does not roll the pod, because the pod template did not change. `log_level` in the
+startup record is how you tell that pod from a healthy one; `kubectl rollout restart` is the fix.
 
 ## Debug logging
 
