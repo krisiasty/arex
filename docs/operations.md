@@ -189,8 +189,8 @@ See [Log levels](#log-levels) for what each level includes.
 
 ```json
 {"time":"2026-08-28T09:19:18.537Z","level":"WARN","msg":"arex starting",
- "version":"v0.0.0-20260828085310-7a01577d0334+dirty","revision":"7a01577d0334",
- "go_version":"go1.27.0","switches":3,"poll_interval":"30s","staleness_limit":"90s","debug":false}
+ "version":"v0.9.0","revision":"8fd8759f2c1a","go_version":"go1.27.1",
+ "switches":3,"poll_interval":"30s","staleness_limit":"90s","debug":false}
 ```
 
 ### When a switch cannot be reached
