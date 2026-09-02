@@ -14,6 +14,12 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 GRAFANA_DIR = ROOT / "monitoring" / "grafana"
 UID_RE = re.compile(r"^[A-Za-z0-9_-]{8,40}$")
+GENERIC_RUNTIME_METRIC_RE = re.compile(r"\b(?:go|process)_[A-Za-z_:][A-Za-z0-9_:]*")
+KUBERNETES_RESOURCE_METRIC_RE = re.compile(
+    r"\b(?:container_(?:cpu|memory)_[A-Za-z0-9_:]*|kube_pod_container_resource_(?:requests|limits))"
+)
+AREX_CONTAINER_MATCHER_RE = re.compile(r'\bcontainer\s*=\s*"arex"')
+NONEMPTY_IMAGE_MATCHER_RE = re.compile(r'\bimage\s*!=\s*""')
 DATASOURCE_VALUES = {"$datasource", "${datasource}"}
 DASHBOARD_IDENTITIES = {
     "arex-health.json": ("arex-exporter-health", "arex / Exporter health"),
@@ -117,6 +123,8 @@ def validate_variables(dashboard: dict[str, Any]) -> list[str]:
     job = by_name.get("job", {})
     if job.get("type") != "query" or "label_values(arex_build_info, job)" not in query_text(job):
         errors.append("job variable must read job from arex_build_info")
+    if job.get("allValue"):
+        errors.append("job variable must derive its All value from arex_build_info options")
 
     switch = by_name.get("switch", {})
     switch_query = query_text(switch)
@@ -162,6 +170,33 @@ def validate_panels(dashboard: dict[str, Any]) -> list[str]:
         no_value = defaults.get("noValue") if isinstance(defaults, dict) else None
         if not isinstance(no_value, str) or not no_value.strip():
             errors.append(f"panels[{index}] must set fieldConfig.defaults.noValue")
+
+        targets = panel.get("targets", [])
+        if not isinstance(targets, list):
+            continue
+        for target_index, target in enumerate(targets):
+            expression = target.get("expr") if isinstance(target, dict) else None
+            if not isinstance(expression, str):
+                continue
+            if GENERIC_RUNTIME_METRIC_RE.search(expression) and "arex_build_info" not in expression:
+                errors.append(
+                    f"panels[{index}].targets[{target_index}] generic runtime metric must be scoped to arex_build_info"
+                )
+            if KUBERNETES_RESOURCE_METRIC_RE.search(expression) and not AREX_CONTAINER_MATCHER_RE.search(expression):
+                errors.append(
+                    f"panels[{index}].targets[{target_index}] "
+                    'Kubernetes resource metric must select container="arex"'
+                )
+            if KUBERNETES_RESOURCE_METRIC_RE.search(expression) and "arex_build_info" not in expression:
+                errors.append(
+                    f"panels[{index}].targets[{target_index}] "
+                    "Kubernetes resource metric must be scoped to arex_build_info"
+                )
+            if KUBERNETES_RESOURCE_METRIC_RE.search(expression) and NONEMPTY_IMAGE_MATCHER_RE.search(expression):
+                errors.append(
+                    f"panels[{index}].targets[{target_index}] "
+                    "Kubernetes usage metric must not require a non-empty image label"
+                )
     return errors
 
 

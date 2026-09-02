@@ -312,7 +312,8 @@ listenTLS:
 ```
 
 Both or neither — half a TLS configuration is rejected at load. The files are checked at startup, so a wrong path
-fails immediately instead of at the first scrape, and a private key readable beyond its owner produces a warning.
+fails immediately instead of at the first scrape, and a private key readable beyond its owner produces a warning —
+on the same terms as a password file, so a key mounted `0440` under the pod's own `fsGroup` is not one.
 
 **Certificates are re-read when they change on disk.** cert-manager renews well before expiry without restarting
 anything, and a certificate read only at startup would expire in memory while a valid one sat on disk. arex

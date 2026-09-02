@@ -53,6 +53,14 @@ class CheckGrafanaTest(unittest.TestCase):
             errors = check_grafana.check_paths([path])
         self.assertTrue(any("navigation" in error for error in errors), errors)
 
+    def test_job_variable_must_not_use_unrestricted_all_value(self) -> None:
+        dashboard = copy.deepcopy(self.dashboard)
+        dashboard["templating"]["list"][1]["allValue"] = ".*"
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write_dashboard(directory, "dashboard.json", dashboard)
+            errors = check_grafana.check_paths([path])
+        self.assertTrue(any("must derive its All value" in error for error in errors), errors)
+
     def test_visualization_panel_requires_no_value_text(self) -> None:
         dashboard = copy.deepcopy(self.dashboard)
         dashboard["panels"] = [{"fieldConfig": {"defaults": {}}, "type": "stat"}]
@@ -60,6 +68,72 @@ class CheckGrafanaTest(unittest.TestCase):
             path = self.write_dashboard(directory, "dashboard.json", dashboard)
             errors = check_grafana.check_paths([path])
         self.assertTrue(any("noValue" in error for error in errors), errors)
+
+    def test_generic_runtime_metric_must_be_scoped_to_arex(self) -> None:
+        dashboard = copy.deepcopy(self.dashboard)
+        dashboard["panels"] = [
+            {
+                "fieldConfig": {"defaults": {"noValue": "Exporter absent"}},
+                "targets": [{"expr": 'go_goroutines{job=~"$job"}'}],
+                "type": "timeseries",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write_dashboard(directory, "dashboard.json", dashboard)
+            errors = check_grafana.check_paths([path])
+        self.assertTrue(any("must be scoped to arex_build_info" in error for error in errors), errors)
+
+    def test_kubernetes_resource_metric_must_select_arex_container(self) -> None:
+        dashboard = copy.deepcopy(self.dashboard)
+        dashboard["panels"] = [
+            {
+                "fieldConfig": {"defaults": {"noValue": "Kubernetes metrics unavailable"}},
+                "targets": [{"expr": 'rate(container_cpu_usage_seconds_total{container!=""}[5m])'}],
+                "type": "timeseries",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write_dashboard(directory, "dashboard.json", dashboard)
+            errors = check_grafana.check_paths([path])
+        self.assertTrue(
+            any('Kubernetes resource metric must select container="arex"' in error for error in errors)
+        )
+
+    def test_kubernetes_resource_metric_must_be_scoped_to_arex(self) -> None:
+        dashboard = copy.deepcopy(self.dashboard)
+        dashboard["panels"] = [
+            {
+                "fieldConfig": {"defaults": {"noValue": "Kubernetes metrics unavailable"}},
+                "targets": [{"expr": 'container_memory_working_set_bytes{container="arex"}'}],
+                "type": "timeseries",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write_dashboard(directory, "dashboard.json", dashboard)
+            errors = check_grafana.check_paths([path])
+        self.assertTrue(
+            any("Kubernetes resource metric must be scoped to arex_build_info" in error for error in errors)
+        )
+
+    def test_kubernetes_usage_metric_must_not_require_image_label(self) -> None:
+        dashboard = copy.deepcopy(self.dashboard)
+        dashboard["panels"] = [
+            {
+                "fieldConfig": {"defaults": {"noValue": "Kubernetes metrics unavailable"}},
+                "targets": [
+                    {
+                        "expr": (
+                            'container_memory_working_set_bytes{container="arex",image!=""}'
+                        )
+                    }
+                ],
+                "type": "timeseries",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write_dashboard(directory, "dashboard.json", dashboard)
+            errors = check_grafana.check_paths([path])
+        self.assertTrue(any("must not require a non-empty image label" in error for error in errors), errors)
 
     def test_noncanonical_json_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

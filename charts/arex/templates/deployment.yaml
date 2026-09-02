@@ -101,6 +101,11 @@ spec:
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+      # The secret volumes ask for 0400, and land as 0440 root:<fsGroup>. A
+      # secret volume is root-owned whatever the pod runs as, so podSecurityContext
+      # .fsGroup is what makes it readable at all: the kubelet chowns the mount to
+      # the fsGroup and widens a read-only volume to at least 0440. That is the
+      # tightest a mounted secret can be, and arex does not warn about it.
       volumes:
         - name: config
           configMap:

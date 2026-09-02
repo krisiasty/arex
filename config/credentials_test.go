@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -139,6 +140,39 @@ func TestLoosePermissionsWarnButDoNotFail(t *testing.T) {
 	joined := strings.Join(cfg.Warnings, "\n")
 	if !strings.Contains(joined, "sw1") || !strings.Contains(joined, "0644") {
 		t.Errorf("warning should name the switch and the mode: %q", joined)
+	}
+}
+
+// A Kubernetes secret volume is root-owned and reaches a non-root container
+// through fsGroup, which the kubelet honours by widening the mount to 0440
+// root:<fsGroup>. That is the tightest a mounted secret can be, so warning
+// about it would mean warning about every correct deployment.
+func TestGroupReadableByOurOwnGroupIsNotAWarning(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("no file group to belong to")
+	}
+	p := writeSecret(t, "hunter2", 0o440)
+	cfg, err := Load(writeRaw(t, switchCfg(`"passwordFile":"`+p+`",`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Warnings) != 0 {
+		t.Errorf("0440 owned by our own group is not a leak, got %q", cfg.Warnings)
+	}
+}
+
+// The other bits are a leak whatever the group is.
+func TestWorldReadableWarnsEvenWithOurOwnGroup(t *testing.T) {
+	p := writeSecret(t, "hunter2", 0o444)
+	cfg, err := Load(writeRaw(t, switchCfg(`"passwordFile":"`+p+`",`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Warnings) == 0 {
+		t.Fatal("a world-readable password file should produce a warning")
+	}
+	if joined := strings.Join(cfg.Warnings, "\n"); !strings.Contains(joined, "0444") {
+		t.Errorf("warning should name the mode: %q", joined)
 	}
 }
 
