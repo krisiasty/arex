@@ -35,6 +35,12 @@ scrapeTimeout: 10s
 stalenessLimit: 90s
 debug: false
 
+# The minimum level to log: debug, info, warn (or warning), or error. Only the
+# per-poll "eapi request successful" record is logged at info; everything else
+# arex says is warn or above, so warn is what quiets a healthy fleet without
+# hiding anything. -log-level overrides this, and debug wins over both.
+logLevel: info
+
 # The credential file for every switch that does not name its own. Under
 # systemd this is where LoadCredential= puts it; in Kubernetes, point it at a
 # mounted secret. See the Credentials section of the README.

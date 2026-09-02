@@ -80,7 +80,8 @@ docker buildx imagetools inspect ghcr.io/krisiasty/arex:latest --format "{{ json
 | --- | --- |
 | `-config` | Path to the config file. Default `config.yaml`. YAML, and JSON is accepted since JSON is valid YAML |
 | `-check` | Validate the config and every switch's TLS material and credential, then exit. Connects to nothing |
-| `-debug` | One structured log record per eAPI request. Also settable as `debug: true` in the config |
+| `-log-level` | Minimum level to log: `debug`, `info`, `warn` (or `warning`), `error`. Default `info`. Also settable as `logLevel` in the config. `warn` drops the per-poll success record and keeps everything else |
+| `-debug` | One structured log record per eAPI request. Also settable as `debug: true` in the config. Implies `-log-level=debug` |
 | `-version` | Print the version, commit, build time and Go version, then exit |
 | `-licenses` | Print the licences of everything linked into the binary, then exit |
 

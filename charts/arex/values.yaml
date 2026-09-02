@@ -74,6 +74,14 @@ config:
   stalenessLimit: 90s
   debug: false
 
+  # Minimum level to log: debug, info, warn (or warning), error. Only the
+  # per-poll "eapi request successful" record is logged at info, so warn quiets
+  # a healthy fleet -- roughly 2,900 records a day per switch on a 30s
+  # interval -- while keeping startup, recoveries, failures and everything
+  # else. Note that startup and shutdown are logged at warn, so an alert keyed
+  # on warn and above will see them; key it on error, or on the msg field.
+  logLevel: info
+
   collect:
     processes:
       enabled: true
