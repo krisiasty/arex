@@ -40,9 +40,10 @@ type stamp struct {
 }
 
 // reloadInterval bounds how often the certificate files are stat-ed and the
-// scrape password file is re-read. A renewed certificate or a rotated password
-// is picked up within this, without a stat on every handshake or a read on
-// every rejected request.
+// scrape password file is re-read, so there is no stat on every handshake and
+// no read on every rejected request. Neither is checked on a timer: a renewed
+// certificate is picked up by the first handshake after the interval, and a
+// rotated password by the first rejected request after it.
 const reloadInterval = 30 * time.Second
 
 func newCertificate(certFile, keyFile string) (*certificate, error) {

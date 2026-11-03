@@ -401,10 +401,13 @@ even when the username is already wrong, so a response time cannot reveal that t
 **The re-read is throttled to once every 30 seconds.** The switch client can re-read on every rejection because
 arex decides when a poll runs; here anyone who can reach the port decides when a request arrives. So a rejected
 request re-reads the file only if the last read was at least 30 seconds ago, and the limit is shared by every
-request: a burst of wrong passwords costs one read, not one each. A rotation is still picked up within 30 seconds
-of the first scrape that carries the new password, and that scrape is checked again against what was read, so it
-succeeds rather than the one after it. From then on the old password is refused. A file that cannot be read, or
-is empty, keeps the password already in memory, so a half-written secret does not lock out a working scraper.
+request: a burst of wrong passwords costs one read, not one each. Nothing reads the file on a timer: a rotation
+is picked up by the first rejected request once those 30 seconds have passed, and that request is checked again
+against what was read, so it succeeds rather than the one after it. A scrape with the new password that arrives
+inside the 30 seconds is refused without a read, so the pickup waits for the next one — with a 60-second scrape
+interval, up to a minute after the first refusal. From then on the old password is refused. A file that cannot be
+read, or is empty, keeps the password already in memory, so a half-written secret does not lock out a working
+scraper.
 
 Both outcomes are logged at `WARN` with the username, never the password: `scrape password rotated` and
 `scrape password reload failed`. There is no metric for them — a rejected scrape is already `up == 0` in
