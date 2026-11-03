@@ -324,7 +324,8 @@ a gap in the series every day to protect a key that expires tomorrow anyway.
 
 Agent's `command` does not have to restart anything for arex's sake. arex
 re-reads the certificate pair when it changes on disk, and re-reads the scrape
-password after a rejection, so a renewal reaches it on its own.
+password after a rejection, each at most every 30 seconds, so a renewal reaches
+it on its own.
 
 ## 5. Install the unit
 
