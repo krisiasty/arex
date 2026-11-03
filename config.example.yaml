@@ -21,8 +21,9 @@ listenAddress: ":9100"
 #   basic:
 #     username: prometheus
 #     # A file, like the switch credentials: deliverable by systemd or a
-#     # Kubernetes secret, and re-read after a rejection so a rotation needs
-#     # no restart. /livez and /readyz are never covered.
+#     # Kubernetes secret, and re-read after a rejection -- at most every 30
+#     # seconds -- so a rotation needs no restart. /livez and /readyz are never
+#     # covered.
 #     passwordFile: /run/credentials/arex.service/web-password
 #
 # With mutual TLS the kubelet cannot reach /livez -- a client certificate is

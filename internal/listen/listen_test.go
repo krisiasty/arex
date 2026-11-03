@@ -1,18 +1,21 @@
 package listen
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"log/slog"
 	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -258,44 +261,156 @@ func TestBasicAuth(t *testing.T) {
 	}
 }
 
-// The password file is re-read, so a rotated secret is accepted without a
-// restart -- the same property the switch credentials have.
-func TestBasicAuthFollowsARotatedPassword(t *testing.T) {
-	dir := t.TempDir()
-	pwPath := filepath.Join(dir, "pw")
-	if err := os.WriteFile(pwPath, []byte("old"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	cred, err := secret.NewFileCredential(pwPath)
+// rotating is basic auth over a password file, with a clock the test moves and
+// a log the test reads.
+type rotating struct {
+	t    *testing.T
+	path string
+	now  time.Time
+	h    http.Handler
+	logs *bytes.Buffer
+}
+
+// The passwords are long enough that finding one in the log means it leaked,
+// not that it collided with some other word.
+const (
+	oldPassword = "old-scrape-secret-0b1c" //nolint:gosec // G101: a test fixture, not a credential
+	newPassword = "new-scrape-secret-7e9d" //nolint:gosec // G101: a test fixture, not a credential
+)
+
+func newRotating(t *testing.T) *rotating {
+	t.Helper()
+	r := &rotating{t: t, path: filepath.Join(t.TempDir(), "pw"), now: time.Now(), logs: &bytes.Buffer{}}
+	r.write(oldPassword + "\n")
+	cred, err := secret.NewFileCredential(r.path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	h := BasicAuth(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	// Debug, so a password logged at any level would show up here.
+	logger := slog.New(slog.NewTextHandler(r.logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	a := newBasicAuth("prometheus", cred, logger, func() time.Time { return r.now })
+	r.h = a.handler(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-	}), "prometheus", cred)
+	}))
+	return r
+}
 
-	call := func(pass string) int {
-		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", nil)
-		req.SetBasicAuth("prometheus", pass)
-		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, req)
-		return rec.Code
+// write replaces the password file, as the kubelet does when a secret rotates.
+func (r *rotating) write(body string) {
+	r.t.Helper()
+	if err := os.WriteFile(r.path, []byte(body), 0o600); err != nil {
+		r.t.Fatal(err)
 	}
+}
 
-	if got := call("old"); got != http.StatusOK {
+func (r *rotating) call(pass string) int {
+	req := httptest.NewRequestWithContext(r.t.Context(), http.MethodGet, "/metrics", nil)
+	req.SetBasicAuth("prometheus", pass)
+	rec := httptest.NewRecorder()
+	r.h.ServeHTTP(rec, req)
+	return rec.Code
+}
+
+// noPasswordsLogged fails if either password reached the log, at any level.
+func (r *rotating) noPasswordsLogged() {
+	r.t.Helper()
+	for _, pw := range []string{oldPassword, newPassword} {
+		if strings.Contains(r.logs.String(), pw) {
+			r.t.Errorf("a password was logged:\n%s", r.logs)
+		}
+	}
+}
+
+// The password file is re-read after a rejection, so a rotated secret is
+// accepted without a restart -- the same property the switch credentials have.
+// Nothing here calls Reload: the middleware has to do it on its own.
+func TestBasicAuthFollowsARotatedPassword(t *testing.T) {
+	r := newRotating(t)
+
+	if got := r.call(oldPassword); got != http.StatusOK {
 		t.Fatalf("the current password = %d, want 200", got)
 	}
-	if err := os.WriteFile(pwPath, []byte("new"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := cred.Reload(); err != nil {
-		t.Fatal(err)
-	}
-	if got := call("new"); got != http.StatusOK {
+	r.write(newPassword)
+	r.now = r.now.Add(reloadInterval)
+
+	// The first scrape with the new password is the one that finds it, and it
+	// succeeds rather than waiting for the next.
+	if got := r.call(newPassword); got != http.StatusOK {
 		t.Errorf("the rotated password = %d, want 200", got)
 	}
-	if got := call("old"); got != http.StatusUnauthorized {
+	if got := r.call(oldPassword); got != http.StatusUnauthorized {
 		t.Errorf("the old password = %d, want 401", got)
+	}
+	if !strings.Contains(r.logs.String(), "scrape password rotated") {
+		t.Errorf("a rotation should be logged, got:\n%s", r.logs)
+	}
+	r.noPasswordsLogged()
+}
+
+// Anyone who can reach the port can send a bad password, so a rejection must
+// not be a file read every time. The throttle is shared across requests: a
+// burst costs one read per interval, not one per request.
+func TestBasicAuthThrottlesRereads(t *testing.T) {
+	r := newRotating(t)
+
+	// Inside the interval since the password was read, a rotated file is not
+	// looked at: the new password is still refused.
+	r.write(newPassword)
+	r.now = r.now.Add(reloadInterval - time.Second)
+	for range 10 {
+		if got := r.call(newPassword); got != http.StatusUnauthorized {
+			t.Fatalf("inside the interval = %d, want 401: the file was re-read", got)
+		}
+	}
+
+	// Once the interval has passed, a burst of wrong passwords spends the one
+	// read it allows and finds nothing changed...
+	r.write(oldPassword)
+	r.now = r.now.Add(time.Second)
+	for range 10 {
+		if got := r.call("wrong"); got != http.StatusUnauthorized {
+			t.Fatalf("a wrong password = %d, want 401", got)
+		}
+	}
+	// ...so a rotation landing just after it waits for the next interval.
+	r.write(newPassword)
+	if got := r.call(newPassword); got != http.StatusUnauthorized {
+		t.Errorf("a second read inside one interval = %d, want 401", got)
+	}
+	r.now = r.now.Add(reloadInterval)
+	if got := r.call(newPassword); got != http.StatusOK {
+		t.Errorf("after the next interval = %d, want 200", got)
+	}
+	r.noPasswordsLogged()
+}
+
+// A half-written or missing file must not lock out a scraper that was working a
+// moment ago.
+func TestBasicAuthKeepsThePasswordWhenTheRereadFails(t *testing.T) {
+	for name, broken := range map[string]func(r *rotating){
+		"empty": func(r *rotating) { r.write("") },
+		"missing": func(r *rotating) {
+			if err := os.Remove(r.path); err != nil {
+				r.t.Fatal(err)
+			}
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := newRotating(t)
+			broken(r)
+			r.now = r.now.Add(reloadInterval)
+
+			if got := r.call("wrong"); got != http.StatusUnauthorized {
+				t.Fatalf("a wrong password = %d, want 401", got)
+			}
+			if got := r.call(oldPassword); got != http.StatusOK {
+				t.Errorf("the password in memory = %d, want 200", got)
+			}
+			if !strings.Contains(r.logs.String(), "scrape password reload failed") {
+				t.Errorf("a failed re-read should be logged, got:\n%s", r.logs)
+			}
+			r.noPasswordsLogged()
+		})
 	}
 }
 

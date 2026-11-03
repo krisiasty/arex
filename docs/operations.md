@@ -398,6 +398,30 @@ systemd's credential store or a Kubernetes secret, given restrictive permissions
 so a rotated password needs no restart**. Credentials are compared in constant time, and both halves are compared
 even when the username is already wrong, so a response time cannot reveal that the username was right.
 
+**The re-read is throttled to once every 30 seconds.** The switch client can re-read on every rejection because
+arex decides when a poll runs; here anyone who can reach the port decides when a request arrives. So a rejected
+request re-reads the file only if the last read was at least 30 seconds ago, and the limit is shared by every
+request: a burst of wrong passwords costs one read, not one each. Nothing reads the file on a timer: a rotation
+is picked up by the first rejected request once those 30 seconds have passed, and that request is checked again
+against what was read, so it succeeds rather than the one after it. A scrape with the new password that arrives
+inside the 30 seconds is refused without a read, so the pickup waits for the next one — with a 60-second scrape
+interval, up to a minute after the first refusal. From then on the old password is refused. A file that cannot be
+read, or is empty, keeps the password already in memory, so a half-written secret does not lock out a working
+scraper.
+
+Both outcomes are logged at `WARN` with the username, never the password: `scrape password rotated` and
+`scrape password reload failed`. There is no metric for them — a rejected scrape is already `up == 0` in
+Prometheus.
+
+**Prometheus and arex pick up a rotation separately.** In Kubernetes each reads its own copy of the Secret, and
+each copy updates on its own schedule: the kubelet refreshes a mounted secret on its sync period, and
+prometheus-operator re-reads the one it references when it next reconciles. If arex has the new password while
+Prometheus still sends the old one, scrapes fail until Prometheus catches up. Re-reading on a rejection cannot help
+there, because the client is the one behind, and arex deliberately does not accept the old and the new password
+side by side. Expect a short run of `up == 0` across a rotation. If it lasts beyond a few minutes, check that both
+sides reference the same Secret. Under systemd, `LoadCredential=` copies the file at start, so the re-read never
+sees a new one: restart after rotating, or have something like Vault Agent write the file in place.
+
 **`/livez` and `/readyz` are never covered.** A Kubernetes liveness probe sends no credentials, so requiring them
 there would turn a health check into a restart loop. Those endpoints report only whether arex is up. `/status` is
 covered, because it names the switches.
